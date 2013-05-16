@@ -13,10 +13,17 @@ import os, sys, time, datetime
 import json
 from calendar import monthrange
 
+HOST = 'localhost'
+DATABASE = 'nozomi'
+DEBUG = True
+PASSWORD = '2e4n5k2w2x'
+
+
 reload(sys)
 sys.setdefaultencoding('utf-8') 
 
 app = Flask(__name__)
+app.config.from_object(__name__)
 
 dailyModule = DailyModule("nozomi_user_login")
 achieveModule = AchieveModule("nozomi_achievement")
@@ -216,7 +223,7 @@ def login():
             if days>0:
                 ret['days']=days
 
-        con = MySQLdb.connect(host="192.168.3.105", user='root', passwd="badperson", db="nozomi", charset='utf8')
+        con = MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
         sql = 'select * from nozomi_params'
         con.query(sql)
         res = con.store_result().fetch_row(0, 1)
@@ -345,4 +352,4 @@ def sendFeedback():
 app.secret_key = os.urandom(24)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0', port = 9000)
