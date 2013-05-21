@@ -290,8 +290,7 @@ def login():
         """
         ret['params'] = params
         con.close()
-"""
-=======
+        """
         if True:
             con = MySQLdb.connect(host="192.168.3.105", user='root', passwd="badperson", db="nozomi", charset='utf8')
             sql = 'select * from nozomi_params'
@@ -317,8 +316,7 @@ def login():
             params['attackWaves'] = waves
             ret['params'] = params
             con.close()
->>>>>>> f189b41a70bae5288f44c12474124aa93fab4bc0
-"""
+        """
         return json.dumps(ret)
     else:
         return "{'code':401}"
@@ -411,7 +409,7 @@ def findEnemy():
     uid = 34
     if isGuide==None:
         uid = findAMatch(selfUid, int(request.args.get('baseScore', 0)), 1000)
-    #uid = 29
+    uid = 29
     data = getUserInfos(uid)
     data['builds'] = getUserBuilds(uid)
     data['userId'] = uid
