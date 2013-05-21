@@ -11,6 +11,7 @@ from module import *
 import MySQLdb
 import os, sys, time, datetime
 import json
+import logging
 from calendar import monthrange
 
 HOST = 'localhost'
@@ -28,34 +29,74 @@ app.config.from_object(__name__)
 dailyModule = DailyModule("nozomi_user_login")
 achieveModule = AchieveModule("nozomi_achievement")
 
+statlogger = logging.getLogger("STAT")
+f = logging.FileHandler("stat.log")
+statlogger.addHandler(f)
+formatter = logging.Formatter("%(asctime)s\t%(message)s")   
+f.setFormatter(formatter)
+statlogger.setLevel(logging.INFO)
+
+crystallogger = logging.getLogger("CRYSTAL")
+f = logging.FileHandler("crystal_stat.log")
+crystallogger.addHandler(f)
+formatter = logging.Formatter("%(asctime)s\t%(message)s")   
+f.setFormatter(formatter)
+crystallogger.setLevel(logging.INFO)
+
 @app.errorhandler(501)
 def user_not_login(error):
     return redirect(url_for('login'))
 
-dataBuilds = [{'buildIndex':1, 'grid':190020, 'bid':1, 'level':1, 'time':0, 'hitpoints':0, 'extend':{'oil':1000, 'food':1000}},
-              {'buildIndex':2, 'grid':130027, 'bid':1000, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':3, 'grid':210016, 'bid':2002, 'level':1, 'time':0, 'hitpoints':0, 'extend':{'resource': 500}},
-              {'buildIndex':4, 'grid':250026, 'bid':2004, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':5, 'grid':260021, 'bid':2005, 'level':1, 'time':0, 'hitpoints':0, 'extend':{'resource':12}},
-              {'buildIndex':6, 'grid':380002, 'bid':4007, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':7, 'grid':370013, 'bid':4004, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':8, 'grid':350027, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':9, 'grid':350035, 'bid':4014, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':10, 'grid':20006, 'bid':4013, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':11, 'grid':20021, 'bid':4009, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':12, 'grid':40036, 'bid':4014, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':13, 'grid':100002, 'bid':4008, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':14, 'grid':90014, 'bid':4006, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':15, 'grid':130017, 'bid':4002, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':16, 'grid':140021, 'bid':4014, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':17, 'grid':180017, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':18, 'grid':210004, 'bid':4009, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':19, 'grid':250009, 'bid':4000, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':20, 'grid':200030, 'bid':4004, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':21, 'grid':230030, 'bid':4009, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':22, 'grid':210038, 'bid':4008, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':23, 'grid':380010, 'bid':4003, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':24, 'grid':200027, 'bid':3000, 'level':1, 'time':0, 'hitpoints':0}
+dataBuilds = [
+              {'buildIndex':1, 'grid':170018, 'bid':1, 'level':1, 'time':0, 'hitpoints':1500, 'extend':{'oil':1000, 'food':1000}},
+              {'buildIndex':2, 'grid':110009, 'bid':2, 'level':0, 'time':0, 'hitpoints':0},
+              {'buildIndex':3, 'grid':130025, 'bid':2002, 'level':1, 'time':0, 'hitpoints':400, 'extend':{'resource':500}},
+              {'buildIndex':4, 'grid':250019, 'bid':2005, 'level':1, 'time':0, 'hitpoints':400, 'extend':{'resource':100}},
+              {'buildIndex':5, 'grid':240023, 'bid':2004, 'level':1, 'time':0, 'hitpoints':250, 'extend':{'resource':1}},
+              {'buildIndex':6, 'grid':180025, 'bid':1000, 'level':1, 'time':0, 'hitpoints':400},
+              {'buildIndex':7, 'grid':150030, 'bid':3000, 'level':1, 'time':0, 'hitpoints':400},
+              {'buildIndex':8, 'grid':350003, 'bid':1003, 'level':0, 'time':0, 'hitpoints':0},
+              {'buildIndex':9, 'grid':20002, 'bid':4003, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':10, 'grid':40008, 'bid':4013, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':11, 'grid':60005, 'bid':4007, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':12, 'grid':90009, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':13, 'grid':90011, 'bid':4006, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':14, 'grid':110006, 'bid':4014, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':15, 'grid':110012, 'bid':4009, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':16, 'grid':140009, 'bid':4002, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':17, 'grid':140011, 'bid':4004, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':18, 'grid':170008, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':19, 'grid':160004, 'bid':4007, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':20, 'grid':30017, 'bid':4008, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':21, 'grid':30024, 'bid':4000, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':22, 'grid':20036, 'bid':4009, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':23, 'grid':60029, 'bid':4001, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':24, 'grid':100036, 'bid':4001, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':25, 'grid':130033, 'bid':4003, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':26, 'grid':180035, 'bid':4002, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':27, 'grid':100021, 'bid':4007, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':28, 'grid':250012, 'bid':4001, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':29, 'grid':300017, 'bid':4014, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':30, 'grid':300023, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':31, 'grid':220003, 'bid':4004, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':32, 'grid':270006, 'bid':4002, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':33, 'grid':250030, 'bid':4009, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':34, 'grid':250035, 'bid':4004, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':35, 'grid':210038, 'bid':4008, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':36, 'grid':350001, 'bid':4008, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':37, 'grid':350007, 'bid':4008, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':38, 'grid':370001, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':39, 'grid':370007, 'bid':4013, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':40, 'grid':330003, 'bid':4001, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':41, 'grid':390003, 'bid':4000, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':42, 'grid':330005, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':43, 'grid':390005, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':44, 'grid':370020, 'bid':4004, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':45, 'grid':370024, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':46, 'grid':340029, 'bid':4001, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':47, 'grid':360033, 'bid':4003, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':48, 'grid':330036, 'bid':4008, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':49, 'grid':370037, 'bid':4014, 'level':1, 'time':0, 'hitpoints':0}
               ]
 
 def getUserInfos(uid):
@@ -249,6 +290,35 @@ def login():
         """
         ret['params'] = params
         con.close()
+"""
+=======
+        if True:
+            con = MySQLdb.connect(host="192.168.3.105", user='root', passwd="badperson", db="nozomi", charset='utf8')
+            sql = 'select * from nozomi_params'
+            con.query(sql)
+            res = con.store_result().fetch_row(0, 1)
+            params = dict()
+            for r in res:
+                params[r['key']] = int(r['value'])
+            sql = 'select * from nozomi_zombie_attack'
+            con.query(sql)
+            res = con.store_result().fetch_row(0, 1)
+            waves = []
+            for i in range(9):
+                waves.append([])
+                for j in range(1):
+                    waves[i].append([])
+                    for k in range(8):
+                        waves[i][j].append(0)
+            for r in res:
+                item = waves[int(r['nozomi_level'])-1][int(r['attack_wave'])-1]
+                for i in range(8):
+                    item[i] = int(r['zombie%d_num' % (i+11)])
+            params['attackWaves'] = waves
+            ret['params'] = params
+            con.close()
+>>>>>>> f189b41a70bae5288f44c12474124aa93fab4bc0
+"""
         return json.dumps(ret)
     else:
         return "{'code':401}"
@@ -299,6 +369,12 @@ def synData():
             setUserShield(uid, userInfo['shieldTime'])
     updateUserInfoById(userInfoUpdate, uid)
     updateUserState(uid, int(request.form.get("eid", 0)))
+    if 'stat' in request.form:
+        statlogger.info("%d\t%s" % (uid, request.form['stat']))
+    if 'crystal' in request.form:
+        ls = json.loads(request.form['crystal'])
+        for l in ls:
+            crystallogger.info("%d\t%s" % (uid, json.dumps(l)))
     return json.dumps({'code':0})
 
 @app.route("/synBattleData", methods=['POST'])
@@ -332,10 +408,10 @@ def findEnemy():
     selfUid = int(request.args.get('uid', 0))
     updateUserState(selfUid, int(request.args.get("eid", 0)))
     isGuide = request.args.get('isGuide')
-    uid = 10
+    uid = 34
     if isGuide==None:
         uid = findAMatch(selfUid, int(request.args.get('baseScore', 0)), 1000)
-    #uid = 8
+    #uid = 29
     data = getUserInfos(uid)
     data['builds'] = getUserBuilds(uid)
     data['userId'] = uid
