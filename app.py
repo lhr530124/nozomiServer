@@ -230,6 +230,7 @@ def login():
         params = dict()
         for r in res:
             params[r['key']] = int(r['value'])
+        """
         sql = 'select * from nozomi_zombie_attack'
         con.query(sql)
         res = con.store_result().fetch_row(0, 1)
@@ -245,6 +246,7 @@ def login():
             for i in range(8):
                 item[i] = int(r['zombie%d_num' % (i+11)])
         params['attackWaves'] = waves
+        """
         ret['params'] = params
         con.close()
         return json.dumps(ret)
