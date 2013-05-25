@@ -140,6 +140,19 @@ def updateUserBuilds(uid, datas):
         params.append([uid, data['buildIndex'], data['grid'], data['bid'], data['level'], data['time'], data['hitpoints'], extend])
     executemany("INSERT INTO nozomi_build (id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend) VALUES(%s,%s,%s,0,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE grid=VALUES(grid),state=0,bid=VALUES(bid),level=VALUES(level),`time`=VALUES(time),hitpoints=VALUES(hitpoints),extend=VALUES(extend);", params)
 
+def getUserResearch(uid):
+    researches = queryOne("SELECT research FROM nozomi_research WHERE id=%s", (uid))
+    return json.loads(researches[0])
+
+def updateUserResearch(uid, researches):
+    update("UPDATE nozomi_research SET research=%s WHERE id=%s", (json.dumps(researches), uid))
+    
+def updateUserBuildHitpoints(uid, datas):
+    params = []
+    for data in datas:
+        params.append([data[1], uid, data[0]])
+    executemany("UPDATE nozomi_build SET hitpoints=%s WHERE id=%s AND buildIndex=%s", params)
+
 def getUidByName(account):
     ret = queryOne("SELECT id FROM nozomi_user WHERE account=%s", (account))
     if ret==None:
@@ -151,6 +164,7 @@ def initUser(username, nickname):
     regTime = int(time.mktime(time.localtime()))
     uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, score, crystal, shieldTime) VALUES(%s, %s, %s, 500, 497, 0)", (username, regTime, nickname))
     updateUserBuilds(uid, dataBuilds)
+    update("INSERT INTO nozomi_research (id, research) VALUES(%s, '[1,1,1,1,1,1,1,1,1,1]')", (uid))
     newUserState(uid)
     return uid
 
@@ -177,6 +191,15 @@ def getClanInfo(cid):
 def getClanMembers(cid):
     ret = queryAll("SELECT id, name, score FROM nozomi_user WHERE clan=%s", (cid))
     return [dict(id=r[0], name=r[1], score=r[2]) for r in ret]
+
+@app.route("/getBattleHistory", methods=['GET'])
+def getBattleHistory():
+    uid = int(request.args['uid'])
+    ret = queryAll("SELECT info, eid, time, videoId, reverged FROM nozomi_battle_history WHERE uid=%s" , (uid))
+    if ret==None:
+        return "[]"
+    else:
+        return json.dumps([[json.loads(r[0]), r[1], r[2], r[3], r[4]] for r in ret])
 
 @app.route("/findClans", methods=['GET'])
 def findClans():
@@ -302,7 +325,30 @@ def getData():
     else:
         infos = getUserInfos(uid)
     data['builds'] = getUserBuilds(uid)
+    data['researches'] = getUserResearch(uid)
     return json.dumps(data)
+
+@app.route("/reverge", methods=['GET'])
+def revergeGetData():
+    uid = int(request.args.get("uid"))
+    eid = int(request.args.get("eid"))
+    state = getUserState(eid)
+    if 'attackTime' in state:
+        return json.dumps(dict(code=1))
+    elif 'onlineTime' in state:
+        return json.dumps(dict(code=2))
+    elif 'shieldTime' in state:
+        return json.dumps(dict(code=3))
+    else:
+        data = getUserInfos(eid)
+        data['builds'] = getUserBuilds(eid)
+        data['code'] = 0
+        return json.dumps(data)
+
+@app.route("/getReplay", methods=['GET'])
+def getReplay():
+    vid = int(request.args.get("vid"))
+    return queryOne("SELECT replay FROM nozomi_replay WHERE id=%s", (vid))[0]
 
 @app.route("/synData", methods=['POST'])
 def synData():
@@ -320,6 +366,9 @@ def synData():
         #print("receive achieves", request.form['achieves'])
         achieves = json.loads(request.form['achieves'])
         achieveModule.updateAchieves(uid, achieves)
+    if 'research' in request.form:
+        researches = json.loads(request.form['research'])
+        updateUserResearch(uid, researches)
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
     #if 'shieldTime' in request.form:
     #    userInfoUpdate['shieldTime'] = int(request.form['shieldTime'])
@@ -351,8 +400,11 @@ def synBattleData():
         deleteUserBuilds(eid, delete)
     if 'update' in request.form:
         #print("test_update", request.form['update'])
-        update = json.loads(request.form['update'])
-        updateUserBuilds(eid, update)
+        up = json.loads(request.form['update'])
+        updateUserBuilds(eid, up)
+    if 'hits' in request.form:
+        hits = json.loads(request.form['hits'])
+        updateUserBuildHitpoints(eid, hits)
     incScore = int(request.form.get("score", 0))
     baseScore = getUserInfos(eid)['score']
     userInfoUpdate=dict(score=baseScore+incScore)
@@ -364,20 +416,31 @@ def synBattleData():
     #if 'guide' in request.form:
     #    userInfoUpdate['guideValue'] = int(request.form['guide'])
     updateUserState(uid, eid)
+    reverged = 0
+    if 'isReverge' in request.form:
+        reverged = 1
+        print("Clear Reverge")
+        update("UPDATE nozomi_battle_history SET reverged=1 WHERE uid=%s AND eid=%s", (uid, eid))
+    if 'history' in request.form:
+        videoId = 0
+        if 'replay' in request.form:
+            videoId = insertAndGetId("INSERT INTO nozomi_replay (replay) VALUES(%s)", (request.form['replay']))
+        update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s)", (eid, uid, videoId, int(time.mktime(time.localtime())), request.form['history'], reverged))
     return json.dumps({'code':0})
 
 @app.route("/findEnemy", methods=['GET'])
 def findEnemy():
     selfUid = int(request.args.get('uid', 0))
-    updateUserState(selfUid, int(request.args.get("eid", 0)))
     isGuide = request.args.get('isGuide')
     uid = 34
     if isGuide==None:
         uid = findAMatch(selfUid, int(request.args.get('baseScore', 0)), 1000)
     #uid = 29
+    print("Find Enemy:%d" % uid)
     data = getUserInfos(uid)
     data['builds'] = getUserBuilds(uid)
     data['userId'] = uid
+    updateUserState(selfUid, int(request.args.get("eid", 0)))
     return json.dumps(data)
 
 @app.route("/sendFeedback", methods=['POST'])
