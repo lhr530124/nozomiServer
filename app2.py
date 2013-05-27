@@ -10,14 +10,26 @@ import os, sys, time, datetime
 import json
 import logging
 from calendar import monthrange
+import config
+
+"""
+HOST = 'localhost'
+DATABASE = 'nozomi'
+DEBUG = True
+PASSWORD = '2e4n5k2w2x'
+"""
+
 
 reload(sys)
 sys.setdefaultencoding('utf-8') 
 
 app = Flask(__name__)
+app.config.from_object("config")
 
 def getConn():
-    return MySQLdb.connect(host='localhost', passwd='3508257', db='nozomi', user='root', charset='utf8')
+    #return MySQLdb.connect(host='localhost', passwd='3508257', db='nozomi', user='root', charset='utf8')
+    return MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
+
 
 @app.route("/updateScore")
 def updateScore(): 
@@ -57,4 +69,4 @@ def getUserRank():
 app.secret_key = os.urandom(24)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(debug=True, host='0.0.0.0', port=9002)
