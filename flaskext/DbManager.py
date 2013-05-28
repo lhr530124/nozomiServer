@@ -1,12 +1,19 @@
 import MySQLdb
 from DBUtils.PooledDB import PooledDB
+
+import sys
+sys.path.append('..')
+
+from config import *
+"""
 HOST = 'localhost'
 PASSWD = '2e4n5k2w2x'
+"""
 
 class DbManager:
 
     def __init__(self):
-        connKwargs = {'host':HOST,'user':'root','passwd':PASSWD,'db':'nozomi','charset':"utf8"}
+        connKwargs = {'host':HOST,'user':'root','passwd':PASSWORD,'db':'nozomi','charset':"utf8"}
         self._pool = PooledDB(MySQLdb, mincached=1, maxcached=10, maxshared=10, maxusage=10000, **connKwargs)
 
     def getConn(self):
