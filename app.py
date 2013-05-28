@@ -290,6 +290,7 @@ def login():
             if days>0:
                 ret['days']=days
 
+        """
         con = MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
         sql = 'select * from nozomi_params'
         con.query(sql)
@@ -297,7 +298,6 @@ def login():
         params = dict()
         for r in res:
             params[r['key']] = int(r['value'])
-        """
         sql = 'select * from nozomi_zombie_attack'
         con.query(sql)
         res = con.store_result().fetch_row(0, 1)
@@ -313,10 +313,8 @@ def login():
             for i in range(8):
                 item[i] = int(r['zombie%d_num' % (i+11)])
         params['attackWaves'] = waves
-        """
         ret['params'] = params
         con.close()
-        """
         if True:
             con = MySQLdb.connect(host="192.168.3.105", user='root', passwd="badperson", db="nozomi", charset='utf8')
             sql = 'select * from nozomi_params'
