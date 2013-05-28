@@ -35,7 +35,7 @@ def getConn():
 def updateScore(): 
     myCon = getConn();
     uid = int(request.args['uid'])
-    newScore = int(request.args['newScore'])
+    newScore = int(request.args['score'])
     UserRankModule.updateScore(myCon, uid, newScore)
     return json.dumps(dict(id=1))
 
