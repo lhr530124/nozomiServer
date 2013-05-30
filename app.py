@@ -472,7 +472,8 @@ def findEnemy():
     uid = 34
     if isGuide==None:
         uid = findAMatch(selfUid, int(request.args.get('baseScore', 0)), 1000)
-    #uid = 4
+    #uid = 23
+    uid = 4
     data = getUserInfos(uid)
     data['builds'] = getUserBuilds(uid)
     data['userId'] = uid
