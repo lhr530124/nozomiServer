@@ -349,7 +349,7 @@ def login():
         """
         return json.dumps(ret)
     else:
-        time.sleep(209) 
+        #time.sleep(209) 
         return "{'code':401}"
         #测试timeout
         #pass
@@ -502,4 +502,4 @@ def sendFeedback():
 app.secret_key = os.urandom(24)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port = 9003)
+    app.run(debug=True, host='0.0.0.0', port = config.HOSTPORT)

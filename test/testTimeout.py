@@ -7,11 +7,14 @@ import logging
 from logging.handlers import SMTPHandler
 import smtplib
 from email.mime.text import MIMEText
+import sys
+sys.path.append('..')
+from config import *
 
 lastTime = 0
 while True:
     try:
-        ret = urllib2.urlopen("http://localhost:9003/login", None, 15)
+        ret = urllib2.urlopen("http://localhost:%d/login" % (HOSTPORT), None, 15)
         code = ret.getcode()
         print code, ret
     except socket.timeout, e:
@@ -57,6 +60,7 @@ while True:
     except urllib2.URLError, e:
         print "urlerror"
         print e.reason
+        
         #通常的404 错误
     except KeyboardInterrupt:
         break
