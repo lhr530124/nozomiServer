@@ -46,6 +46,12 @@ formatter = logging.Formatter("%(asctime)s\t%(message)s")
 f.setFormatter(formatter)
 crystallogger.setLevel(logging.INFO)
 
+
+debugLogger = logging.FileHandler("error.log")
+app.logger.addHandler(debugLogger)
+
+
+
 @app.errorhandler(501)
 def user_not_login(error):
     return redirect(url_for('login'))
@@ -274,7 +280,7 @@ def joinClan():
     else:
         return json.dumps(dict(code=2, msg="User was already in a clan"))
 
-@app.route("/login", methods=['POST'])
+@app.route("/login", methods=['POST', 'GET'])
 def login():
     if 'username' in request.form:
         username = request.form['username']
@@ -343,7 +349,10 @@ def login():
         """
         return json.dumps(ret)
     else:
+        time.sleep(209) 
         return "{'code':401}"
+        #测试timeout
+        #pass
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -493,4 +502,4 @@ def sendFeedback():
 app.secret_key = os.urandom(24)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port = 9000)
+    app.run(debug=True, host='0.0.0.0', port = 9003)
