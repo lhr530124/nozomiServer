@@ -37,6 +37,8 @@ def getRank(myCon, score):
 #可以把排名数据整个放到内存里面 score count
 #排名从0开始
 #相同得分的如何返回排名
+
+#rank 可以优化 数据库内部计算count 减少返回的数据量
 def getUser(myCon, rank):
     total = 0
     sql = 'select * from nozomi_score_count order by score desc'
