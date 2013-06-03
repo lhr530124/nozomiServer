@@ -48,6 +48,7 @@ crystallogger.setLevel(logging.INFO)
 
 
 debugLogger = logging.FileHandler("error.log")
+debugLogger.setLevel(logging.INFO)
 app.logger.addHandler(debugLogger)
 
 
@@ -482,7 +483,8 @@ def findEnemy():
     if isGuide==None:
         uid = findAMatch(selfUid, int(request.args.get('baseScore', 0)), 1000)
     #uid = 23
-    uid = 4
+   # uid = 29
+    #uid=73
     data = getUserInfos(uid)
     data['builds'] = getUserBuilds(uid)
     data['userId'] = uid
