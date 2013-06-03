@@ -68,3 +68,6 @@ req(r)
 r = baseScore+'getUserRank?uid=2&score=20' 
 req(r)
 
+r = baseScore+'getUserRank?uid=29&score=200'
+req(r)
+

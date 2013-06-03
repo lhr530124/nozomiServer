@@ -5,6 +5,7 @@ import sys
 import random
 import time
 import urllib2
+myCon = MySQLdb.connect(host='uhz000738.chinaw3.com', passwd='2e4n5k2w2x', db='nozomi', user='root', charset='utf8')
 
 base2 = 'http://localhost:9003/'
 baseScore = 'http://localhost:9002/'
