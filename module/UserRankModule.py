@@ -1,5 +1,5 @@
 #coding:utf8
-import bisect
+#import bisect
 #单独服务处理排名将排名数据放到内存里面数据库保持一份
 #score --->count
 #newScore
@@ -15,7 +15,24 @@ def initScoreCount(myCon):
     for i in res:
         scoreCount[i['score']] = i['count']
         sortedScore.append(i['score'])
-    sortedScore.sort()
+    sortedScore.sort(reverse=True)
+
+
+def myInsort(a, x):
+    """Insert item x in list a, and keep it sorted assuming a is sorted.
+
+    If x is already in a, insert it to the right of the rightmost x.
+
+    Optional args lo (default 0) and hi (default len(a)) bound the
+    slice of a to be searched.
+    """
+    lo = 0
+    hi = len(a)
+    while lo < hi:
+        mid = (lo+hi)//2
+        if x > a[mid]: hi = mid
+        else: lo = mid+1
+    a.insert(lo, x)
 
 def updateScore(myCon, uid, newScore):
     oldScore = -1
@@ -43,7 +60,8 @@ def updateScore(myCon, uid, newScore):
         scoreCount[newScore] += 1
     else:
         scoreCount[newScore] = 1
-        bisect.insort_right(sortedScore, newScore)
+        myInsort(sortedScore, newScore)
+        #bisect.insort_right(sortedScore, newScore)
 
 
 #得到某个得分的用户的 排名
