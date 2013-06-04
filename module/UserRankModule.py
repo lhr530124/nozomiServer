@@ -110,7 +110,13 @@ def getUser(myCon, rank):
 
 #得到某个阶段排名所有用户[start, end) [0, 1) = 0
 #允许并列排名的学生 0  1 1 3 
+import cProfile, pstats, io
 def getRange(myCon, start, end):
+    """
+    pr = cProfile.Profile()
+    pr.enable()
+    """
+
     rangeLength = end - start
     allUser = []
     #得到排名start 位置的得分
@@ -144,5 +150,10 @@ def getRange(myCon, start, end):
         leftNum = 0
         curIndex += 1
         limitLength -= len(users)
-
+    """
+    pr.disable()
+    s = io.StringIO()
+    ps = pstats.Stats(pr, stream=s)
+    ps.print_stats()
+    """
     return allUser

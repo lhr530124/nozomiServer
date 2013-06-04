@@ -47,8 +47,14 @@ def updateScore():
     return json.dumps(dict(id=1))
 
 
+import cProfile, pstats, io
 @app.route('/getUserRank')
 def getUserRank():
+    """
+    pr = cProfile.Profile()
+    pr.enable()
+    """
+
     myCon = getConn();
     uid = int(request.args['uid'])
     score = int(request.args['score'])
@@ -60,6 +66,12 @@ def getUserRank():
     userInfo = myCon.store_result().fetch_row(0, 1)[0]
 
     if len(l)<50 or rank<50:
+        """
+        pr.disable()
+        ps = pstats.Stats(pr)
+        ps.print_stats()
+        """
+
         return json.dumps([[r['uid'], r['score'], r['lastRank'], r['name']] for r in l])
     else:
         zw = UserRankModule.getRange(myCon, rank-1, rank+9)
@@ -77,6 +89,12 @@ def getUserRank():
             if rank+i<=50:
                 continue
             l.append([z['uid'],z['score'],z['lastRank'], z['name'],rank+i])
+
+        """
+        pr.disable()
+        ps = pstats.Stats(pr)
+        ps.print_stats()
+        """
         return json.dumps(l)
     #return json.dumps(dict(rank=rank))
 
