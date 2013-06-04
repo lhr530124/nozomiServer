@@ -30,6 +30,13 @@ def getConn():
     #return MySQLdb.connect(host='localhost', passwd='3508257', db='nozomi', user='root', charset='utf8')
     return MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
 
+def initUserRankModule():
+    myCon = getConn()
+    UserRankModule.initScoreCount(myCon)
+    myCon.close()
+initUserRankModule()
+
+
 
 @app.route("/updateScore")
 def updateScore(): 
