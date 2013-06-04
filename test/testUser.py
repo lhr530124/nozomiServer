@@ -62,7 +62,7 @@ data = {
 }
 req2(r, data)
 
-r = baseScore+'updateScore?uid=2&newScore=10'
+r = baseScore+'updateScore?uid=2&score=10'
 req(r)
 
 r = baseScore+'getUserRank?uid=2&score=20' 
