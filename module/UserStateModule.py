@@ -38,6 +38,7 @@ def getUserState(uid):
         ret['attackTime'] = r[2]-curTime
     return ret
 
+#uid = 0 user not exist ! so don't return any user info
 def findAMatch(uid, score, scoreOff):
     curTime = getTime()
     while scoreOff<4000:

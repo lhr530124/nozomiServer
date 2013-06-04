@@ -7,7 +7,10 @@ import logging
 from logging.handlers import SMTPHandler
 import smtplib
 from email.mime.text import MIMEText
-#调用前需要进入 tg2env 环境
+import sys
+sys.path.append('..')
+from config import *
+import config
 
 lastTime = 0
 def handleTimeout():
@@ -33,7 +36,7 @@ def handleTimeout():
         smtpClient.sendmail(fromAddr, toAddrs, msg.as_string())
         smtpClient.quit()
 
-    hostPort = 9003
+    hostPort = config.HOSTPORT
     os.system('netstat -anp | grep %s > tempPort' % (hostPort))
     l = open('tempPort').readlines()
     print('tempPort', l)
@@ -50,7 +53,7 @@ def handleTimeout():
         
 while True:
     try:
-        ret = urllib3.urlopen("http://localhost:9003/login", None, 15)
+        ret = urllib2.urlopen("http://localhost:%d/login" % (HOSTPORT), None, 15)
         code = ret.getcode()
         print code, ret
     except socket.timeout, e:
@@ -60,7 +63,6 @@ while True:
         print e.reason
         if isinstance(e.reason, socket.timeout):
             handleTimeout()        
-        #通常的404 错误
     except KeyboardInterrupt:
         break
     except:

@@ -42,9 +42,10 @@ initUserRankModule()
 def updateScore(): 
     myCon = getConn();
     uid = int(request.args['uid'])
-    newScore = int(request.args['newScore'])
+    newScore = int(request.args['score'])
     UserRankModule.updateScore(myCon, uid, newScore)
     return json.dumps(dict(id=1))
+
 
 @app.route('/getUserRank')
 def getUserRank():
@@ -53,6 +54,11 @@ def getUserRank():
     score = int(request.args['score'])
     rank = UserRankModule.getRank(myCon, score)
     l = UserRankModule.getRange(myCon, 0, 50)
+
+    #user name 
+    myCon.query('select name from nozomi_user where id = %d' % (uid))
+    userInfo = myCon.store_result().fetch_row(0, 1)[0]
+
     if len(l)<50 or rank<50:
         return json.dumps([[r['uid'], r['score'], r['lastRank'], r['name']] for r in l])
     else:
@@ -62,8 +68,9 @@ def getUserRank():
             if z['uid']==uid:
                 inZw = True
                 break
+        #self not in ranking put me at first place
         if not inZw:
-            zw[1] = dict(uid=uid, lastRank=0, score=score)
+            zw[1] = dict(uid=uid, lastRank=0, score=score, name=userInfo['name'])
         l = [[r['uid'], r['score'], r['lastRank'], r['name']] for r in l]
         for i in range(len(zw)):
             z = zw[i]
