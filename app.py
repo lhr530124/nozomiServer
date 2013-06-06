@@ -47,7 +47,8 @@ f.setFormatter(formatter)
 crystallogger.setLevel(logging.INFO)
 
 
-debugLogger = logging.FileHandler("error.log")
+debugLogger = logging.FileHandler("error2.log")
+debugLogger.setLevel(logging.INFO)
 app.logger.addHandler(debugLogger)
 
 
@@ -349,7 +350,7 @@ def login():
         """
         return json.dumps(ret)
     else:
-        time.sleep(209) 
+        #time.sleep(209) 
         return "{'code':401}"
         #测试timeout
         #pass
@@ -482,11 +483,15 @@ def findEnemy():
     if isGuide==None:
         uid = findAMatch(selfUid, int(request.args.get('baseScore', 0)), 1000)
     #uid = 23
-    uid = 4
-    data = getUserInfos(uid)
-    data['builds'] = getUserBuilds(uid)
-    data['userId'] = uid
-    updateUserState(selfUid, int(request.args.get("eid", 0)))
+   # uid = 29
+    #uid=73
+    if uid != 0:
+        data = getUserInfos(uid)
+        data['builds'] = getUserBuilds(uid)
+        data['userId'] = uid
+        updateUserState(selfUid, int(request.args.get("eid", 0)))
+    else: #cant find a enemy
+        data = {'code':1}
     return json.dumps(data)
 
 @app.route("/sendFeedback", methods=['POST'])
