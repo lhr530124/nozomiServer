@@ -47,10 +47,11 @@ def updateScore(myCon, uid, newScore):
     sql = 'update nozomi_rank set score = %d where uid = %d' % (newScore, uid)
     myCon.query(sql)
 
-    #减少旧得分人数 多个服务器同时修改count值 存在锁的问题 
-    sql = 'update nozomi_score_count set count = count - 1 where score = %d' % (oldScore)
-    myCon.query(sql)
-    scoreCount[oldScore] -= 1
+    if oldScore != -1:
+        #减少旧得分人数 多个服务器同时修改count值 存在锁的问题 
+        sql = 'update nozomi_score_count set count = count - 1 where score = %d' % (oldScore)
+        myCon.query(sql)
+        scoreCount[oldScore] -= 1
 
     #增加新得分人数 多个服务器同时 并行操作修改 存在锁的问题
     sql = 'insert nozomi_score_count (`score`, `count`) values (%d, 1) on duplicate key update count = count+1 ' % (newScore)

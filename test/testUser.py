@@ -7,7 +7,7 @@ r = base2+'findClans'
 req(r)
 
 r = base2+'login'
-data = {'username':'liyong', }
+data = {'username':'liyong', 'nickname':'liyong'}
 req2(r, data)
 
 r = base2+'getData?uid=4'

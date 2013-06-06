@@ -14,6 +14,7 @@ import json
 import logging
 from calendar import monthrange
 import config
+import module
 
 """
 HOST = 'localhost'
@@ -28,6 +29,10 @@ sys.setdefaultencoding('utf-8')
 
 app = Flask(__name__)
 app.config.from_object("config")
+
+
+def getConn():
+    return MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
 
 dailyModule = DailyModule("nozomi_user_login")
 achieveModule = AchieveModule("nozomi_achievement")
@@ -58,56 +63,56 @@ def user_not_login(error):
     return redirect(url_for('login'))
 
 dataBuilds = [
-              {'buildIndex':1, 'grid':170018, 'bid':1, 'level':1, 'time':0, 'hitpoints':1500, 'extend':{'oil':1000, 'food':1000}},
-              {'buildIndex':2, 'grid':110009, 'bid':2, 'level':0, 'time':0, 'hitpoints':0},
-              {'buildIndex':3, 'grid':130025, 'bid':2002, 'level':1, 'time':0, 'hitpoints':400, 'extend':{'resource':500}},
-              {'buildIndex':4, 'grid':250019, 'bid':2005, 'level':1, 'time':0, 'hitpoints':400, 'extend':{'resource':100}},
-              {'buildIndex':5, 'grid':240023, 'bid':2004, 'level':1, 'time':0, 'hitpoints':250, 'extend':{'resource':1}},
-              {'buildIndex':6, 'grid':180025, 'bid':1000, 'level':1, 'time':0, 'hitpoints':400},
-              {'buildIndex':7, 'grid':150030, 'bid':3000, 'level':1, 'time':0, 'hitpoints':400},
-              {'buildIndex':8, 'grid':10031, 'bid':1004, 'level':1, 'time':0, 'hitpoints':400},
-              {'buildIndex':9, 'grid':350003, 'bid':1003, 'level':0, 'time':0, 'hitpoints':0},
-              {'buildIndex':50, 'grid':20002, 'bid':4003, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':10, 'grid':40008, 'bid':4013, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':11, 'grid':60005, 'bid':4007, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':12, 'grid':90009, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':13, 'grid':90011, 'bid':4006, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':14, 'grid':110006, 'bid':4014, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':15, 'grid':110012, 'bid':4009, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':16, 'grid':140009, 'bid':4002, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':17, 'grid':140011, 'bid':4004, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':18, 'grid':170008, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':19, 'grid':160004, 'bid':4007, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':20, 'grid':30017, 'bid':4008, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':21, 'grid':30024, 'bid':4000, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':22, 'grid':20036, 'bid':4009, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':23, 'grid':60029, 'bid':4001, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':24, 'grid':100036, 'bid':4001, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':25, 'grid':130033, 'bid':4003, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':26, 'grid':180035, 'bid':4002, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':27, 'grid':100021, 'bid':4007, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':28, 'grid':250012, 'bid':4001, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':29, 'grid':300017, 'bid':4014, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':30, 'grid':300023, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':31, 'grid':220003, 'bid':4004, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':32, 'grid':270006, 'bid':4002, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':33, 'grid':250030, 'bid':4009, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':34, 'grid':250035, 'bid':4004, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':35, 'grid':210038, 'bid':4008, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':36, 'grid':350001, 'bid':4008, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':37, 'grid':350007, 'bid':4008, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':38, 'grid':370001, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':39, 'grid':370007, 'bid':4013, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':40, 'grid':330003, 'bid':4001, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':41, 'grid':390003, 'bid':4000, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':42, 'grid':330005, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':43, 'grid':390005, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':44, 'grid':370020, 'bid':4004, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':45, 'grid':370024, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':46, 'grid':340029, 'bid':4001, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':47, 'grid':360033, 'bid':4003, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':48, 'grid':330036, 'bid':4008, 'level':1, 'time':0, 'hitpoints':0},
-              {'buildIndex':49, 'grid':370037, 'bid':4014, 'level':1, 'time':0, 'hitpoints':0}
+              [1, 170018, 1, 1, 0, 1500, "{\"oil\":1000,\"food\":1000}"],
+              [2, 110009, 2, 0, 0, 0, ""],
+              [3, 130025, 2002, 1, 0, 400, "{\"resource\":500}"],
+              [4, 250019, 2005, 1, 0, 400, "{\"resource\":100}"],
+              [5, 240023, 2004, 1, 0, 250, "{\"resource\":1}"],
+              [6, 180025, 1000, 1, 0, 400, ""],
+              [7, 150030, 3000, 1, 0, 400, ""],
+              [8, 10031, 1004, 1, 0, 400, ""],
+              [9, 350003, 1003, 0, 0, 0, ""],
+              [10, 40008, 4013, 1, 0, 0, ""],
+              [11, 60005, 4007, 1, 0, 0, ""],
+              [12, 90009, 4012, 1, 0, 0, ""],
+              [13, 90011, 4006, 1, 0, 0, ""],
+              [14, 110006, 4014, 1, 0, 0, ""],
+              [15, 110012, 4009, 1, 0, 0, ""],
+              [16, 140009, 4002, 1, 0, 0, ""],
+              [17, 140011, 4004, 1, 0, 0, ""],
+              [18, 170008, 4012, 1, 0, 0, ""],
+              [19, 160004, 4007, 1, 0, 0, ""],
+              [20, 30017, 4008, 1, 0, 0, ""],
+              [21, 30024, 4000, 1, 0, 0, ""],
+              [22, 20036, 4009, 1, 0, 0, ""],
+              [23, 60029, 4001, 1, 0, 0, ""],
+              [24, 100036, 4001, 1, 0, 0, ""],
+              [25, 130033, 4003, 1, 0, 0, ""],
+              [26, 180035, 4002, 1, 0, 0, ""],
+              [27, 100021, 4007, 1, 0, 0, ""],
+              [28, 250012, 4001, 1, 0, 0, ""],
+              [29, 300017, 4014, 1, 0, 0, ""],
+              [30, 300023, 4012, 1, 0, 0, ""],
+              [31, 220003, 4004, 1, 0, 0, ""],
+              [32, 270006, 4002, 1, 0, 0, ""],
+              [33, 250030, 4009, 1, 0, 0, ""],
+              [34, 250035, 4004, 1, 0, 0, ""],
+              [35, 210038, 4008, 1, 0, 0, ""],
+              [36, 350001, 4008, 1, 0, 0, ""],
+              [37, 350007, 4008, 1, 0, 0, ""],
+              [38, 370001, 4012, 1, 0, 0, ""],
+              [39, 370007, 4013, 1, 0, 0, ""],
+              [40, 330003, 4001, 1, 0, 0, ""],
+              [41, 390003, 4000, 1, 0, 0, ""],
+              [42, 330005, 4012, 1, 0, 0, ""],
+              [43, 390005, 4012, 1, 0, 0, ""],
+              [44, 370020, 4004, 1, 0, 0, ""],
+              [45, 370024, 4012, 1, 0, 0, ""],
+              [46, 340029, 4001, 1, 0, 0, ""],
+              [47, 360033, 4003, 1, 0, 0, ""],
+              [48, 330036, 4008, 1, 0, 0, ""],
+              [49, 370037, 4014, 1, 0, 0, ""],
+              [50, 20002, 4003, 1, 0, 0, ""]
               ]
 
 def getUserInfos(uid):
@@ -141,7 +146,7 @@ def getJsonObj(string):
     
 def getUserBuilds(uid):
     builds = queryAll("SELECT buildIndex, grid, bid, level, time, hitpoints, extend FROM nozomi_build WHERE id=%s AND state=0", (uid))
-    return [dict(buildIndex=r[0], grid=r[1], bid=r[2], level=r[3], time=r[4], hitpoints=r[5], extend=getJsonObj(r[6])) for r in builds]
+    return builds
 
 def deleteUserBuilds(uid, buildIndexes):
     params = []
@@ -152,10 +157,7 @@ def deleteUserBuilds(uid, buildIndexes):
 def updateUserBuilds(uid, datas):
     params = []
     for data in datas:
-        extend = ""
-        if 'extend' in data:
-            extend = json.dumps(data['extend'])
-        params.append([uid, data['buildIndex'], data['grid'], data['bid'], data['level'], data['time'], data['hitpoints'], extend])
+        params.append([uid, data[0], data[1], data[2], data[3], data[4], data[5], data[6]])
     executemany("INSERT INTO nozomi_build (id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend) VALUES(%s,%s,%s,0,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE grid=VALUES(grid),state=0,bid=VALUES(bid),level=VALUES(level),`time`=VALUES(time),hitpoints=VALUES(hitpoints),extend=VALUES(extend);", params)
 
 def getUserResearch(uid):
@@ -179,11 +181,17 @@ def getUidByName(account):
         return ret[0]
 
 def initUser(username, nickname):
+    print "initUser", username, nickname
     regTime = int(time.mktime(time.localtime()))
     uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, score, crystal, shieldTime) VALUES(%s, %s, %s, 500, 497, 0)", (username, regTime, nickname))
+    myCon = getConn()
+    module.UserRankModule.updateScore(myCon, uid, 500)
+    myCon.close()
+
     updateUserBuilds(uid, dataBuilds)
     update("INSERT INTO nozomi_research (id, research) VALUES(%s, '[1,1,1,1,1,1,1,1,1,1]')", (uid))
     newUserState(uid)
+    
     return uid
 
 def updateUserState(uid, eid):
@@ -284,13 +292,16 @@ def joinClan():
 
 @app.route("/login", methods=['POST', 'GET'])
 def login():
+    print 'login', request.form
     if 'username' in request.form:
         username = request.form['username']
         uid = getUidByName(username)
         ret = dict(code=0, uid=uid)
         if uid==0:
+            print "new user"
             nickname = request.form['nickname']
             uid = initUser(username, nickname)
+            
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
         else:
@@ -298,32 +309,8 @@ def login():
             if days>0:
                 ret['days']=days
 
-        """
-        con = MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
-        sql = 'select * from nozomi_params'
-        con.query(sql)
-        res = con.store_result().fetch_row(0, 1)
-        params = dict()
-        for r in res:
-            params[r['key']] = int(r['value'])
-        sql = 'select * from nozomi_zombie_attack'
-        con.query(sql)
-        res = con.store_result().fetch_row(0, 1)
-        waves = []
-        for i in range(9):
-            waves.append([])
-            for j in range(3):
-                waves[i].append([])
-                for k in range(8):
-                    waves[i][j].append(0)
-        for r in res:
-            item = waves[int(r['nozomi_level'])-1][int(r['attack_wave'])-1]
-            for i in range(8):
-                item[i] = int(r['zombie%d_num' % (i+11)])
-        params['attackWaves'] = waves
-        ret['params'] = params
-        con.close()
-        if True:
+        if False:
+
             con = MySQLdb.connect(host="192.168.3.105", user='root', passwd="badperson", db="nozomi", charset='utf8')
             sql = 'select * from nozomi_params'
             con.query(sql)
@@ -348,7 +335,7 @@ def login():
             params['attackWaves'] = waves
             ret['params'] = params
             con.close()
-        """
+
         return json.dumps(ret)
     else:
         #time.sleep(209) 
@@ -360,8 +347,8 @@ def login():
 def getData():
     print 'getData', request.args
     uid = int(request.args.get("uid"))
-    infos = None
-    if True: #"login" in request.args:
+    data = None
+    if "login" in request.args:
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
@@ -371,7 +358,7 @@ def getData():
             data['lastSynTime'] = data['serverTime']
         data['achieves'] = achieveModule.getAchieves(uid)
     else:
-        infos = getUserInfos(uid)
+        data = getUserInfos(uid)
     data['builds'] = getUserBuilds(uid)
     data['researches'] = getUserResearch(uid)
     return json.dumps(data)
@@ -408,21 +395,15 @@ def synData():
         delete = json.loads(request.form['delete'])
         deleteUserBuilds(uid, delete)
     if 'update' in request.form:
-        #print("test_update", request.form['update'])
         update = json.loads(request.form['update'])
         updateUserBuilds(uid, update)
     if 'achieves' in request.form:
-        #print("receive achieves", request.form['achieves'])
         achieves = json.loads(request.form['achieves'])
         achieveModule.updateAchieves(uid, achieves)
     if 'research' in request.form:
         researches = json.loads(request.form['research'])
         updateUserResearch(uid, researches)
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
-    #if 'shieldTime' in request.form:
-    #    userInfoUpdate['shieldTime'] = int(request.form['shieldTime'])
-    #if 'guide' in request.form:
-    #    userInfoUpdate['guideValue'] = int(request.form['guide'])
     if 'userInfo' in request.form:
         userInfo = json.loads(request.form['userInfo'])
         userInfoUpdate.update(userInfo)
@@ -446,7 +427,8 @@ def synBattleData():
     if uid==0 or eid==0:
         return json.dumps({'code':401})
     incScore = int(request.form.get("score", 0))
-    if eid!=1:
+
+    if eid>1:
         if 'delete' in request.form:
             delete = json.loads(request.form['delete'])
             deleteUserBuilds(eid, delete)
@@ -485,9 +467,8 @@ def findEnemy():
     uid = 1
     if isGuide==None:
         uid = findAMatch(selfUid, int(request.args.get('baseScore', 0)), 1000)
-    #uid = 23
-   # uid = 29
-    #uid=73
+    print("Find Enemy:%d" % uid)
+
     if uid != 0:
         data = getUserInfos(uid)
         data['builds'] = getUserBuilds(uid)
