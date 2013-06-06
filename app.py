@@ -65,8 +65,9 @@ dataBuilds = [
               {'buildIndex':5, 'grid':240023, 'bid':2004, 'level':1, 'time':0, 'hitpoints':250, 'extend':{'resource':1}},
               {'buildIndex':6, 'grid':180025, 'bid':1000, 'level':1, 'time':0, 'hitpoints':400},
               {'buildIndex':7, 'grid':150030, 'bid':3000, 'level':1, 'time':0, 'hitpoints':400},
-              {'buildIndex':8, 'grid':350003, 'bid':1003, 'level':0, 'time':0, 'hitpoints':0},
-              {'buildIndex':9, 'grid':20002, 'bid':4003, 'level':1, 'time':0, 'hitpoints':0},
+              {'buildIndex':8, 'grid':10031, 'bid':1004, 'level':1, 'time':0, 'hitpoints':400},
+              {'buildIndex':9, 'grid':350003, 'bid':1003, 'level':0, 'time':0, 'hitpoints':0},
+              {'buildIndex':50, 'grid':20002, 'bid':4003, 'level':1, 'time':0, 'hitpoints':0},
               {'buildIndex':10, 'grid':40008, 'bid':4013, 'level':1, 'time':0, 'hitpoints':0},
               {'buildIndex':11, 'grid':60005, 'bid':4007, 'level':1, 'time':0, 'hitpoints':0},
               {'buildIndex':12, 'grid':90009, 'bid':4012, 'level':1, 'time':0, 'hitpoints':0},
@@ -110,12 +111,12 @@ dataBuilds = [
               ]
 
 def getUserInfos(uid):
-    r = queryOne("SELECT name, score, clan, level FROM nozomi_user WHERE id=%s", (uid))
-    return dict(name=r[0], score=r[1], clan=r[2], ulevel=r[3])
+    r = queryOne("SELECT name, score, clan FROM nozomi_user WHERE id=%s", (uid))
+    return dict(name=r[0], score=r[1], clan=r[2])
 
 def getUserAllInfos(uid):
-    r = queryOne("SELECT name, score, clan, level, exp, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, zombieDefends FROM nozomi_user WHERE id=%s", (uid))
-    return dict(name=r[0], score=r[1], clan=r[2], ulevel=r[3], exp=r[4], guide=r[5], crystal=r[6], lastSynTime=r[7], shieldTime=r[8], zombieTime=r[9], obstacleTime=r[10], zombieDefends=r[11])
+    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime FROM nozomi_user WHERE id=%s", (uid))
+    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8])
 
 def updateUserInfoById(params, uid):
     sql = "UPDATE nozomi_user SET "
@@ -357,6 +358,7 @@ def login():
 
 @app.route("/getData", methods=['GET'])
 def getData():
+    print 'getData', request.args
     uid = int(request.args.get("uid"))
     infos = None
     if True: #"login" in request.args:
@@ -398,6 +400,7 @@ def getReplay():
 
 @app.route("/synData", methods=['POST'])
 def synData():
+    print 'synData', request.form
     uid = int(request.form.get("uid", 0))
     if uid==0:
         return json.dumps({'code':401})
@@ -437,37 +440,37 @@ def synData():
 
 @app.route("/synBattleData", methods=['POST'])
 def synBattleData():
+    print 'synBattleData', request.form
     uid = int(request.form.get("uid", 0))
     eid = int(request.form.get("eid", 0))
     if uid==0 or eid==0:
         return json.dumps({'code':401})
-    if 'delete' in request.form:
-        delete = json.loads(request.form['delete'])
-        deleteUserBuilds(eid, delete)
-    if 'update' in request.form:
-        #print("test_update", request.form['update'])
-        up = json.loads(request.form['update'])
-        updateUserBuilds(eid, up)
-    if 'hits' in request.form:
-        hits = json.loads(request.form['hits'])
-        updateUserBuildHitpoints(eid, hits)
     incScore = int(request.form.get("score", 0))
-    baseScore = getUserInfos(eid)['score']
-    userInfoUpdate=dict(score=baseScore+incScore)
-    if 'shieldTime' in request.form:
-        t = int(request.form['shieldTime'])
-        userInfoUpdate['shieldTime'] = t
-        setUserShield(eid, t)
-    updateUserInfoById(userInfoUpdate, eid)
-    #if 'guide' in request.form:
-    #    userInfoUpdate['guideValue'] = int(request.form['guide'])
+    if eid!=1:
+        if 'delete' in request.form:
+            delete = json.loads(request.form['delete'])
+            deleteUserBuilds(eid, delete)
+        if 'update' in request.form:
+            #print("test_update", request.form['update'])
+            up = json.loads(request.form['update'])
+            updateUserBuilds(eid, up)
+        if 'hits' in request.form:
+            hits = json.loads(request.form['hits'])
+            updateUserBuildHitpoints(eid, hits)
+        baseScore = getUserInfos(eid)['score']
+        userInfoUpdate=dict(score=baseScore+incScore)
+        if 'shieldTime' in request.form:
+            t = int(request.form['shieldTime'])
+            userInfoUpdate['shieldTime'] = t
+            setUserShield(eid, t)
+        updateUserInfoById(userInfoUpdate, eid)
     updateUserState(uid, eid)
     reverged = 0
     if 'isReverge' in request.form:
         reverged = 1
         print("Clear Reverge")
         update("UPDATE nozomi_battle_history SET reverged=1 WHERE uid=%s AND eid=%s", (uid, eid))
-    if 'history' in request.form:
+    if eid>1 and 'history' in request.form:
         videoId = 0
         if 'replay' in request.form:
             videoId = insertAndGetId("INSERT INTO nozomi_replay (replay) VALUES(%s)", (request.form['replay']))
@@ -479,7 +482,7 @@ def findEnemy():
     selfUid = int(request.args.get('uid', 0))
     print("selfUid", selfUid)
     isGuide = request.args.get('isGuide')
-    uid = 34
+    uid = 1
     if isGuide==None:
         uid = findAMatch(selfUid, int(request.args.get('baseScore', 0)), 1000)
     #uid = 23
