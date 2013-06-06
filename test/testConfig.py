@@ -5,10 +5,13 @@ import sys
 import random
 import time
 import urllib2
+import sys
+sys.path.append('..')
+import config
 myCon = MySQLdb.connect(host='uhz000738.chinaw3.com', passwd='2e4n5k2w2x', db='nozomi', user='root', charset='utf8')
 
-base2 = 'http://localhost:9003/'
-baseScore = 'http://localhost:9002/'
+base2 = 'http://localhost:%d/' % (config.HOSTPORT)
+baseScore = 'http://localhost:%d/' % (config.SORTPORT)
 
 def exe(sql):
     print sql
@@ -31,6 +34,7 @@ def req(r):
 def req2(r, data):
     print r
     print data
+    print urllib.urlencode(data)
 
     q = urllib2.urlopen(r, urllib.urlencode(data))
     s = q.read()

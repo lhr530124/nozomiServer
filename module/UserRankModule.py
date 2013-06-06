@@ -47,10 +47,11 @@ def updateScore(myCon, uid, newScore):
     sql = 'update nozomi_rank set score = %d where uid = %d' % (newScore, uid)
     myCon.query(sql)
 
-    #减少旧得分人数 多个服务器同时修改count值 存在锁的问题 
-    sql = 'update nozomi_score_count set count = count - 1 where score = %d' % (oldScore)
-    myCon.query(sql)
-    scoreCount[oldScore] -= 1
+    if oldScore != -1:
+        #减少旧得分人数 多个服务器同时修改count值 存在锁的问题 
+        sql = 'update nozomi_score_count set count = count - 1 where score = %d' % (oldScore)
+        myCon.query(sql)
+        scoreCount[oldScore] -= 1
 
     #增加新得分人数 多个服务器同时 并行操作修改 存在锁的问题
     sql = 'insert nozomi_score_count (`score`, `count`) values (%d, 1) on duplicate key update count = count+1 ' % (newScore)
@@ -110,7 +111,13 @@ def getUser(myCon, rank):
 
 #得到某个阶段排名所有用户[start, end) [0, 1) = 0
 #允许并列排名的学生 0  1 1 3 
+import cProfile, pstats, io
 def getRange(myCon, start, end):
+    """
+    pr = cProfile.Profile()
+    pr.enable()
+    """
+
     rangeLength = end - start
     allUser = []
     #得到排名start 位置的得分
@@ -144,5 +151,10 @@ def getRange(myCon, start, end):
         leftNum = 0
         curIndex += 1
         limitLength -= len(users)
-
+    """
+    pr.disable()
+    s = io.StringIO()
+    ps = pstats.Stats(pr, stream=s)
+    ps.print_stats()
+    """
     return allUser
