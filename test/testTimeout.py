@@ -50,7 +50,7 @@ def handleTimeout():
         
 while True:
     try:
-        ret = urllib3.urlopen("http://localhost:9003/login", None, 15)
+        ret = urllib2.urlopen("http://localhost:9003/login", None, 15)
         code = ret.getcode()
         print code, ret
     except socket.timeout, e:
