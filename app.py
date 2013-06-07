@@ -183,9 +183,12 @@ def getUidByName(account):
 def initUser(username, nickname):
     print "initUser", username, nickname
     regTime = int(time.mktime(time.localtime()))
+    initScore = 500
     uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, score, crystal, shieldTime) VALUES(%s, %s, %s, 500, 497, 0)", (username, regTime, nickname))
     myCon = getConn()
-    module.UserRankModule.updateScore(myCon, uid, 500)
+    module.UserRankModule.initUserScore(myCon, uid, initScore)
+    module.UserRankModule.updateScore(myCon, uid, initScore)
+    myCon.commit()
     myCon.close()
 
     updateUserBuilds(uid, dataBuilds)
