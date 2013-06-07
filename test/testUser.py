@@ -24,7 +24,7 @@ r = base2+'synData'
 data = {
 'uid':1, 
 'delete':json.dumps([0, 1, 2, 3]), 
-'update':json.dumps([{'buildIndex':5, 'grid':4000, 'bid':10, 'level':5, 'time':5, 'hitpoints':10}]), 
+'update':json.dumps([[5, 4000, 10, 5, 5, 10, '']]), 
 'achieves':json.dumps([[10, 10, 0]]), 
 'research':json.dumps([1, 2, 2, 2, 2, 2, 2, 2, 2, 2]),
 'userInfo':json.dumps({'shieldTime':10, 'guideValue':1400}),
@@ -39,7 +39,7 @@ r = base2+'synBattleData'
 data = {
 'uid':10, 'eid':2,
 'delete': json.dumps([1, 2, 3, 4]),
-'update': json.dumps([{'buildIndex':5, 'grid':4000, 'bid':10, 'level':5, 'time':5, 'hitpoints':10}]),
+'update':json.dumps([[5, 4000, 10, 5, 5, 10, '']]), 
 'hits': json.dumps([[5, 10]]),
 'score': 20, 
 'shieldTime': 1000,
@@ -68,6 +68,6 @@ req(r)
 r = baseScore+'getUserRank?uid=2&score=20' 
 req(r)
 
-r = baseScore+'getUserRank?uid=29&score=200'
+r = baseScore+'getUserRank?uid=2&score=20'
 req(r)
 
