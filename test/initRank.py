@@ -1,7 +1,10 @@
 #coding:utf8
 #根据用户得分表 初始化用户排名表
+import sys
+sys.path.append('..')
+import config
 import MySQLdb
-myCon = MySQLdb.connect(host='localhost', passwd='2e4n5k2w2x', db='nozomi', user='root', charset='utf8')
+myCon = MySQLdb.connect(host='localhost', passwd= config.PASSWORD, db=config.DATABASE, user='root', charset='utf8')
 
 #删除旧的计数
 sql = 'delete from nozomi_score_count'
