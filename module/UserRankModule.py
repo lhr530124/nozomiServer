@@ -92,7 +92,7 @@ def getRange(myCon, start, end):
     limitLength = rangeLength
     while curIndex < len(res):
         curScore = res[curIndex]['score']
-        sql = 'SELECT r.uid, r.score, r.lastRank, u.name FROM nozomi_rank as r, nozomi_user as u WHERE r.score = %d AND r.uid=u.id limit %d , %d' % (curScore, leftNum, limitLength)
+        sql = 'SELECT r.uid, r.score, r.lastRank, u.name, c.name AS cname, c.icon FROM nozomi_rank as r, nozomi_user as u LEFT JOIN `nozomi_clan` AS c ON u.clan=c.id WHERE r.score = %d AND r.uid=u.id limit %d , %d' % (curScore, leftNum, limitLength)
         myCon.query(sql)
         users = myCon.store_result().fetch_row(0, 1)
         allUser += users
