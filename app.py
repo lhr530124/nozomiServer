@@ -369,8 +369,7 @@ def synBattleData():
 def findEnemy():
     selfUid = int(request.args.get('uid', 0))
     isGuide = request.args.get('isGuide')
-    #uid = 1
-    uid = 37
+    uid = 1
     if isGuide==None:
         uid = findAMatch(selfUid, int(request.args.get('baseScore', 0)), 200)
     #uid = 29
