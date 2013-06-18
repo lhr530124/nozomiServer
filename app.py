@@ -412,8 +412,8 @@ def findEnemy():
     selfUid = int(request.args.get('uid', 0))
     print("selfUid", selfUid)
     isGuide = request.args.get('isGuide')
-    #uid = 1
-    uid = 37
+    uid = 1
+    #uid = 37
     if isGuide==None:
         uid = findAMatch(selfUid, int(request.args.get('baseScore', 0)), 200)
     #uid = 29
