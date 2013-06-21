@@ -1,0 +1,1 @@
+uid=2&minScore=100&name=wangguoqiji&icon=1&type=0&desc=battle+for+war
