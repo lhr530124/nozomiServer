@@ -82,7 +82,7 @@ def getClanInfo(cid):
     return ret
 
 def getTopClans():
-    ret = queryAll("SELECT `id`, icon, score, `type`, name, `desc`, members, `min` FROM `nozomi_clan` ORDER BY score DESC LIMIT 50")
+    ret = queryAll("SELECT `id`, icon, score, `type`, name, `desc`, members, `min` FROM `nozomi_clan` WHERE members>0 ORDER BY score DESC LIMIT 50")
     return ret
 
 def joinClan(uid, cid):
@@ -127,13 +127,13 @@ def findLeagueEnemy(cid, score):
         minScore = score-scoreOff
         maxScore = score+scoreOff
 
-        ids = queryOne("SELECT MIN(id), MAX(id) FROM `nozomi_clan` WHERE score>%s AND score<%s AND state=1", (minScore, maxScore))
+        ids = queryOne("SELECT MIN(id), MAX(id) FROM `nozomi_clan` WHERE score>%s AND score<%s AND state=1 AND members>0", (minScore, maxScore))
         if ids!=None:
             minId = ids[0]
             maxId = ids[1]
             if maxId != None and minId!=None:
                 cut = random.randint(minId, maxId)
-                ret = queryOne("SELECT id,icon,score,`type`,name,`desc`,members FROM `nozomi_clan` WHERE id>=%s AND id!=%s AND state=1 AND statetime<%s AND score>%s AND score<%s LIMIT 1", (cut, cid, curTime, minScore, maxScore))
+                ret = queryOne("SELECT id,icon,score,`type`,name,`desc`,members FROM `nozomi_clan` WHERE id>=%s AND id!=%s AND state=1 AND statetime<%s AND score>%s AND score<%s AND members>0 LIMIT 1", (cut, cid, curTime, minScore, maxScore))
                 if ret!=None:
                     print("find league enemy %d" % ret[0])
                     update("UPDATE `nozomi_clan` SET statetime=%s WHERE id=%s", (curTime+180, ret[0]))
@@ -157,7 +157,7 @@ def beginLeagueBattle(cid, eid):
     info = getClanInfo(eid)
     curTime = int(time.mktime(time.localtime()))
     if info[9]==1 and info[10]>curTime:
-        update("UPDATE `nozomi_clan` SET state=2, statetime=%s WHERE id=%s OR id=%s", (curTime+28800, cid, eid))
+        update("UPDATE `nozomi_clan` SET state=2, statetime=%s WHERE id=%s OR id=%s", (curTime+86400, cid, eid))
         cinfo = getClanInfo(cid)
         bid = insertAndGetId("INSERT INTO `nozomi_clan_battle` (cid1, cid2, left1, left2, winner) VALUES (%s,%s,%s,%s,0)", (cid, eid, cinfo[6], info[6]))
         members = []
@@ -168,8 +168,8 @@ def beginLeagueBattle(cid, eid):
         for mem in emems:
             members.append([mem[0], bid, eid])
         executemany("INSERT INTO `nozomi_clan_battle_member` (uid, bid, cid, battler, video, inbattle) VALUES (%s,%s,%s,'',0,0) ON DUPLICATE KEY UPDATE bid=VALUES(bid), cid=VALUES(cid), battler='', video=0, inbattle=0", members)
-        requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=cid, type="lbb", info=curTime+28800))
-        requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=eid, type="lbb", info=curTime+28800))
+        requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=cid, type="lbb", info=curTime+86400))
+        requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=eid, type="lbb", info=curTime+86400))
         return 0
     return 1
 
@@ -187,7 +187,8 @@ def clearBattleStateAtOnce(uid):
 
 def checkBattleWithMember(uid, euid):
     battleMember = queryOne("SELECT uid, bid, video, inbattle, battler FROM `nozomi_clan_battle_member` WHERE uid=%s", (euid))
-    if battleMember==None:
+    selfMember = queryOne("SELECT uid, bid, video, inbattle, battler FROM `nozomi_clan_battle_member` WHERE uid=%s", (uid))
+    if battleMember==None or selfMember==None:
         return 1
     if battleMember[2]>0:
         return 2
@@ -195,6 +196,8 @@ def checkBattleWithMember(uid, euid):
     # this means the battler lose his connection when attacking
     if battleMember[3]>curTime and int(battleMember[4])!=uid:
         return 1
+    if selfMember[3]>curTime:
+        return 3
     update("UPDATE `nozomi_clan_battle_member` SET inbattle=%s, battler=%s WHERE uid=%s", (curTime+240, str(uid), euid))
     return 0
 
