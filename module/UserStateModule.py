@@ -41,10 +41,10 @@ def getUserState(uid):
 #uid = 0 user not exist ! so don't return any user info
 def findAMatch(uid, score, scoreOff):
     curTime = getTime()
-    while scoreOff<4000:
+    while scoreOff<1000:
         minScore = score-scoreOff
         maxScore = score+scoreOff
-
+        print("scores %d,%d" % (minScore, maxScore))
         ids = queryOne("SELECT MIN(uid), MAX(uid) FROM nozomi_user_state WHERE score>%s AND score<%s", (minScore, maxScore))
         if ids!=None:
             minId = ids[0]
@@ -52,6 +52,7 @@ def findAMatch(uid, score, scoreOff):
             if maxId != None and minId!=None:
                 cut = random.randint(minId, maxId)
                 ret = queryOne("SELECT uid FROM nozomi_user_state WHERE uid>=%s AND uid!=%s AND shieldTime<%s AND attackTime<%s AND onlineTime<%s AND score>%s AND score<%s LIMIT 1", (cut, uid, curTime, curTime, curTime, minScore, maxScore))
+                print("cut id %d" % (cut))
                 if ret!=None:
                     updateUserAttack(ret[0])
                     return ret[0]

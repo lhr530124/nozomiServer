@@ -66,13 +66,7 @@ def getUserRank():
     userInfo = myCon.store_result().fetch_row(0, 1)[0]
 
     if len(l)<50 or rank<50:
-        """
-        pr.disable()
-        ps = pstats.Stats(pr)
-        ps.print_stats()
-        """
-
-        return json.dumps([[r['uid'], r['score'], r['lastRank'], r['name']] for r in l])
+        return json.dumps([[r['uid'], r['score'], r['lastRank'], r['name'], r['icon'], r['cname']] for r in l])
     else:
         zw = UserRankModule.getRange(myCon, rank-1, rank+9)
         inZw = False
@@ -83,18 +77,12 @@ def getUserRank():
         #self not in ranking put me at first place
         if not inZw:
             zw[1] = dict(uid=uid, lastRank=0, score=score, name=userInfo['name'])
-        l = [[r['uid'], r['score'], r['lastRank'], r['name']] for r in l]
+        l = [[r['uid'], r['score'], r['lastRank'], r['name'], r.get('icon'), r.get('cname')] for r in l]
         for i in range(len(zw)):
             z = zw[i]
             if rank+i<=50:
                 continue
-            l.append([z['uid'],z['score'],z['lastRank'], z['name'],rank+i])
-
-        """
-        pr.disable()
-        ps = pstats.Stats(pr)
-        ps.print_stats()
-        """
+            l.append([z['uid'],z['score'],z['lastRank'], z['name'], z.get('icon'), z.get('cname'),rank+i])
         return json.dumps(l)
     #return json.dumps(dict(rank=rank))
 

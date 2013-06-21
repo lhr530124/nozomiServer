@@ -116,12 +116,12 @@ dataBuilds = [
               ]
 
 def getUserInfos(uid):
-    r = queryOne("SELECT name, score, clan FROM nozomi_user WHERE id=%s", (uid))
-    return dict(name=r[0], score=r[1], clan=r[2])
+    r = queryOne("SELECT name, score, clan, memberType FROM nozomi_user WHERE id=%s", (uid))
+    return dict(name=r[0], score=r[1], clan=r[2], mtype=r[3])
 
 def getUserAllInfos(uid):
-    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime FROM nozomi_user WHERE id=%s", (uid))
-    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8])
+    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType FROM nozomi_user WHERE id=%s", (uid))
+    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9])
 
 def updateUserInfoById(params, uid):
     sql = "UPDATE nozomi_user SET "
@@ -172,6 +172,12 @@ def updateUserBuildHitpoints(uid, datas):
     for data in datas:
         params.append([data[1], uid, data[0]])
     executemany("UPDATE nozomi_build SET hitpoints=%s WHERE id=%s AND buildIndex=%s", params)
+
+def updateUserBuildExtends(uid, datas):
+    params = []
+    for data in datas:
+        params.append([data[1], uid, data[0]])
+    executemany("UPDATE nozomi_build SET extend=%s WHERE id=%s AND buildIndex=%s", params)
 
 def getUidByName(account):
     ret = queryOne("SELECT id FROM nozomi_user WHERE account=%s", (account))
@@ -230,70 +236,7 @@ def getBattleHistory():
     else:
         return json.dumps([[json.loads(r[0]), r[1], r[2], r[3], r[4]] for r in ret])
 
-@app.route("/findClans", methods=['GET'])
-def findClans():
-    ret = queryAll("SELECT id, name, type, minScore, creator, members, score FROM nozomi_clan LIMIT 50")
-    if ret==None:
-        return "[]"
-    return json.dumps([dict(id=r[0], name=r[1], type=r[2], minScore=r[3], members=r[5], score=r[6]) for r in ret])
-
-@app.route("/getClanInfos", methods=['GET'])
-def getClanInfos():
-    cid = int(request.args['cid'])
-    clanInfo = getClanInfo(cid)
-    ret = dict(id=cid, name=clanInfo[0], type=clanInfo[1], minScore=clanInfo[2], creator=clanInfo[3], members=clanInfo[4], score=clanInfo[5])
-    ret['memberInfos'] = getClanMembers(cid)
-    return json.dumps(ret)
-
-@app.route("/createClan", methods=['POST'])
-def createSelfClan():
-    if 'uid' not in request.form:
-        return json.dumps(dict(code=401, msg="user id require"))
-    if 'name' not in request.form:
-        return json.dumps(dict(code=401, msg="clan name require"))
-    uid = int(request.form['uid'])
-    name = request.form['name']
-    cid = createClan(uid, name, 0, 0)
-    return json.dumps(dict(code=0, cid=cid))
-
-@app.route("/searchClan", methods=['GET'])
-def searchClan():
-    match = request.args['match']
-    ret = queryAll("SELECT id, name, type, minScore, creator, members, score FROM nozomi_clan WHERE name LIKE %s", ("%"+match+"%"))
-    if ret==None:
-        return "[]"
-    return json.dumps([dict(id=r[0], name=r[1], type=r[2], minScore=r[3], members=r[5], score=r[6]) for r in ret])
-
-@app.route("/joinClan", methods=['POST'])
-def joinClan():
-    if 'cid' not in request.form:
-        return json.dumps(dict(code=401, msg="clan id require"))
-    if 'uid' not in request.form:
-        return json.dumps(dict(code=401, msg="user id require"))
-    cid = int(request.form['cid'])
-    uid = int(request.form['uid'])
-    clanInfo = getClanInfo(cid)
-    if clanInfo==None or clanInfo[1]==2:
-        return json.dumps(dict(code=1, msg="This clan is closed"))
-    elif clanInfo[4]==50:
-        return json.dumps(dict(code=2, msg="Clan is full"))
-    userInfo = getUserInfos(uid)
-    if userInfo==None:
-        return json.dumps(dict(code=3, msg="User not exsited"))
-    elif userInfo[2]<clanInfo[2]:
-        return json.dumps(dict(code=4, msg="Score is limited"))
-    if userInfo[5]==0:
-        if clanInfo[1]==1:
-            #add msg to clan
-            return json.dumps(dict(code=0, type=1, cid=cid))
-        else:
-            addClanMember(cid, uid)
-            #add msg to clan
-            return json.dumps(dict(code=0, type=0, cid=cid))
-    else:
-        return json.dumps(dict(code=2, msg="User was already in a clan"))
-
-@app.route("/login", methods=['POST', 'GET'])
+@app.route("/login", methods=['POST'])
 def login():
     print 'login', request.form
     if 'username' in request.form:
@@ -362,6 +305,8 @@ def getData():
         data['achieves'] = achieveModule.getAchieves(uid)
     else:
         data = getUserInfos(uid)
+    if data['clan']>0:
+        data['clanInfo'] = ClanModule.getClanInfo(data['clan'])
     data['builds'] = getUserBuilds(uid)
     data['researches'] = getUserResearch(uid)
     return json.dumps(data)
@@ -427,18 +372,18 @@ def synBattleData():
     print 'synBattleData', request.form
     uid = int(request.form.get("uid", 0))
     eid = int(request.form.get("eid", 0))
+    print("test uid and eid %d,%d" % (uid, eid))
     if uid==0 or eid==0:
         return json.dumps({'code':401})
     incScore = int(request.form.get("score", 0))
-
-    if eid>1:
+    if eid>1 and 'isLeague' not in request.form:
         if 'delete' in request.form:
             delete = json.loads(request.form['delete'])
             deleteUserBuilds(eid, delete)
-        if 'update' in request.form:
+        if 'eupdate' in request.form:
             #print("test_update", request.form['update'])
-            up = json.loads(request.form['update'])
-            updateUserBuilds(eid, up)
+            up = json.loads(request.form['eupdate'])
+            updateUserBuildExtends(eid, up)
         if 'hits' in request.form:
             hits = json.loads(request.form['hits'])
             updateUserBuildHitpoints(eid, hits)
@@ -453,13 +398,19 @@ def synBattleData():
     reverged = 0
     if 'isReverge' in request.form:
         reverged = 1
-        print("Clear Reverge")
         update("UPDATE nozomi_battle_history SET reverged=1 WHERE uid=%s AND eid=%s", (uid, eid))
-    if eid>1 and 'history' in request.form:
+    if eid>1:
         videoId = 0
         if 'replay' in request.form:
             videoId = insertAndGetId("INSERT INTO nozomi_replay (replay) VALUES(%s)", (request.form['replay']))
-        update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s)", (eid, uid, videoId, int(time.mktime(time.localtime())), request.form['history'], reverged))
+        if 'isLeague' in request.form:
+            lscore = int(request.form.get('lscore', 0))
+            bid = int(request.form.get('bid', 0))
+            cid = int(request.form.get('cid', 0))
+            ecid = int(request.form.get('ecid', 0))
+            ClanModule.changeBattleState(uid, eid, cid, ecid, bid, videoId, lscore)
+        if 'history' in request.form:
+            update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s)", (eid, uid, videoId, int(time.mktime(time.localtime())), request.form['history'], reverged))
     return json.dumps({'code':0})
 
 @app.route("/findEnemy", methods=['GET'])
@@ -468,8 +419,10 @@ def findEnemy():
     print("selfUid", selfUid)
     isGuide = request.args.get('isGuide')
     uid = 1
+    #uid = 37
     if isGuide==None:
-        uid = findAMatch(selfUid, int(request.args.get('baseScore', 0)), 1000)
+        uid = findAMatch(selfUid, int(request.args.get('baseScore', 0)), 200)
+    #uid = 29
     print("Find Enemy:%d" % uid)
 
     if uid != 0:
@@ -490,8 +443,133 @@ def sendFeedback():
             update("INSERT INTO nozomi_feedback (uid, text) VALUES (%s,%s)", (uid, text))
             return json.dumps(dict(code=0))
     return json.dumps(dict(code=401))
-    
-app.secret_key = os.urandom(24)
 
+@app.route("/getClanMembers", methods=['GET'])
+def getClanMembers():
+    cid = int(request.args.get('cid', 0))
+    if cid==0:
+        return "[]"
+    return json.dumps(ClanModule.getClanMembers(cid))
+
+@app.route("/getRandomClans", methods=['GET'])
+def getRandomClans():
+    score = int(request.args.get('score', 0))
+    return json.dumps(ClanModule.getRandomClans(score))
+
+@app.route("/searchClans", methods=['GET'])
+def searchClans():
+    text = request.args.get('word')
+    if text==None:
+        return "null"
+    return json.dumps(ClanModule.searchClans(text))
+
+@app.route("/findLeagueEnemy", methods=['POST'])
+def findLeagueEnemy():
+    uid = int(request.form.get('uid', 0))
+    cid = int(request.form.get('cid', 0))
+    score = int(request.form.get('score', 0))
+    if not ClanModule.checkFindLeagueAuth(uid, cid):
+        return json.dumps(dict(code=2))
+
+    enemy=ClanModule.findLeagueEnemy(cid, score)
+    if 'eid' in request.form:
+        eid = int(request.form.get('eid', 0))
+        ClanModule.resetClanState(eid, 1)
+    return json.dumps(dict(code=0, enemy=enemy))
+
+@app.route("/cancelFindLeagueEnemy", methods=['POST'])
+def cancelFindLeagueEnemy():
+    cid = int(request.form.get('cid', 0))
+    uid = int(request.form.get('uid', 0))
+    
+    if not ClanModule.checkFindLeagueAuth(uid, cid):
+        return json.dumps(dict(code=2))
+    ret = 1
+    if cid>0:
+        ret = ClanModule.cancelFindLeagueEnemy(cid)
+    return json.dumps(dict(code=ret))
+
+@app.route("/beginLeagueBattle", methods=['POST'])
+def beginLeagueBattle():
+    cid = int(request.form.get('cid', 0))
+    eid = int(request.form.get('eid', 0))
+    uid = int(request.form.get('uid', 0))
+    
+    if not ClanModule.checkFindLeagueAuth(uid, cid):
+        return json.dumps(dict(code=2))
+    return json.dumps(dict(code=ClanModule.beginLeagueBattle(cid, eid)))
+
+@app.route("/createClan", methods=['POST'])
+def createClan():
+    uid = int(request.form.get('uid', 0))
+    icon = int(request.form.get('icon', 0))
+    ltype = int(request.form.get('type', 0))
+    name = request.form.get('name', "")
+    desc = request.form.get('desc', "")
+    minScore = request.form.get('min', "")
+    ret = ClanModule.createClan(uid, icon, ltype, name, desc, minScore)
+    return json.dumps(dict(clan=ret, info=[ret, icon, 0, ltype, name, desc, 1, minScore, uid, 0, 0]))
+
+@app.route("/joinClan", methods=['POST'])
+def joinClan():
+    uid = int(request.form.get('uid', 0))
+    cid = int(request.form.get('cid', 0))
+    ret = ClanModule.joinClan(uid, cid)
+    if ret==None:
+        return json.dumps(dict(code=1))
+    return json.dumps(dict(code=0, clan=ret[0], clanInfo=ret))
+
+@app.route("/leaveClan", methods=['POST'])
+def leaveClan():
+    uid = int(request.form.get('uid', 0))
+    cid = int(request.form.get('cid', 0))
+    ret = ClanModule.leaveClan(uid, cid)
+    if ret==None:
+        return json.dumps(dict(code=1))
+    return json.dumps(dict(code=0, clan=0))
+
+@app.route("/getLeagueBattleInfo", methods=['GET'])
+def getLeagueBattleInfo():
+    cid = int(request.args.get('cid', 0))
+    info = ClanModule.getLeagueBattleInfo(cid)
+    if info!=None:
+        eid = info[1]
+        if eid==cid:
+            eid = info[2]
+        return json.dumps(dict(code=0, info=info, clan=ClanModule.getClanInfo(eid), smembers=ClanModule.getClanMembers(cid), members=ClanModule.getClanMembers(eid)))
+    return json.dumps(dict(code=1))
+
+@app.route("/getLeagueMemberData", methods=['GET'])
+def getLeagueMemberData():
+    uid = int(request.args.get('uid', 0))
+    euid = int(request.args.get('eid', 0))
+    code = ClanModule.checkBattleWithMember(uid, euid)
+    ret = dict(code=code)
+    if code==0:
+        ret = getUserInfos(euid)
+        ret['code'] = 0
+        ret['builds'] = getUserBuilds(euid)
+    return json.dumps(ret)
+
+@app.route("/clearBattleState", methods=['POST'])
+def clearBattleState():
+    eid = int(request.args.get('eid', 0))
+    ClanModule.clearBattleStateAtOnce(eid)
+    return json.dumps(dict(code=0))
+
+@app.route("/getLeagueRank", methods=['GET'])
+def getLeagueRank():
+    return json.dumps(ClanModule.getTopClans())
+
+@app.route("/synErrorLog", methods=['POST'])
+def synErrorLog():
+    log = request.form.get('log', "")
+    uid = int(request.form.get('uid', 0))
+    if uid>0 and log!="":
+        update("INSERT INTO `nozomi_error_log` (uid, log) VALUES (%s,%s)", (uid, log))
+    return "ok"
+
+app.secret_key = os.urandom(24)
+app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port = config.HOSTPORT)
