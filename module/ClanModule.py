@@ -2,6 +2,10 @@
 import time
 import random
 from flaskext import *
+import sys
+sys.path.append('..')
+import config
+
 
 #clan's state 0 means free, 1 means wait to battle, 2 means in battle.
 
@@ -73,9 +77,10 @@ def getClanInfo(cid):
                 if mtype!=m[4]:
                     params.append([mtype, m[0]])
             executemany("UPDATE `nozomi_user` SET memberType=%s WHERE id=%s", params)
-                
-            requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=binfo[1], type="lbe", info=binfo[winner]))
-            requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=binfo[2], type="lbe", info=binfo[winner]))
+            #"http://uhz000738.chinaw3.com:8004/sys"
+            #"http://uhz000738.chinaw3.com:8004/sys"
+            requestGet(config.CHATSERVER, dict(cid=binfo[1], type="lbe", info=binfo[winner]))
+            requestGet(config.CHATSERVER , dict(cid=binfo[2], type="lbe", info=binfo[winner]))
             ret = list(ret)
             ret[9]=0
             ret[10]=0
@@ -168,8 +173,8 @@ def beginLeagueBattle(cid, eid):
         for mem in emems:
             members.append([mem[0], bid, eid])
         executemany("INSERT INTO `nozomi_clan_battle_member` (uid, bid, cid, battler, video, inbattle) VALUES (%s,%s,%s,'',0,0) ON DUPLICATE KEY UPDATE bid=VALUES(bid), cid=VALUES(cid), battler='', video=0, inbattle=0", members)
-        requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=cid, type="lbb", info=curTime+86400))
-        requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=eid, type="lbb", info=curTime+86400))
+        requestGet(config.CHATSERVER, dict(cid=cid, type="lbb", info=curTime+86400))
+        requestGet(config.CHATSERVER, dict(cid=eid, type="lbb", info=curTime+86400))
         return 0
     return 1
 
@@ -242,8 +247,8 @@ def changeBattleState(uid, eid, cid, ecid, bid, vid, lscore):
                         params.append([mtype, m[0]])
                 executemany("UPDATE `nozomi_user` SET memberType=%s WHERE id=%s", params)
                 
-                requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=cid, type="lbe", info=cid))
-                requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=ecid, type="lbe", info=cid))
+                requestGet(config.CHATSERVER, dict(cid=cid, type="lbe", info=cid))
+                requestGet(config.CHATSERVER, dict(cid=ecid, type="lbe", info=cid))
             if isE1:
                 update("UPDATE `nozomi_clan_battle` SET left1=left1-1, winner=%s WHERE id=%s", (winner, bid))
             else:
