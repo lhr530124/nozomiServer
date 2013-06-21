@@ -407,24 +407,35 @@ def searchClans():
         return "null"
     return json.dumps(ClanModule.searchClans(text))
 
-@app.route("/findLeagueEnemy", methods=['POST'])
+@app.route("/findLeagueEnemy", methods=['GET'])
 def findLeagueEnemy():
-    uid = int(request.form.get('uid', 0))
-    cid = int(request.form.get('cid', 0))
-    score = int(request.form.get('score', 0))
+
+
+    uid = int(request.args.get('uid', 0))
+    cid = int(request.args.get('cid', 0))
+    score = int(request.args.get('score', 0))
+    print('uid', uid, cid, score, request.args)
+    
+    #uid = int(request.form.get('uid', 0))
+    #cid = int(request.form.get('cid', 0))
+    #score = int(request.form.get('score', 0))
+
     if not ClanModule.checkFindLeagueAuth(uid, cid):
         return json.dumps(dict(code=2))
 
     enemy=ClanModule.findLeagueEnemy(cid, score)
-    if 'eid' in request.form:
-        eid = int(request.form.get('eid', 0))
+    if 'eid' in request.args:
+        eid = int(request.args.get('eid', 0))
         ClanModule.resetClanState(eid, 1)
     return json.dumps(dict(code=0, enemy=enemy))
 
-@app.route("/cancelFindLeagueEnemy", methods=['POST'])
+@app.route("/cancelFindLeagueEnemy", methods=['POST', 'GET'])
 def cancelFindLeagueEnemy():
-    cid = int(request.form.get('cid', 0))
-    uid = int(request.form.get('uid', 0))
+    cid = int(request.args.get('cid', 0))
+    uid = int(request.args.get('uid', 0))
+
+    #cid = int(request.form.get('cid', 0))
+    #uid = int(request.form.get('uid', 0))
     
     if not ClanModule.checkFindLeagueAuth(uid, cid):
         return json.dumps(dict(code=2))
@@ -433,11 +444,15 @@ def cancelFindLeagueEnemy():
         ret = ClanModule.cancelFindLeagueEnemy(cid)
     return json.dumps(dict(code=ret))
 
-@app.route("/beginLeagueBattle", methods=['POST'])
+@app.route("/beginLeagueBattle", methods=['POST', 'GET'])
 def beginLeagueBattle():
-    cid = int(request.form.get('cid', 0))
-    eid = int(request.form.get('eid', 0))
-    uid = int(request.form.get('uid', 0))
+    cid = int(request.args.get('cid', 0))
+    eid = int(request.args.get('eid', 0))
+    uid = int(request.args.get('uid', 0))
+
+    #cid = int(request.form.get('cid', 0))
+    #eid = int(request.form.get('eid', 0))
+    #uid = int(request.form.get('uid', 0))
     
     if not ClanModule.checkFindLeagueAuth(uid, cid):
         return json.dumps(dict(code=2))
