@@ -9,6 +9,24 @@ def getRandomClans(score):
     rets = queryAll("SELECT `id`,icon,score,`type`,name,`desc`,members, `min`, creator FROM `nozomi_clan` WHERE `min`<=%s AND members>0 AND members<50 LIMIT 50", (score))
     return rets
 
+def searchClans(text):
+    text = text.strip().replace("%","")
+    if text=="":
+        return None
+    isUnicode = False
+    for i in range(len(text)):
+        if ord(text[i])>=128:
+            if i==0:
+                text = text[:3]
+                isUnicode = True
+            else:
+                text = text[:i]
+            break
+    if isUnicode:
+        return queryAll("SELECT `id`,icon,score,`type`,name,`desc`,members,`min`,creator FROM `nozomi_clan` WHERE `name` LIKE %s AND members>0 LIMIT 50", (text+"%"))
+    rets = queryAll("SELECT `id`,icon,score,`type`,name,`desc`,members,`min`,creator FROM `nozomi_clan` WHERE MATCH(`name`) AGAINST (%s) AND members>0 LIMIT 50", (text))
+    return rets
+
 def createClan(uid, icon, ltype, name, desc, minScore):
     id = insertAndGetId("INSERT INTO `nozomi_clan` (icon, score, type, name, `desc`, members, `min`, creator, state, statetime) VALUES(%s,0,%s,%s,%s,1,%s,%s,0,0)", (icon, ltype, name, desc, minScore, uid))
     update("UPDATE `nozomi_user` SET clan=%s, memberType=2 WHERE id=%s", (id, uid))
@@ -20,6 +38,47 @@ def getClanMembers(cid):
 
 def getClanInfo(cid):
     ret = queryOne("SELECT `id`, icon, score, `type`, name, `desc`, members, `min`, creator, state, statetime FROM `nozomi_clan` WHERE id=%s", (cid))
+    if ret!=None and ret[9]==2:
+        curTime = int(time.mktime(time.localtime()))
+        if curTime>ret[10]:
+            #compute winner
+            binfo = queryOne("SELECT id, cid1, cid2, left1, left2 FROM `nozomi_clan_battle` WHERE winner=0 AND (cid1=%s OR cid2=%s)", (cid, cid))
+            winner = 1
+            if binfo[4]>binfo[3]:
+                winner = 2
+            update("UPDATE `nozomi_clan_battle` SET winner=%s WHERE id=%s", (winner, binfo[0]))
+            update("UPDATE `nozomi_clan` SET state=0, statetime=0 WHERE id=%s", (binfo[3-winner]))
+            update("UPDATE `nozomi_clan` SET state=0, statetime=0, score=score+30 WHERE id=%s", (binfo[winner]))
+            params = []
+            m1 = sorted(getClanMembers(binfo[1]), key=lambda x:x[2], reverse=True)
+            m2 = sorted(getClanMembers(binfo[2]), key=lambda x:x[2], reverse=True)
+            ednum = 9
+            for m in m1:
+                if m[4]==2:
+                    continue
+                mtype = 0
+                if ednum>0:
+                    ednum=ednum-1
+                    mtype=1
+                if mtype!=m[4]:
+                    params.append([mtype, m[0]])
+            ednum = 9
+            for m in m2:
+                if m[4]==2:
+                    continue
+                mtype = 0
+                if ednum>0:
+                    ednum=ednum-1
+                    mtype=1
+                if mtype!=m[4]:
+                    params.append([mtype, m[0]])
+            executemany("UPDATE `nozomi_user` SET memberType=%s WHERE id=%s", params)
+                
+            requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=binfo[1], type="lbe", info=binfo[winner]))
+            requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=binfo[2], type="lbe", info=binfo[winner]))
+            ret = list(ret)
+            ret[9]=0
+            ret[10]=0
     return ret
 
 def getTopClans():
@@ -118,7 +177,7 @@ def getLeagueBattleInfo(cid):
     battle = queryOne("SELECT id, cid1, cid2, left1, left2 FROM `nozomi_clan_battle` WHERE winner=0 AND (cid1=%s OR cid2=%s)", (cid, cid))
     if battle==None:
         return None
-    members = queryAll("SELECT uid, cid, battler, video, inbattle FROM `nozomi_clan_battle_member` WHERE bid=%s AND cid!=%s", (battle[0], cid))
+    members = queryAll("SELECT uid, cid, battler, video, inbattle FROM `nozomi_clan_battle_member` WHERE bid=%s", (battle[0]))
     battle=list(battle)
     battle.append(members)
     return battle

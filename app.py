@@ -400,6 +400,13 @@ def getRandomClans():
     score = int(request.args.get('score', 0))
     return json.dumps(ClanModule.getRandomClans(score))
 
+@app.route("/searchClans", methods=['GET'])
+def searchClans():
+    text = request.args.get('word')
+    if text==None:
+        return "null"
+    return json.dumps(ClanModule.searchClans(text))
+
 @app.route("/findLeagueEnemy", methods=['POST'])
 def findLeagueEnemy():
     uid = int(request.form.get('uid', 0))
@@ -473,7 +480,7 @@ def getLeagueBattleInfo():
         eid = info[1]
         if eid==cid:
             eid = info[2]
-        return json.dumps(dict(code=0, info=info, clan=ClanModule.getClanInfo(eid), members=ClanModule.getClanMembers(eid)))
+        return json.dumps(dict(code=0, info=info, clan=ClanModule.getClanInfo(eid), smembers=ClanModule.getClanMembers(cid), members=ClanModule.getClanMembers(eid)))
     return json.dumps(dict(code=1))
 
 @app.route("/getLeagueMemberData", methods=['GET'])
