@@ -208,25 +208,6 @@ def updateUserState(uid, eid):
     if eid!=0:
         clearUserAttack(eid)
 
-def setUserClan(uid, cid):
-    update("UPDATE nozomi_user SET clan=%s WHERE id=%s", (cid, uid))
-
-def createClan(uid, name, ctype, minScore):
-    cid = insertAndGetId("INSERT INTO nozomi_clan (name, type, minScore, creator, members, score) VALUES (%s, %s, %s, %s, 1, 0)", (name, ctype, minScore, uid))
-    setUserClan(uid, cid)
-    return cid
-
-def addClanMember(cid, uid):
-    setUserClan(uid, cid)
-    update("UPDATE nozomi_clan SET members=members+1 WHERE id=%s", (cid))
-
-def getClanInfo(cid):
-    return queryOne("SELECT name, type, minScore, creator, members, score FROM nozomi_clan WHERE id=%s", (cid))
-
-def getClanMembers(cid):
-    ret = queryAll("SELECT id, name, score FROM nozomi_user WHERE clan=%s", (cid))
-    return [dict(id=r[0], name=r[1], score=r[2]) for r in ret]
-
 @app.route("/getBattleHistory", methods=['GET'])
 def getBattleHistory():
     uid = int(request.args['uid'])
@@ -506,9 +487,20 @@ def createClan():
     ltype = int(request.form.get('type', 0))
     name = request.form.get('name', "")
     desc = request.form.get('desc', "")
-    minScore = request.form.get('min', "")
+    minScore = int(request.form.get('min', 0))
     ret = ClanModule.createClan(uid, icon, ltype, name, desc, minScore)
     return json.dumps(dict(clan=ret, info=[ret, icon, 0, ltype, name, desc, 1, minScore, uid, 0, 0]))
+
+@app.route("/editClan", methods=['POST'])
+def editClan():
+    uid = int(request.form.get('uid', 0))
+    cid = int(request.form.get('cid', 0))
+    icon = int(request.form.get('icon', 0))
+    ltype = int(request.form.get('type', 0))
+    name = request.form.get('name', "")
+    desc = request.form.get('desc', "")
+    minScore = int(request.form.get('min', 0))
+    return json.dumps(dict(code=ClanModule.editClan(cid, icon, ltype, name, desc, minScore), name=name, desc=desc, icon=icon, type=ltype, min=minScore))
 
 @app.route("/joinClan", methods=['POST'])
 def joinClan():
