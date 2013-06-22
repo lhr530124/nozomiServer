@@ -56,7 +56,7 @@ while True:
     try:
         ret = urllib2.urlopen("http://localhost:%d/login" % (config.HOSTPORT), urllib.urlencode({}), 15)
         code = ret.getcode()
-        print code, ret
+        #print code, ret
     except socket.timeout, e:
         handleTimeout()
     except urllib2.URLError, e:
