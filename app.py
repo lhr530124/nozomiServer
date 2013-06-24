@@ -16,6 +16,13 @@ from calendar import monthrange
 import config
 import module
 
+#from requestlogger import WSGILogger, ApacheFormatter
+from logging.handlers import TimedRotatingFileHandler
+import time
+
+from logging import Formatter
+
+
 """
 HOST = 'localhost'
 DATABASE = 'nozomi'
@@ -30,9 +37,32 @@ sys.setdefaultencoding('utf-8')
 app = Flask(__name__)
 app.config.from_object("config")
 
+timeLogHandler = TimedRotatingFileHandler('nozomiAccess.log', 'd', 7)
+timelogger = logging.getLogger("timeLogger")
+timelogger.addHandler(timeLogHandler)
+timelogger.setLevel(logging.INFO)
+
 @app.before_request
 def beforeQuest():
-    print request.url
+    g.startTime = time.time() 
+    #print request.url
+@app.after_request
+def afterQuest(response):
+    endTime = time.time()
+    timelogger.info('%s %d  %d' % (request.url, int(g.startTime), int((endTime-g.startTime)*10**3)) )
+    return response
+
+
+@app.errorhandler(500)
+def internalError(exception):
+    print "internal error", request
+    app.logger.exception('''
+    args %s
+    form %s
+    %s
+    ''' % (str(request.args), str(request.form), exception))
+    return '', 500 
+    
 
 def getConn():
     return MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
@@ -56,8 +86,33 @@ crystallogger.setLevel(logging.INFO)
 
 
 debugLogger = logging.FileHandler("error2.log")
-debugLogger.setLevel(logging.INFO)
+debugLogger.setLevel(logging.ERROR)
+debugLogger.setFormatter(Formatter(
+'''
+Message type:  %(levelname)s
+Module:        %(module)s
+Time:          %(asctime)s
+Message:
+%(message)s
+'''))
 app.logger.addHandler(debugLogger)
+
+mailLogger = logging.handlers.SMTPHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Application Failed!\ncheck error2.log file")
+mailLogger.setLevel(logging.ERROR)
+mailLogger.setFormatter(Formatter(
+'''
+Message type:  %(levelname)s
+Location:      %(pathname)s:%(lineno)d
+Module:        %(module)s
+Function:      %(funcName)s
+Time:          %(asctime)s
+Message:
+%(message)s
+'''))
+app.logger.addHandler(mailLogger)
+
+
+#handlers = [TimedRotatingFileHandler('nozomiAccess.log', 'd', 7), ]
 
 
 
@@ -220,7 +275,7 @@ def getBattleHistory():
     else:
         return json.dumps([[json.loads(r[0]), r[1], r[2], r[3], r[4]] for r in ret])
 
-@app.route("/login", methods=['POST'])
+@app.route("/login", methods=['POST', 'GET'])
 def login():
     print 'login', request.form
     if 'username' in request.form:
@@ -566,5 +621,6 @@ def synErrorLog():
 
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port = config.HOSTPORT)
+    app.run(debug=False, host='0.0.0.0', port = config.HOSTPORT)
