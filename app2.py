@@ -13,6 +13,7 @@ from calendar import monthrange
 import config
 import logging
 from logging.handlers import TimedRotatingFileHandler
+from logging import Formatter
 
 """
 HOST = 'localhost'
@@ -44,7 +45,7 @@ def afterQuest(response):
     timelogger.info('%s %d  %d' % (request.url, int(g.startTime), int((endTime-g.startTime)*10**3)) )
     return response
 
-debugLogger = logging.FileHandler("error2.log")
+debugLogger = logging.FileHandler("errorRank.log")
 debugLogger.setLevel(logging.ERROR)
 debugLogger.setFormatter(Formatter(
 '''
@@ -56,7 +57,7 @@ Message:
 '''))
 app.logger.addHandler(debugLogger)
 
-mailLogger = logging.handlers.SMTPHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Application Failed!\ncheck error2.log file")
+mailLogger = logging.handlers.SMTPHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Rank Application Failed!\ncheck errorRank.log file")
 mailLogger.setLevel(logging.ERROR)
 mailLogger.setFormatter(Formatter(
 '''
