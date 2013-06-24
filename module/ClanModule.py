@@ -36,6 +36,10 @@ def createClan(uid, icon, ltype, name, desc, minScore):
     update("UPDATE `nozomi_user` SET clan=%s, memberType=2 WHERE id=%s", (id, uid))
     return id
 
+def editClan(cid, icon, ltype, name, desc, minScore):
+    update("UPDATE `nozomi_clan` SET icon=%s,type=%s,name=%s,`desc`=%s,`min`=%s WHERE id=%s", (icon,ltype,name,desc,minScore,cid))
+    return 0
+
 def getClanMembers(cid):
     rets = queryAll("SELECT `id`, score, lscore, name, memberType FROM `nozomi_user` WHERE clan=%s", (cid))
     return rets

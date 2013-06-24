@@ -16,6 +16,13 @@ from calendar import monthrange
 import config
 import module
 
+#from requestlogger import WSGILogger, ApacheFormatter
+from logging.handlers import TimedRotatingFileHandler
+import time
+
+from logging import Formatter
+
+
 """
 HOST = 'localhost'
 DATABASE = 'nozomi'
@@ -30,6 +37,32 @@ sys.setdefaultencoding('utf-8')
 app = Flask(__name__)
 app.config.from_object("config")
 
+timeLogHandler = TimedRotatingFileHandler('nozomiAccess.log', 'd', 7)
+timelogger = logging.getLogger("timeLogger")
+timelogger.addHandler(timeLogHandler)
+timelogger.setLevel(logging.INFO)
+
+@app.before_request
+def beforeQuest():
+    g.startTime = time.time() 
+    #print request.url
+@app.after_request
+def afterQuest(response):
+    endTime = time.time()
+    timelogger.info('%s %d  %d' % (request.url, int(g.startTime), int((endTime-g.startTime)*10**3)) )
+    return response
+
+
+@app.errorhandler(500)
+def internalError(exception):
+    print "internal error", request
+    app.logger.exception('''
+    args %s
+    form %s
+    %s
+    ''' % (str(request.args), str(request.form), exception))
+    return '', 500 
+    
 
 def getConn():
     return MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
@@ -53,8 +86,33 @@ crystallogger.setLevel(logging.INFO)
 
 
 debugLogger = logging.FileHandler("error2.log")
-debugLogger.setLevel(logging.INFO)
+debugLogger.setLevel(logging.ERROR)
+debugLogger.setFormatter(Formatter(
+'''
+Message type:  %(levelname)s
+Module:        %(module)s
+Time:          %(asctime)s
+Message:
+%(message)s
+'''))
 app.logger.addHandler(debugLogger)
+
+mailLogger = logging.handlers.SMTPHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Application Failed!\ncheck error2.log file")
+mailLogger.setLevel(logging.ERROR)
+mailLogger.setFormatter(Formatter(
+'''
+Message type:  %(levelname)s
+Location:      %(pathname)s:%(lineno)d
+Module:        %(module)s
+Function:      %(funcName)s
+Time:          %(asctime)s
+Message:
+%(message)s
+'''))
+app.logger.addHandler(mailLogger)
+
+
+#handlers = [TimedRotatingFileHandler('nozomiAccess.log', 'd', 7), ]
 
 
 
@@ -208,25 +266,6 @@ def updateUserState(uid, eid):
     if eid!=0:
         clearUserAttack(eid)
 
-def setUserClan(uid, cid):
-    update("UPDATE nozomi_user SET clan=%s WHERE id=%s", (cid, uid))
-
-def createClan(uid, name, ctype, minScore):
-    cid = insertAndGetId("INSERT INTO nozomi_clan (name, type, minScore, creator, members, score) VALUES (%s, %s, %s, %s, 1, 0)", (name, ctype, minScore, uid))
-    setUserClan(uid, cid)
-    return cid
-
-def addClanMember(cid, uid):
-    setUserClan(uid, cid)
-    update("UPDATE nozomi_clan SET members=members+1 WHERE id=%s", (cid))
-
-def getClanInfo(cid):
-    return queryOne("SELECT name, type, minScore, creator, members, score FROM nozomi_clan WHERE id=%s", (cid))
-
-def getClanMembers(cid):
-    ret = queryAll("SELECT id, name, score FROM nozomi_user WHERE clan=%s", (cid))
-    return [dict(id=r[0], name=r[1], score=r[2]) for r in ret]
-
 @app.route("/getBattleHistory", methods=['GET'])
 def getBattleHistory():
     uid = int(request.args['uid'])
@@ -236,7 +275,7 @@ def getBattleHistory():
     else:
         return json.dumps([[json.loads(r[0]), r[1], r[2], r[3], r[4]] for r in ret])
 
-@app.route("/login", methods=['POST'])
+@app.route("/login", methods=['POST', 'GET'])
 def login():
     print 'login', request.form
     if 'username' in request.form:
@@ -506,9 +545,20 @@ def createClan():
     ltype = int(request.form.get('type', 0))
     name = request.form.get('name', "")
     desc = request.form.get('desc', "")
-    minScore = request.form.get('min', "")
+    minScore = int(request.form.get('min', 0))
     ret = ClanModule.createClan(uid, icon, ltype, name, desc, minScore)
     return json.dumps(dict(clan=ret, info=[ret, icon, 0, ltype, name, desc, 1, minScore, uid, 0, 0]))
+
+@app.route("/editClan", methods=['POST'])
+def editClan():
+    uid = int(request.form.get('uid', 0))
+    cid = int(request.form.get('cid', 0))
+    icon = int(request.form.get('icon', 0))
+    ltype = int(request.form.get('type', 0))
+    name = request.form.get('name', "")
+    desc = request.form.get('desc', "")
+    minScore = int(request.form.get('min', 0))
+    return json.dumps(dict(code=ClanModule.editClan(cid, icon, ltype, name, desc, minScore), name=name, desc=desc, icon=icon, type=ltype, min=minScore))
 
 @app.route("/joinClan", methods=['POST'])
 def joinClan():
@@ -571,5 +621,6 @@ def synErrorLog():
 
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port = config.HOSTPORT)
+    app.run(debug=False, host='0.0.0.0', port = config.HOSTPORT)
