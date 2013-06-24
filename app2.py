@@ -11,6 +11,8 @@ import json
 import logging
 from calendar import monthrange
 import config
+import logging
+from logging.handlers import TimedRotatingFileHandler
 
 """
 HOST = 'localhost'
@@ -25,6 +27,60 @@ sys.setdefaultencoding('utf-8')
 
 app = Flask(__name__)
 app.config.from_object("config")
+
+
+timeLogHandler = TimedRotatingFileHandler('nozomiRankAccess.log', 'd', 7)
+timelogger = logging.getLogger("timeLogger")
+timelogger.addHandler(timeLogHandler)
+timelogger.setLevel(logging.INFO)
+
+@app.before_request
+def beforeQuest():
+    g.startTime = time.time() 
+    #print request.url
+@app.after_request
+def afterQuest(response):
+    endTime = time.time()
+    timelogger.info('%s %d  %d' % (request.url, int(g.startTime), int((endTime-g.startTime)*10**3)) )
+    return response
+
+debugLogger = logging.FileHandler("error2.log")
+debugLogger.setLevel(logging.ERROR)
+debugLogger.setFormatter(Formatter(
+'''
+Message type:  %(levelname)s
+Module:        %(module)s
+Time:          %(asctime)s
+Message:
+%(message)s
+'''))
+app.logger.addHandler(debugLogger)
+
+mailLogger = logging.handlers.SMTPHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Application Failed!\ncheck error2.log file")
+mailLogger.setLevel(logging.ERROR)
+mailLogger.setFormatter(Formatter(
+'''
+Message type:  %(levelname)s
+Location:      %(pathname)s:%(lineno)d
+Module:        %(module)s
+Function:      %(funcName)s
+Time:          %(asctime)s
+Message:
+%(message)s
+'''))
+app.logger.addHandler(mailLogger)
+
+
+@app.errorhandler(500)
+def internalError(exception):
+    print "internal error", request
+    app.logger.exception('''
+    args %s
+    form %s
+    %s
+    ''' % (str(request.args), str(request.form), exception))
+    return '', 500 
+
 
 def getConn():
     #return MySQLdb.connect(host='localhost', passwd='3508257', db='nozomi', user='root', charset='utf8')
@@ -89,4 +145,4 @@ def getUserRank():
 app.secret_key = os.urandom(24)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=config.SORTPORT)
+    app.run(debug=False, host='0.0.0.0', port=config.SORTPORT)
