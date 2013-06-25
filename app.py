@@ -290,9 +290,9 @@ def login():
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
         else:
-            days = dailyModule.dailyLogin(uid)
-            if days>0:
-                ret['days']=days
+            #days = dailyModule.dailyLogin(uid)
+            #if days>0:
+            #    ret['days']=days
 
         if False:
 
