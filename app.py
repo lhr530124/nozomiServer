@@ -70,7 +70,7 @@ dataBuilds = [
               [5, 240023, 2004, 1, 0, 250, "{\"resource\":1}"],
               [6, 180025, 1000, 1, 0, 400, ""],
               [7, 150030, 3000, 1, 0, 400, ""],
-              [8, 10031, 1004, 1, 0, 400, ""],
+              [8, 180013, 1004, 1, 0, 400, ""],
               [9, 350003, 1003, 0, 0, 0, ""],
               [10, 40008, 4013, 1, 0, 0, ""],
               [11, 60005, 4007, 1, 0, 0, ""],
@@ -172,6 +172,12 @@ def updateUserBuildHitpoints(uid, datas):
     for data in datas:
         params.append([data[1], uid, data[0]])
     executemany("UPDATE nozomi_build SET hitpoints=%s WHERE id=%s AND buildIndex=%s", params)
+
+def updateUserBuildExtends(uid, datas):
+    params = []
+    for data in datas:
+        params.append([data[1], uid, data[0]])
+    executemany("UPDATE nozomi_build SET extend=%s WHERE id=%s AND buildIndex=%s", params)
 
 def getUidByName(account):
     ret = queryOne("SELECT id FROM nozomi_user WHERE account=%s", (account))
@@ -374,10 +380,10 @@ def synBattleData():
         if 'delete' in request.form:
             delete = json.loads(request.form['delete'])
             deleteUserBuilds(eid, delete)
-        if 'update' in request.form:
+        if 'eupdate' in request.form:
             #print("test_update", request.form['update'])
-            up = json.loads(request.form['update'])
-            updateUserBuilds(eid, up)
+            up = json.loads(request.form['eupdate'])
+            updateUserBuildExtends(eid, up)
         if 'hits' in request.form:
             hits = json.loads(request.form['hits'])
             updateUserBuildHitpoints(eid, hits)
@@ -555,7 +561,15 @@ def clearBattleState():
 def getLeagueRank():
     return json.dumps(ClanModule.getTopClans())
 
-app.secret_key = os.urandom(24)
+@app.route("/synErrorLog", methods=['POST'])
+def synErrorLog():
+    log = request.form.get('log', "")
+    uid = int(request.form.get('uid', 0))
+    if uid>0 and log!="":
+        update("INSERT INTO `nozomi_error_log` (uid, log) VALUES (%s,%s)", (uid, log))
+    return "ok"
 
+app.secret_key = os.urandom(24)
+app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port = config.HOSTPORT)
