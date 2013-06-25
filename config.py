@@ -8,3 +8,5 @@ SORTPORT = 8998
 CHATPORT = 8005
 CHATSERVER = 'http://localhost:%d/sys' % (CHATPORT)
 
+ERROR_SERVER = "nozomiError.log"
+ERROR_RANK = "rankError.log"
