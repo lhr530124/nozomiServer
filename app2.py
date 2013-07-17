@@ -52,7 +52,7 @@ def getUserRank():
     myCon = getConn();
     uid = int(request.args['uid'])
     score = int(request.args['score'])
-    rank = UserRankModule.getRank(myCon, score)
+    rank = UserRankModule.getRank(myCon, uid)
     l = UserRankModule.getRange(myCon, 0, 50)
 
     #user name 
