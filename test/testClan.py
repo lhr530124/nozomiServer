@@ -24,23 +24,23 @@ req(r)
 r = base2+'searchClans?word=liyong'
 req(r)
 
-r = base2+'findLeagueEnemy'
 data = {"uid":uid, "cid":clanId, "score":100, "eid":enemyClan}
-req2(r, data)
+r = base2+'findLeagueEnemy?%s' % (urllib.urlencode(data))
+req(r)
 
-r = base2+'findLeagueEnemy'
 data = {"uid":uid, "cid":clanId, "score":100}
-req2(r, data)
+r = base2+'findLeagueEnemy?%s' % (urllib.urlencode(data))
+req(r)
 
-r = base2+'cancelFindLeagueEnemy'
 data = {"cid":clanId, "uid":uid }
-req2(r, data)
+r = base2+'cancelFindLeagueEnemy?%s' % (urllib.urlencode(data))
+req(r)
 
 
-#确保敌对联盟存在即可
-r = base2+'beginLeagueBattle'
 data = {'cid':clanId, 'eid':enemyClan, 'uid':uid}
-req2(r, data)
+#确保敌对联盟存在即可
+r = base2+'beginLeagueBattle?%s' % (urllib.urlencode(data))
+req(r)
 
 r = base2+'leaveClan'
 data = {'uid':uid, 'cid':clanId}

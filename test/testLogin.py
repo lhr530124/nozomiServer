@@ -3,7 +3,7 @@ from testConfig import *
 
 r = base2+'login'
 #for i in xrange(0, 100000):
-i = 0
+i = 1000
 data = {
 'username': 'TEST%d' % (i),
 'nickname': 'TEST%d' % (i),

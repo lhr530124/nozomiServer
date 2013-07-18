@@ -471,7 +471,7 @@ def searchClans():
         return "null"
     return json.dumps(ClanModule.searchClans(text))
 
-@app.route("/findLeagueEnemy", methods=['GET'])
+@app.route("/findLeagueEnemy", methods=['GET', 'POST'])
 def findLeagueEnemy():
 
 

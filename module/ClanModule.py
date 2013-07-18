@@ -72,7 +72,7 @@ def getClanInfo(cid):
                     params.append([mtype, m[0]])
             ednum = 9
             for m in m2:
-                if m[4]==2:
+                if m[4] == 2:
                     continue
                 mtype = 0
                 if ednum>0:
@@ -107,7 +107,7 @@ def leaveClan(uid, cid):
     clan = list(getClanInfo(cid))
     if clan[9]<2:
         uinfo = queryOne("SELECT lscore, memberType FROM `nozomi_user` WHERE id=%s", (uid))
-        lscore = uinfo[0]
+        lscore = min(uinfo[0], clan[2])
         mtype = uinfo[1]
         clan[6] = clan[6]-1
         clan[2] = clan[2] - lscore
@@ -152,6 +152,7 @@ def findLeagueEnemy(cid, score):
                     return ret
         scoreOff *= 2
     resetClanState(cid, 1)
+    print "not find league"
     return [0]
 
 def cancelFindLeagueEnemy(cid):
