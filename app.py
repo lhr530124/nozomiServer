@@ -97,6 +97,8 @@ Message:
 '''))
 app.logger.addHandler(debugLogger)
 
+
+"""
 mailLogger = logging.handlers.SMTPHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Application Failed!\ncheck nozomiError.log file")
 mailLogger.setLevel(logging.ERROR)
 mailLogger.setFormatter(Formatter(
@@ -110,6 +112,7 @@ Message:
 %(message)s
 '''))
 app.logger.addHandler(mailLogger)
+"""
 
 
 #handlers = [TimedRotatingFileHandler('nozomiAccess.log', 'd', 7), ]
@@ -604,4 +607,4 @@ app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
 
 if __name__ == '__main__':
-    app.run(debug=False, host='0.0.0.0', port = config.HOSTPORT)
+    app.run(debug=True, host='0.0.0.0', port = config.HOSTPORT)

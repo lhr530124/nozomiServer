@@ -34,6 +34,8 @@ def initScoreCount(myCon):
     """
 
 def initUserScore(myCon, uid, score):
+    #no init UserScore
+    """
     sql = 'insert into  nozomi_rank (uid, score) values(%d, %d)' % (uid, score)
     myCon.query(sql)
     sql = 'insert nozomi_score_count (`score`, `count`) values (%d, 1) on duplicate key update count = count+1 ' % (score)
@@ -44,6 +46,7 @@ def initUserScore(myCon, uid, score):
     else:
         scoreCount[score] = 1
         myInsort(sortedScore, score)
+    """
     
 
 def myInsort(a, x):

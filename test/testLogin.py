@@ -1,13 +1,18 @@
 #coding:utf8
 from testConfig import *
-r = base2+'login'
-data = {
-'username': 'TEST1'
-}
-req2(r, data)
 
+r = base2+'login'
+for i in xrange(0, 100000):
+    data = {
+    'username': 'TEST%d' % (i),
+    'nickname': 'TEST%d' % (i),
+    }
+    req2(r, data)
+
+"""
 r = base2+'getData?uid=3'
 req(r)
+"""
 
 
 #同步200个建筑物信息
@@ -15,6 +20,7 @@ req(r)
 #更新建筑物
 #
 
+"""
 r = base2+'synData'
 up = []
 for i in xrange(1, 200):
@@ -32,3 +38,4 @@ data = {
 'crystal': json.dumps([1, 2, 3]),
 }
 req2(r, data)
+"""
