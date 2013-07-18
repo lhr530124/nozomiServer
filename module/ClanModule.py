@@ -2,6 +2,10 @@
 import time
 import random
 from flaskext import *
+import sys
+sys.path.append('..')
+import config
+
 
 #clan's state 0 means free, 1 means wait to battle, 2 means in battle.
 
@@ -31,6 +35,10 @@ def createClan(uid, icon, ltype, name, desc, minScore):
     id = insertAndGetId("INSERT INTO `nozomi_clan` (icon, score, type, name, `desc`, members, `min`, creator, state, statetime) VALUES(%s,0,%s,%s,%s,1,%s,%s,0,0)", (icon, ltype, name, desc, minScore, uid))
     update("UPDATE `nozomi_user` SET clan=%s, memberType=2 WHERE id=%s", (id, uid))
     return id
+
+def editClan(cid, icon, ltype, name, desc, minScore):
+    update("UPDATE `nozomi_clan` SET icon=%s,type=%s,name=%s,`desc`=%s,`min`=%s WHERE id=%s", (icon,ltype,name,desc,minScore,cid))
+    return 0
 
 def getClanMembers(cid):
     rets = queryAll("SELECT `id`, score, lscore, name, memberType FROM `nozomi_user` WHERE clan=%s", (cid))
@@ -73,16 +81,17 @@ def getClanInfo(cid):
                 if mtype!=m[4]:
                     params.append([mtype, m[0]])
             executemany("UPDATE `nozomi_user` SET memberType=%s WHERE id=%s", params)
-                
-            requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=binfo[1], type="lbe", info=binfo[winner]))
-            requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=binfo[2], type="lbe", info=binfo[winner]))
+            #"http://uhz000738.chinaw3.com:8004/sys"
+            #"http://uhz000738.chinaw3.com:8004/sys"
+            requestGet(config.CHATSERVER, dict(cid=binfo[1], type="lbe", info=binfo[winner]))
+            requestGet(config.CHATSERVER , dict(cid=binfo[2], type="lbe", info=binfo[winner]))
             ret = list(ret)
             ret[9]=0
             ret[10]=0
     return ret
 
 def getTopClans():
-    ret = queryAll("SELECT `id`, icon, score, `type`, name, `desc`, members, `min` FROM `nozomi_clan` ORDER BY score DESC LIMIT 50")
+    ret = queryAll("SELECT `id`, icon, score, `type`, name, `desc`, members, `min` FROM `nozomi_clan` WHERE members>0 ORDER BY score DESC LIMIT 50")
     return ret
 
 def joinClan(uid, cid):
@@ -127,13 +136,13 @@ def findLeagueEnemy(cid, score):
         minScore = score-scoreOff
         maxScore = score+scoreOff
 
-        ids = queryOne("SELECT MIN(id), MAX(id) FROM `nozomi_clan` WHERE score>%s AND score<%s AND state=1", (minScore, maxScore))
+        ids = queryOne("SELECT MIN(id), MAX(id) FROM `nozomi_clan` WHERE score>%s AND score<%s AND state=1 AND members>0", (minScore, maxScore))
         if ids!=None:
             minId = ids[0]
             maxId = ids[1]
             if maxId != None and minId!=None:
                 cut = random.randint(minId, maxId)
-                ret = queryOne("SELECT id,icon,score,`type`,name,`desc`,members FROM `nozomi_clan` WHERE id>=%s AND id!=%s AND state=1 AND statetime<%s AND score>%s AND score<%s LIMIT 1", (cut, cid, curTime, minScore, maxScore))
+                ret = queryOne("SELECT id,icon,score,`type`,name,`desc`,members FROM `nozomi_clan` WHERE id>=%s AND id!=%s AND state=1 AND statetime<%s AND score>%s AND score<%s AND members>0 LIMIT 1", (cut, cid, curTime, minScore, maxScore))
                 if ret!=None:
                     print("find league enemy %d" % ret[0])
                     update("UPDATE `nozomi_clan` SET statetime=%s WHERE id=%s", (curTime+180, ret[0]))
@@ -157,7 +166,7 @@ def beginLeagueBattle(cid, eid):
     info = getClanInfo(eid)
     curTime = int(time.mktime(time.localtime()))
     if info[9]==1 and info[10]>curTime:
-        update("UPDATE `nozomi_clan` SET state=2, statetime=%s WHERE id=%s OR id=%s", (curTime+28800, cid, eid))
+        update("UPDATE `nozomi_clan` SET state=2, statetime=%s WHERE id=%s OR id=%s", (curTime+86400, cid, eid))
         cinfo = getClanInfo(cid)
         bid = insertAndGetId("INSERT INTO `nozomi_clan_battle` (cid1, cid2, left1, left2, winner) VALUES (%s,%s,%s,%s,0)", (cid, eid, cinfo[6], info[6]))
         members = []
@@ -168,8 +177,8 @@ def beginLeagueBattle(cid, eid):
         for mem in emems:
             members.append([mem[0], bid, eid])
         executemany("INSERT INTO `nozomi_clan_battle_member` (uid, bid, cid, battler, video, inbattle) VALUES (%s,%s,%s,'',0,0) ON DUPLICATE KEY UPDATE bid=VALUES(bid), cid=VALUES(cid), battler='', video=0, inbattle=0", members)
-        requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=cid, type="lbb", info=curTime+28800))
-        requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=eid, type="lbb", info=curTime+28800))
+        requestGet(config.CHATSERVER, dict(cid=cid, type="lbb", info=curTime+86400))
+        requestGet(config.CHATSERVER, dict(cid=eid, type="lbb", info=curTime+86400))
         return 0
     return 1
 
@@ -187,7 +196,8 @@ def clearBattleStateAtOnce(uid):
 
 def checkBattleWithMember(uid, euid):
     battleMember = queryOne("SELECT uid, bid, video, inbattle, battler FROM `nozomi_clan_battle_member` WHERE uid=%s", (euid))
-    if battleMember==None:
+    selfMember = queryOne("SELECT uid, bid, video, inbattle, battler FROM `nozomi_clan_battle_member` WHERE uid=%s", (uid))
+    if battleMember==None or selfMember==None:
         return 1
     if battleMember[2]>0:
         return 2
@@ -195,6 +205,8 @@ def checkBattleWithMember(uid, euid):
     # this means the battler lose his connection when attacking
     if battleMember[3]>curTime and int(battleMember[4])!=uid:
         return 1
+    if selfMember[3]>curTime:
+        return 3
     update("UPDATE `nozomi_clan_battle_member` SET inbattle=%s, battler=%s WHERE uid=%s", (curTime+240, str(uid), euid))
     return 0
 
@@ -239,8 +251,8 @@ def changeBattleState(uid, eid, cid, ecid, bid, vid, lscore):
                         params.append([mtype, m[0]])
                 executemany("UPDATE `nozomi_user` SET memberType=%s WHERE id=%s", params)
                 
-                requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=cid, type="lbe", info=cid))
-                requestGet("http://uhz000738.chinaw3.com:8004/sys", dict(cid=ecid, type="lbe", info=cid))
+                requestGet(config.CHATSERVER, dict(cid=cid, type="lbe", info=cid))
+                requestGet(config.CHATSERVER, dict(cid=ecid, type="lbe", info=cid))
             if isE1:
                 update("UPDATE `nozomi_clan_battle` SET left1=left1-1, winner=%s WHERE id=%s", (winner, bid))
             else:

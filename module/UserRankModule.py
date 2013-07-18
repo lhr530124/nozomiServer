@@ -33,6 +33,18 @@ def initScoreCount(myCon):
     sortedScore.sort(reverse=True)
     """
 
+def initUserScore(myCon, uid, score):
+    sql = 'insert into  nozomi_rank (uid, score) values(%d, %d)' % (uid, score)
+    myCon.query(sql)
+    sql = 'insert nozomi_score_count (`score`, `count`) values (%d, 1) on duplicate key update count = count+1 ' % (score)
+    myCon.query(sql)
+    myCon.commit()
+    if score in scoreCount:
+        scoreCount[score] += 1
+    else:
+        scoreCount[score] = 1
+        myInsort(sortedScore, score)
+    
 
 def myInsort(a, x):
     """Insert item x in list a, and keep it sorted assuming a is sorted.
@@ -70,23 +82,6 @@ def updateScore(myCon, uid, newScore):
     rserver = getServer()
     rserver.zadd('userRank',uid, newScore )
 
-    """
-    #减少旧得分人数 多个服务器同时修改count值 存在锁的问题 
-    sql = 'update nozomi_score_count set count = count - 1 where score = %d' % (oldScore)
-    myCon.query(sql)
-    scoreCount[oldScore] -= 1
-
-    #增加新得分人数 多个服务器同时 并行操作修改 存在锁的问题
-    sql = 'insert nozomi_score_count (`score`, `count`) values (%d, 1) on duplicate key update count = count+1 ' % (newScore)
-    myCon.query(sql)
-    myCon.commit()
-    if newScore in scoreCount:
-        scoreCount[newScore] += 1
-    else:
-        scoreCount[newScore] = 1
-        myInsort(sortedScore, newScore)
-        #bisect.insort_right(sortedScore, newScore)
-    """
 
 #init redis when need 
 #by user uid to get Rank
@@ -166,40 +161,3 @@ def getRange(myCon, start, end):
         allUser += users
     return allUser
 
-    """
-    rangeLength = end - start
-    allUser = []
-    #得到排名start 位置的得分
-    total = 0
-    #sql = 'select * from nozomi_score_count order by score desc'
-    #myCon.query(sql)
-    #res = myCon.store_result().fetch_row(0, 1)
-    
-    lastScore = -1
-    lastTotal = 0
-    startIndex = 0
-    for i in sortedScore:
-        lastScore = i
-        total += scoreCount[i]
-        if total > start:
-            break
-        lastTotal = total
-        startIndex += 1
-
-    
-    leftNum = start - lastTotal
-    curIndex = startIndex
-    limitLength = rangeLength
-    while curIndex < len(sortedScore):
-        curScore = res[curIndex]['score']
-        sql = 'SELECT r.uid, r.score, r.lastRank, u.name, c.name AS cname, c.icon FROM nozomi_rank as r, nozomi_user as u LEFT JOIN `nozomi_clan` AS c ON u.clan=c.id WHERE r.score = %d AND r.uid=u.id limit %d , %d' % (curScore, leftNum, limitLength)
-        myCon.query(sql)
-        users = myCon.store_result().fetch_row(0, 1)
-        allUser += users
-        
-        leftNum = 0
-        curIndex += 1
-        limitLength -= len(users)
-
-    return allUser
-    """

@@ -57,4 +57,4 @@ def findAMatch(uid, score, scoreOff):
                     updateUserAttack(ret[0])
                     return ret[0]
         scoreOff *= 2
-    return 0
+    return 1

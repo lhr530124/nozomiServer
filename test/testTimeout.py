@@ -51,18 +51,20 @@ def handleTimeout():
         os.system('kill %d' % (pid))
     os.system("cd ../;  python app.py & ")
         
+import urllib
 while True:
     try:
-        ret = urllib2.urlopen("http://localhost:%d/login" % (HOSTPORT), None, 15)
+        ret = urllib2.urlopen("http://localhost:%d/login" % (HOSTPORT), urllib.urlencode({}), 15)
         code = ret.getcode()
         print code, ret
     except socket.timeout, e:
         handleTimeout()
     except urllib2.URLError, e:
         print "urlerror"
-        print e.reason
-        if isinstance(e.reason, socket.timeout):
-            handleTimeout()        
+        if hasattr(e, "reason"):
+            print e.reason
+            if isinstance(e.reason, socket.timeout):
+                handleTimeout()        
     except KeyboardInterrupt:
         break
     except:

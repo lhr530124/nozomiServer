@@ -14,6 +14,14 @@ import json
 import logging
 from calendar import monthrange
 import config
+import module
+
+#from requestlogger import WSGILogger, ApacheFormatter
+from logging.handlers import TimedRotatingFileHandler
+import time
+
+from logging import Formatter
+
 
 """
 HOST = 'localhost'
@@ -28,6 +36,36 @@ sys.setdefaultencoding('utf-8')
 
 app = Flask(__name__)
 app.config.from_object("config")
+
+timeLogHandler = TimedRotatingFileHandler('nozomiAccess.log', 'd', 7)
+timelogger = logging.getLogger("timeLogger")
+timelogger.addHandler(timeLogHandler)
+timelogger.setLevel(logging.INFO)
+
+@app.before_request
+def beforeQuest():
+    g.startTime = time.time() 
+    #print request.url
+@app.after_request
+def afterQuest(response):
+    endTime = time.time()
+    timelogger.info('%s %d  %d' % (request.url, int(g.startTime), int((endTime-g.startTime)*10**3)) )
+    return response
+
+
+@app.errorhandler(500)
+def internalError(exception):
+    print "internal error", request
+    app.logger.exception('''
+    args %s
+    form %s
+    %s
+    ''' % (str(request.args), str(request.form), exception))
+    return '', 500 
+    
+
+def getConn():
+    return MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
 
 dailyModule = DailyModule("nozomi_user_login")
 achieveModule = AchieveModule("nozomi_achievement")
@@ -47,9 +85,34 @@ f.setFormatter(formatter)
 crystallogger.setLevel(logging.INFO)
 
 
-debugLogger = logging.FileHandler("error2.log")
-debugLogger.setLevel(logging.INFO)
+debugLogger = logging.FileHandler("nozomiError.log")
+debugLogger.setLevel(logging.ERROR)
+debugLogger.setFormatter(Formatter(
+'''
+Message type:  %(levelname)s
+Module:        %(module)s
+Time:          %(asctime)s
+Message:
+%(message)s
+'''))
 app.logger.addHandler(debugLogger)
+
+mailLogger = logging.handlers.SMTPHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Application Failed!\ncheck nozomiError.log file")
+mailLogger.setLevel(logging.ERROR)
+mailLogger.setFormatter(Formatter(
+'''
+Message type:  %(levelname)s
+Location:      %(pathname)s:%(lineno)d
+Module:        %(module)s
+Function:      %(funcName)s
+Time:          %(asctime)s
+Message:
+%(message)s
+'''))
+app.logger.addHandler(mailLogger)
+
+
+#handlers = [TimedRotatingFileHandler('nozomiAccess.log', 'd', 7), ]
 
 
 
@@ -65,7 +128,7 @@ dataBuilds = [
               [5, 240023, 2004, 1, 0, 250, "{\"resource\":1}"],
               [6, 180025, 1000, 1, 0, 400, ""],
               [7, 150030, 3000, 1, 0, 400, ""],
-              [8, 10031, 1004, 1, 0, 400, ""],
+              [8, 180013, 1004, 1, 0, 400, ""],
               [9, 350003, 1003, 0, 0, 0, ""],
               [10, 40008, 4013, 1, 0, 0, ""],
               [11, 60005, 4007, 1, 0, 0, ""],
@@ -168,6 +231,12 @@ def updateUserBuildHitpoints(uid, datas):
         params.append([data[1], uid, data[0]])
     executemany("UPDATE nozomi_build SET hitpoints=%s WHERE id=%s AND buildIndex=%s", params)
 
+def updateUserBuildExtends(uid, datas):
+    params = []
+    for data in datas:
+        params.append([data[1], uid, data[0]])
+    executemany("UPDATE nozomi_build SET extend=%s WHERE id=%s AND buildIndex=%s", params)
+
 def getUidByName(account):
     ret = queryOne("SELECT id FROM nozomi_user WHERE account=%s", (account))
     if ret==None:
@@ -176,36 +245,26 @@ def getUidByName(account):
         return ret[0]
 
 def initUser(username, nickname):
+    print "initUser", username, nickname
     regTime = int(time.mktime(time.localtime()))
+    initScore = 500
     uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, score, crystal, shieldTime) VALUES(%s, %s, %s, 500, 497, 0)", (username, regTime, nickname))
+    myCon = getConn()
+    module.UserRankModule.initUserScore(myCon, uid, initScore)
+    module.UserRankModule.updateScore(myCon, uid, initScore)
+    myCon.commit()
+    myCon.close()
+
     updateUserBuilds(uid, dataBuilds)
     update("INSERT INTO nozomi_research (id, research) VALUES(%s, '[1,1,1,1,1,1,1,1,1,1]')", (uid))
     newUserState(uid)
+    
     return uid
 
 def updateUserState(uid, eid):
     updateUserOnline(uid)
     if eid!=0:
         clearUserAttack(eid)
-
-def setUserClan(uid, cid):
-    update("UPDATE nozomi_user SET clan=%s WHERE id=%s", (cid, uid))
-
-def createClan(uid, name, ctype, minScore):
-    cid = insertAndGetId("INSERT INTO nozomi_clan (name, type, minScore, creator, members, score) VALUES (%s, %s, %s, %s, 1, 0)", (name, ctype, minScore, uid))
-    setUserClan(uid, cid)
-    return cid
-
-def addClanMember(cid, uid):
-    setUserClan(uid, cid)
-    update("UPDATE nozomi_clan SET members=members+1 WHERE id=%s", (cid))
-
-def getClanInfo(cid):
-    return queryOne("SELECT name, type, minScore, creator, members, score FROM nozomi_clan WHERE id=%s", (cid))
-
-def getClanMembers(cid):
-    ret = queryAll("SELECT id, name, score FROM nozomi_user WHERE clan=%s", (cid))
-    return [dict(id=r[0], name=r[1], score=r[2]) for r in ret]
 
 @app.route("/getBattleHistory", methods=['GET'])
 def getBattleHistory():
@@ -216,21 +275,20 @@ def getBattleHistory():
     else:
         return json.dumps([[json.loads(r[0]), r[1], r[2], r[3], r[4]] for r in ret])
 
-@app.route("/login", methods=['POST'])
+@app.route("/login", methods=['POST', 'GET'])
 def login():
+    print 'login', request.form
     if 'username' in request.form:
         username = request.form['username']
         uid = getUidByName(username)
         ret = dict(code=0, uid=uid)
         if uid==0:
+            print "new user"
             nickname = request.form['nickname']
             uid = initUser(username, nickname)
+            
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
-        else:
-            days = dailyModule.dailyLogin(uid)
-            if days>0:
-                ret['days']=days
         return json.dumps(ret)
     else:
         #time.sleep(209) 
@@ -240,6 +298,7 @@ def login():
 
 @app.route("/getData", methods=['GET'])
 def getData():
+    print 'getData', request.args
     uid = int(request.args.get("uid"))
     data = None
     if "login" in request.args:
@@ -283,6 +342,7 @@ def getReplay():
 
 @app.route("/synData", methods=['POST'])
 def synData():
+    print 'synData', request.form
     uid = int(request.form.get("uid", 0))
     if uid==0:
         return json.dumps({'code':401})
@@ -316,6 +376,7 @@ def synData():
 
 @app.route("/synBattleData", methods=['POST'])
 def synBattleData():
+    print 'synBattleData', request.form
     uid = int(request.form.get("uid", 0))
     eid = int(request.form.get("eid", 0))
     print("test uid and eid %d,%d" % (uid, eid))
@@ -326,10 +387,10 @@ def synBattleData():
         if 'delete' in request.form:
             delete = json.loads(request.form['delete'])
             deleteUserBuilds(eid, delete)
-        if 'update' in request.form:
+        if 'eupdate' in request.form:
             #print("test_update", request.form['update'])
-            up = json.loads(request.form['update'])
-            updateUserBuilds(eid, up)
+            up = json.loads(request.form['eupdate'])
+            updateUserBuildExtends(eid, up)
         if 'hits' in request.form:
             hits = json.loads(request.form['hits'])
             updateUserBuildHitpoints(eid, hits)
@@ -374,7 +435,7 @@ def findEnemy():
         data['builds'] = getUserBuilds(uid)
         data['userId'] = uid
         updateUserState(selfUid, int(request.args.get("eid", 0)))
-    else:
+    else: #cant find a enemy
         data = {'code':1}
     return json.dumps(data)
 
@@ -465,9 +526,20 @@ def createClan():
     ltype = int(request.form.get('type', 0))
     name = request.form.get('name', "")
     desc = request.form.get('desc', "")
-    minScore = request.form.get('min', "")
+    minScore = int(request.form.get('min', 0))
     ret = ClanModule.createClan(uid, icon, ltype, name, desc, minScore)
     return json.dumps(dict(clan=ret, info=[ret, icon, 0, ltype, name, desc, 1, minScore, uid, 0, 0]))
+
+@app.route("/editClan", methods=['POST'])
+def editClan():
+    uid = int(request.form.get('uid', 0))
+    cid = int(request.form.get('cid', 0))
+    icon = int(request.form.get('icon', 0))
+    ltype = int(request.form.get('type', 0))
+    name = request.form.get('name', "")
+    desc = request.form.get('desc', "")
+    minScore = int(request.form.get('min', 0))
+    return json.dumps(dict(code=ClanModule.editClan(cid, icon, ltype, name, desc, minScore), name=name, desc=desc, icon=icon, type=ltype, min=minScore))
 
 @app.route("/joinClan", methods=['POST'])
 def joinClan():
@@ -520,7 +592,16 @@ def clearBattleState():
 def getLeagueRank():
     return json.dumps(ClanModule.getTopClans())
 
+@app.route("/synErrorLog", methods=['POST'])
+def synErrorLog():
+    log = request.form.get('log', "")
+    uid = int(request.form.get('uid', 0))
+    if uid>0 and log!="":
+        update("INSERT INTO `nozomi_error_log` (uid, log) VALUES (%s,%s)", (uid, log))
+    return "ok"
+
 app.secret_key = os.urandom(24)
+app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port = config.HOSTPORT)
+    app.run(debug=False, host='0.0.0.0', port = config.HOSTPORT)
