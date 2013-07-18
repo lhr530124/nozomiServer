@@ -2,12 +2,13 @@
 from testConfig import *
 
 r = base2+'login'
-for i in xrange(0, 100000):
-    data = {
-    'username': 'TEST%d' % (i),
-    'nickname': 'TEST%d' % (i),
-    }
-    req2(r, data)
+#for i in xrange(0, 100000):
+i = 0
+data = {
+'username': 'TEST%d' % (i),
+'nickname': 'TEST%d' % (i),
+}
+req2(r, data)
 
 """
 r = base2+'getData?uid=3'
