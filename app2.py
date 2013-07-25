@@ -45,7 +45,8 @@ def afterQuest(response):
     timelogger.info('%s %d  %d' % (request.url, int(g.startTime), int((endTime-g.startTime)*10**3)) )
     return response
 
-debugLogger = logging.FileHandler("errorRank.log")
+debugLogger = TimedRotatingFileHandler(config.ERROR_RANK, 'd', 7)
+#debugLogger = logging.FileHandler("errorRank.log")
 debugLogger.setLevel(logging.ERROR)
 debugLogger.setFormatter(Formatter(
 '''

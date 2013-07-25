@@ -85,7 +85,8 @@ f.setFormatter(formatter)
 crystallogger.setLevel(logging.INFO)
 
 
-debugLogger = logging.FileHandler("nozomiError.log")
+debugLogger = TimedRotatingFileHandler(config.ERROR_SERVER, 'd', 7)
+#debugLogger = logging.FileHandler("nozomiError.log")
 debugLogger.setLevel(logging.ERROR)
 debugLogger.setFormatter(Formatter(
 '''
