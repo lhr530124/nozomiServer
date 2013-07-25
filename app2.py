@@ -14,6 +14,7 @@ import config
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from logging import Formatter
+import BufferMailHandler
 
 """
 HOST = 'localhost'
@@ -58,7 +59,7 @@ Message:
 '''))
 app.logger.addHandler(debugLogger)
 
-mailLogger = logging.handlers.SMTPHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Rank Application Failed!\ncheck errorRank.log file")
+mailLogger = BufferMailHandler.BufferMailHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Rank Application Failed!\ncheck errorRank.log file")
 mailLogger.setLevel(logging.ERROR)
 mailLogger.setFormatter(Formatter(
 '''
