@@ -21,6 +21,7 @@ from logging.handlers import TimedRotatingFileHandler
 import time
 
 from logging import Formatter
+import BufferMailHandler
 
 
 """
@@ -98,8 +99,7 @@ Message:
 app.logger.addHandler(debugLogger)
 
 
-"""
-mailLogger = logging.handlers.SMTPHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Application Failed!\ncheck nozomiError.log file")
+mailLogger = BufferMailHandler.BufferMailHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Application Failed!\ncheck nozomiError.log file")
 mailLogger.setLevel(logging.ERROR)
 mailLogger.setFormatter(Formatter(
 '''
@@ -112,7 +112,6 @@ Message:
 %(message)s
 '''))
 app.logger.addHandler(mailLogger)
-"""
 
 
 #handlers = [TimedRotatingFileHandler('nozomiAccess.log', 'd', 7), ]
@@ -280,6 +279,8 @@ def getBattleHistory():
 
 @app.route("/login", methods=['POST', 'GET'])
 def login():
+    if a[0] == 3:
+        print 4
     print 'login', request.form
     if 'username' in request.form:
         username = request.form['username']
@@ -607,4 +608,4 @@ app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port = config.HOSTPORT)
+    app.run(debug=False, host='0.0.0.0', port = config.HOSTPORT)

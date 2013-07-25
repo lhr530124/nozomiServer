@@ -2,7 +2,7 @@ HOST = 'localhost'
 DATABASE = 'nozomi'
 DEBUG = True
 PASSWORD = 'badperson3'
-ADMINS = ['233242872@qq.com', 'caesars321@gmail.com', '21024851@qq.com']
+ADMINS = ['233242872@qq.com']
 HOSTPORT = 9012
 SORTPORT = 9003
 
