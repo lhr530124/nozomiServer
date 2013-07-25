@@ -1,19 +1,23 @@
 #coding:utf8
 from testConfig import *
+import random
 r = base2+'getBattleHistory?uid=4'
 req(r)
 
 r = base2+'findClans'
 req(r)
 
+username = 'liyong'+str(random.random())
+nickname = username
 r = base2+'login'
-data = {'username':'liyong', 'nickname':'liyong'}
-req2(r, data)
+data = {'username':username, 'nickname':nickname}
+l = req2(r, data)
+uid = l['uid']
 
-r = base2+'getData?uid=4'
+r = base2+'getData?uid=%d' % (uid)
 req(r)
 
-r = base2+'reverge?uid=4&eid=4'
+r = base2+'reverge?uid=%d&eid=4' % (uid)
 req(r)
 
 r = base2+'getReplay?vid=3'

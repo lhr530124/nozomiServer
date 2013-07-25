@@ -1,6 +1,7 @@
 #coding:utf8
 from testConfig import *
 
+
 r = baseScore+'updateScore?uid=2&score=10'
 req(r)
 
