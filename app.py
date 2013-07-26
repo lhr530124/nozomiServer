@@ -408,7 +408,7 @@ def synData():
 
 @app.route("/synBattleData", methods=['POST'])
 def synBattleData():
-    print 'synBattleData', request.form
+    #print 'synBattleData', request.form
     uid = int(request.form.get("uid", 0))
     eid = int(request.form.get("eid", 0))
     print("test uid and eid %d,%d" % (uid, eid))
