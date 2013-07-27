@@ -21,6 +21,7 @@ from logging.handlers import TimedRotatingFileHandler
 import time
 
 from logging import Formatter
+import BufferMailHandler
 
 
 """
@@ -34,6 +35,9 @@ PASSWORD = '2e4n5k2w2x'
 reload(sys)
 sys.setdefaultencoding('utf-8') 
 
+#配置文件里面不能有注释 
+#不能有其它import 之类的声明
+#只能有 键值对
 app = Flask(__name__)
 app.config.from_object("config")
 
@@ -97,7 +101,7 @@ Message:
 '''))
 app.logger.addHandler(debugLogger)
 
-mailLogger = logging.handlers.SMTPHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Application Failed!\ncheck nozomiError.log file")
+mailLogger = BufferMailHandler.BufferMailHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Application Failed!\ncheck nozomiError.log file")
 mailLogger.setLevel(logging.ERROR)
 mailLogger.setFormatter(Formatter(
 '''
