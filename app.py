@@ -1,7 +1,7 @@
 #-*- coding: utf-8 -*-
 
 from flask import Flask, g, abort, session, redirect, url_for, \
-     request, render_template
+     request, render_template, _app_ctx_stack
 #from datetime import datetime
 #from flask import Flask, request, flash, url_for, redirect, \
 #     render_template, abort
@@ -70,8 +70,22 @@ def internalError(exception):
     return '', 500 
     
 
+#可能没有web 上下文环境
 def getConn():
     return MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
+
+
+def getMyConn():
+    top = _app_ctx_stack.top
+    if not hasattr(top, 'db'):
+        top.db = MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
+    return top.db
+
+@app.teardown_appcontext
+def closeCon(excp):
+    top = _app_ctx_stack.top
+    if hasattr(top, 'db'):
+        top.db.close()
 
 dailyModule = DailyModule("nozomi_user_login")
 achieveModule = AchieveModule("nozomi_achievement")
@@ -400,12 +414,28 @@ def synData():
     if 'research' in request.form:
         researches = json.loads(request.form['research'])
         updateUserResearch(uid, researches)
+    #先得到 现有的数据
+    #更新的数据
+    #话费的数据
+
+    #连接结束自动关闭
+    myCon = getMyConn()
+    sql = 'select crystal from nozomi_user where id = %d' % (uid)
+    myCon.query(sql)
+    res = myCon.store_result().fetch_row(0, 1)
+    oldCrystal = res[0]['crystal']
+    newCrystal = None
+
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
     if 'userInfo' in request.form:
         userInfo = json.loads(request.form['userInfo'])
         userInfoUpdate.update(userInfo)
         if 'shieldTime' in userInfo:
             setUserShield(uid, userInfo['shieldTime'])
+        #获得当前的新水晶数量
+        newCrystal = userInfoUpdate.get('crystal', None)
+
+
     updateUserInfoById(userInfoUpdate, uid)
     updateUserState(uid, int(request.form.get("eid", 0)))
     if 'stat' in request.form:
@@ -414,6 +444,17 @@ def synData():
         ls = json.loads(request.form['crystal'])
         for l in ls:
             crystallogger.info("%d\t%s" % (uid, json.dumps(l)))
+            #加上当前消耗的
+            if newCrystal != None:
+                newCrystal += l[2]
+    #更新了水晶 且新的水晶数量 大于旧的数量
+    if newCrystal != None and newCrystal > oldCrystal:
+        buyCrystal = newCrystal-oldCrystal
+        sql = 'insert into `buyCrystal` (uid,  crystal) values (%d,  %d)'  % (uid, buyCrystal)
+        myCon.query(sql)
+        myCon.commit()
+        #myCon.close()
+    print "oldCrystal", oldCrystal, newCrystal
     return json.dumps({'code':0})
 
 @app.route("/synBattleData", methods=['POST'])
