@@ -10,3 +10,4 @@ CHATSERVER = 'http://localhost:%d/sys' % (CHATPORT)
 
 ERROR_SERVER = "nozomiError.log"
 ERROR_RANK = "rankError.log"
+STATISTIC_PORT = 9004
