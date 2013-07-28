@@ -43,16 +43,10 @@ def getRegister():
 @app.route('/getDAU')
 def getDAU():
     myCon = getConn()
-    now = time.time()
+    now = int(time.time())
     allData = []
     for i in xrange(1, 8):
-        minDay = now-24*3600*(8-i)
-        maxDay = now-24*3600*(7-i)
-        maxDay = time.localtime(maxDay)
-        minDay = time.localtime(minDay)
-        print maxDay
-        print minDay
-        sql = 'select count(*) from nozomi_user_login where loginDate >= "%d-%d-%d" and loginDate < "%d-%d-%d"' % (minDay.tm_year, minDay.tm_mon, minDay.tm_mday, maxDay.tm_year, maxDay.tm_mon, maxDay.tm_mday)
+        sql = 'select count(*) from nozomi_user where lastSynTime >= %d and lastSynTime < %d' % (now-24*3600*(8-i), now-24*3600*(7-i)) 
         print sql
         myCon.query(sql)
         res = myCon.store_result().fetch_row(0, 0)
