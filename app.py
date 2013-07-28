@@ -22,6 +22,8 @@ import time
 
 from logging import Formatter
 import BufferMailHandler
+import util
+
 
 
 """
@@ -254,8 +256,9 @@ def getUidByName(account):
 def initUser(username, nickname):
     print "initUser", username, nickname
     regTime = int(time.mktime(time.localtime()))
+
     initScore = 500
-    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, score, crystal, shieldTime) VALUES(%s, %s, %s, 500, 497, 0)", (username, regTime, nickname))
+    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime) VALUES(%s, %s, %s, %s, 500, 497, 0)", (username, regTime, nickname, util.getTime()))
     myCon = getConn()
     module.UserRankModule.initUserScore(myCon, uid, initScore)
     module.UserRankModule.updateScore(myCon, uid, initScore)
@@ -630,4 +633,4 @@ app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
 
 if __name__ == '__main__':
-    app.run(debug=False, host='0.0.0.0', port = config.HOSTPORT)
+    app.run(debug=True, host='0.0.0.0', port = config.HOSTPORT)
