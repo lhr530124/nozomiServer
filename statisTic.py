@@ -52,7 +52,27 @@ def getDAU():
         res = myCon.store_result().fetch_row(0, 0)
         allData.append({'num':res[0][0], 'day':8-i})
     return render_template("showData.html", data=allData, title="DAU")
+
+@app.route('/getIncome')
+def getIncome():
+    myCon = getConn()
+    now = time.localtime()
+    allData = []
+    for i in xrange(7, -1, -1):
+        lastDay = now.tm_mday-i
+        nearDay = now.tm_mday-(i-1)
+        lastDay = time.localtime(time.mktime((now.tm_year, now.tm_mon, lastDay, now.tm_hour, now.tm_min, now.tm_sec, 0, 0, 0)))
+        nearDay = time.localtime(time.mktime((now.tm_year, now.tm_mon, nearDay, now.tm_hour, now.tm_min, now.tm_sec, 0, 0, 0)))
+        sql = 'select count(*), sum(crystal) from buyCrystal where `time` > "%d-%d-%d" and `time` <= "%d-%d-%d"' % (lastDay.tm_year, lastDay.tm_mon, lastDay.tm_mday,  nearDay.tm_year, nearDay.tm_mon, nearDay.tm_mday)
+        print sql
+        myCon.query(sql)
+        res = myCon.store_result().fetch_row(0, 0)
+        print res
+
+        allData.append(["%s-%s-%s  %s-%s-%s"%(lastDay.tm_year, lastDay.tm_mon, lastDay.tm_mday,  nearDay.tm_year, nearDay.tm_mon, nearDay.tm_mday)
+ , res[0][0], int(res[0][1] or 0)])
     
+    return render_template("showCrystal.html", data=allData)
      
 
 if __name__ == '__main__':
