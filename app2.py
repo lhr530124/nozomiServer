@@ -1,7 +1,7 @@
 #-*- coding: utf-8 -*-
 
 from flask import Flask, g, abort, session, redirect, url_for, \
-     request, render_template
+     request, render_template, _app_ctx_stack
 from flaskext import *
 from module import *
 
@@ -85,8 +85,16 @@ def internalError(exception):
 
 
 def getConn():
-    #return MySQLdb.connect(host='localhost', passwd='3508257', db='nozomi', user='root', charset='utf8')
-    return MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
+    top = _app_ctx_stack.top
+    if not hasattr(top, 'db'):
+        top.db = MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
+    return top.db
+@app.teardown_appcontext
+def closeCon(excp):
+    top = _app_ctx_stack.top
+    if hasattr(top, 'db'):
+        top.db.close()
+
 
 def initUserRankModule():
     myCon = getConn()
