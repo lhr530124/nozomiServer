@@ -96,10 +96,11 @@ def closeCon(excp):
 
 
 def initUserRankModule():
-    myCon = getConn()
-    UserRankModule.initScoreCount(myCon)
-    myCon.close()
-initUserRankModule()
+    #myCon = getConn()
+    #UserRankModule.initScoreCount(myCon)
+    #myCon.close()
+    pass
+#initUserRankModule()
 
 
 
