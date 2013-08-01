@@ -92,35 +92,50 @@ while True:
 
     f.write('ARPU: %d\n' % (totalCrystal/totalUser))
 
-    sql = 'select count(*) from buyCrystal where crystal = 500'
+    totalCost = 0
+    totalEng = 0
+    sql = 'select count(*) from buyCrystal where crystal = 500 and `time` >= "%s" and `time`< "%s" ' % (yd, td)
     cursor.execute(sql)
     result = cursor.fetchall()
     num = result[0][0]
     f.write('Daily 500 crystal times: %d\n' % (num))
+    totalCost += num*30
+    totalEng += num*4.99
 
-    sql = 'select count(*) from buyCrystal where crystal = 1200'
+    sql = 'select count(*) from buyCrystal where crystal = 1200 and `time` >= "%s" and `time`< "%s" ' % (yd, td)
     cursor.execute(sql)
     result = cursor.fetchall()
     num = result[0][0]
     f.write('Daily 1200 crystal times: %d\n' % (num))
+    totalCost += num*68 
+    totalEng += num*9.99
 
-    sql = 'select count(*) from buyCrystal where crystal = 2500'
+    sql = 'select count(*) from buyCrystal where crystal = 2500 and `time` >= "%s" and `time`< "%s"' % (yd, td)
     cursor.execute(sql)
     result = cursor.fetchall()
     num = result[0][0]
     f.write('Daily 2500 crystal times: %d\n' % (num))
+    totalCost += num*128
+    totalEng += num*19.99
 
-    sql = 'select count(*) from buyCrystal where crystal = 6500'
+    sql = 'select count(*) from buyCrystal where crystal = 6500 and `time` >= "%s" and `time`< "%s"' % (yd, td)
     cursor.execute(sql)
     result = cursor.fetchall()
     num = result[0][0]
     f.write('Daily 6500 crystal times: %d\n' % (num))
+    totalCost += num*328
+    totalEng += num*49.99
 
-    sql = 'select count(*) from buyCrystal where crystal = 14000'
+    sql = 'select count(*) from buyCrystal where crystal = 14000 and `time` >= "%s" and `time`< "%s"' % (yd, td)
     cursor.execute(sql)
     result = cursor.fetchall()
     num = result[0][0]
     f.write('Daily 14000 crystal times: %d\n' % (num))
+    totalCost += num*648
+    totalEng += num*99.99
+
+    f.write('Daily CN income: %d\n'% totalCost)
+    f.write('Daily ENG income: %d\n'% totalEng)
 
     f.close()
     myCon.close()
