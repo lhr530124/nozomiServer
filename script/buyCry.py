@@ -75,7 +75,7 @@ num = result[0][0]
 f.write('Total number of Users: %d\n' % (num))
 
 
-sql = 'select count(*) from nozomi_user where lastSynTime >= %d and lastSynTime < %d' % (util.getYesterday(), util.getToday())
+sql = 'select count(*) from nozomi_user where lastSynTime >= %d and lastSynTime < %d' % (util.getAbsYesterday(), util.getAbsToday())
 cursor.execute(sql)
 result = cursor.fetchall()
 num = result[0][0]
