@@ -22,20 +22,20 @@ while True:
     td = time.strftime('%Y-%m-%d', now)
     yd = time.strftime('%Y-%m-%d', yesterDay)
 
-    sql = 'select uid, crystal, `time` from buyCrystal where `time` >= "%s" and `time` < "%s"' % (yd, td)
+    sql = 'select uid, crystal, `time` from buyCrystal where `time` >= "%s" and `time` < "%s" and crystal >= 500' % (yd, td)
     print sql
     cursor.execute(sql)
     result = cursor.fetchall()
     for r in result:
         f.write('%d %d %s\n' % (r[0], r[1], r[2]))
 
-    sql = 'select count(*) from buyCrystal where `time` >= "%s" and `time`< "%s" ' % (yd, td)
+    sql = 'select count(*) from buyCrystal where `time` >= "%s" and `time`< "%s"  and crystal >= 500' % (yd, td)
     cursor.execute(sql)
     result = cursor.fetchall()
     num = result[0][0]
     f.write('Daily number of users who buy cae: %d\n' % (num))
 
-    sql = 'select sum(crystal) from buyCrystal where `time` >= "%s" and `time` < "%s"' % (yd, td)
+    sql = 'select sum(crystal) from buyCrystal where `time` >= "%s" and `time` < "%s" and crystal >= 500' % (yd, td)
     cursor.execute(sql)
     result = cursor.fetchall()
     num = result[0][0]
@@ -43,16 +43,16 @@ while True:
     f.write('Daily crystal buy: %d\n' % (num))
 
 
-    sql = 'select count(*) from buyCrystal'
+    sql = 'select count(*) from buyCrystal where crystal >= 500'
     cursor.execute(sql)
     result = cursor.fetchall()
     num = result[0][0]
     f.write('Total number of users who buy crystal: %d\n'% (num) ) 
 
-    sql = 'select sum(crystal) from buyCrystal'
+    sql = 'select sum(crystal) from buyCrystal where crystal >= 500'
     cursor.execute(sql)
     result = cursor.fetchall()
-    num = result[0][0]
+    num = result[0][0] or 0
     f.write('Total crystal: %d\n' % (num))
 
 
