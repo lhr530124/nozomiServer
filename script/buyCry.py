@@ -5,6 +5,7 @@ import sys
 sys.path.append('..')
 import config
 import util
+import os
 
 
 
@@ -78,13 +79,19 @@ while True:
     f.write('Total number of Users: %d\n' % (num))
 
 
-    sql = 'select count(*) from nozomi_user where lastSynTime >= %d and lastSynTime < %d' % (util.getYesterday(), util.getToday())
+    sql = 'select count(*) from nozomi_user where lastSynTime >= %d and lastSynTime < %d' % (util.getAbsYesterday(), util.getAbsToday())
     cursor.execute(sql)
     result = cursor.fetchall()
     num = result[0][0]
     f.write('Daily Active Users: %d\n' % (num))
     f.close()
     myCon.close()
+
+
+    os.system('cat buyCry.log >> totalCrystal.log')
+    os.system('mv buyCry.log /var/www/html/crystal.log')
+    os.system('cp totalCrystal.log /var/www/html/')
     time.sleep(86400)
 
+    
 
