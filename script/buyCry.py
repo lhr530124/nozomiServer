@@ -17,7 +17,7 @@ while True:
     cursor = myCon.cursor()
 
     f = open('buyCry.log', 'a')
-    f.write('################ Nozomi daily report --'+time.strftime('%Y-%m-%d %H:%M:%S', yesterDay)+' -- '+time.strftime('%Y-%m-%d %H:%M:%S', now)+'######\n')
+    f.write('################ Nozomi daily report -- '+time.strftime('%Y-%m-%d %H:%M:%S', yesterDay)+' -- '+time.strftime('%Y-%m-%d %H:%M:%S', now)+' ######\n')
 
     td = time.strftime('%Y-%m-%d', now)
     yd = time.strftime('%Y-%m-%d', yesterDay)
@@ -41,6 +41,8 @@ while True:
     num = result[0][0]
     num = num or 0
     f.write('Daily crystal buy: %d\n' % (num))
+    
+    totalCrystal = num
 
 
     sql = 'select count(*) from buyCrystal where crystal >= 500'
@@ -84,6 +86,12 @@ while True:
     result = cursor.fetchall()
     num = result[0][0]
     f.write('Daily Active Users: %d\n' % (num))
+    totalUser = num
+    if totalUser == 0:
+        totalUser = 1
+
+    f.write('ARPU: %d\n' % (totalCrystal/totalUser))
+
     f.close()
     myCon.close()
 
