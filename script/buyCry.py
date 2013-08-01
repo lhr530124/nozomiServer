@@ -92,6 +92,36 @@ while True:
 
     f.write('ARPU: %d\n' % (totalCrystal/totalUser))
 
+    sql = 'select count(*) from buyCrystal where crystal = 500'
+    cursor.execute(sql)
+    result = cursor.fetchall()
+    num = result[0][0]
+    f.write('Daily 500 crystal times: %d\n' % (num))
+
+    sql = 'select count(*) from buyCrystal where crystal = 1200'
+    cursor.execute(sql)
+    result = cursor.fetchall()
+    num = result[0][0]
+    f.write('Daily 1200 crystal times: %d\n' % (num))
+
+    sql = 'select count(*) from buyCrystal where crystal = 2500'
+    cursor.execute(sql)
+    result = cursor.fetchall()
+    num = result[0][0]
+    f.write('Daily 2500 crystal times: %d\n' % (num))
+
+    sql = 'select count(*) from buyCrystal where crystal = 6500'
+    cursor.execute(sql)
+    result = cursor.fetchall()
+    num = result[0][0]
+    f.write('Daily 6500 crystal times: %d\n' % (num))
+
+    sql = 'select count(*) from buyCrystal where crystal = 14000'
+    cursor.execute(sql)
+    result = cursor.fetchall()
+    num = result[0][0]
+    f.write('Daily 14000 crystal times: %d\n' % (num))
+
     f.close()
     myCon.close()
 
