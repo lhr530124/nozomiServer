@@ -2,6 +2,7 @@
 #coding:utf8
 from testConfig import *
 
+base2 = "http://23.21.135.42:9927/"
 r = base2+'synData'
 data = {
 'uid':2, 
