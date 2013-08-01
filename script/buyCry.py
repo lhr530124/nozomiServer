@@ -88,9 +88,9 @@ while True:
     myCon.close()
 
 
-    os.system('cat buyCry.log >> totalCrystal.log')
-    os.system('mv buyCry.log /var/www/html/crystal.log')
-    os.system('cp totalCrystal.log /var/www/html/')
+    #os.system('cat buyCry.log >> totalCrystal.log')
+    #os.system('mv buyCry.log /var/www/html/crystal.log')
+    #os.system('cp totalCrystal.log /var/www/html/')
     time.sleep(86400)
 
     
