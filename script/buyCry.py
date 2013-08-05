@@ -1,3 +1,4 @@
+#coding:utf8
 #!/bin/python
 import MySQLdb
 import time
@@ -78,7 +79,8 @@ while True:
     cursor.execute(sql)
     result = cursor.fetchall()
     num = result[0][0]
-    f.write('Total number of Users: %d\n' % (num))
+    #去掉没有前1000个测试用户
+    f.write('Total number of Users: %d\n' % (num-1100))
 
 
     sql = 'select count(*) from nozomi_user where lastSynTime >= %d and lastSynTime < %d' % (util.getAbsYesterday(), util.getAbsToday())

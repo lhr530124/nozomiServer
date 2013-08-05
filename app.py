@@ -448,7 +448,7 @@ def synData():
             if newCrystal != None:
                 newCrystal += l[2]
     #更新了水晶 且新的水晶数量 大于旧的数量
-    if newCrystal != None and newCrystal > oldCrystal:
+    if newCrystal != None and newCrystal > oldCrystal and uid > 1100:
         buyCrystal = int(newCrystal-oldCrystal)
         value = (buyCrystal/100)*100
         left = buyCrystal%100
