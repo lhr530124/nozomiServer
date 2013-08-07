@@ -445,7 +445,7 @@ def getReplay():
 
 @app.route("/synData", methods=['POST'])
 def synData():
-    print 'synData', request.form
+    #print 'synData', request.form
     uid = int(request.form.get("uid", 0))
     if uid==0:
         return json.dumps({'code':401})
