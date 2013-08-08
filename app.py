@@ -98,6 +98,13 @@ formatter = logging.Formatter("%(asctime)s\t%(message)s")
 f.setFormatter(formatter)
 statlogger.setLevel(logging.INFO)
 
+loginlogger = logging.getLogger("LOGIN")
+f = TimedRotatingFileHandler('login.log','d',1)
+loginlogger.addHandler(f)
+formatter = logging.Formatter("%(asctime)s\t%(message)s")
+f.setFormatter(formatter)
+loginlogger.setLevel(logging.INFO)
+
 crystallogger = logging.getLogger("CRYSTAL")
 #f = logging.FileHandler("crystal_stat.log")
 f = TimedRotatingFileHandler('crystal_stat.log', 'd', 1)
@@ -266,12 +273,14 @@ def getUidByName(account):
     else:
         return ret[0]
 
-def initUser(username, nickname):
+def initUser(username, nickname, platform):
     print "initUser", username, nickname
     regTime = int(time.mktime(time.localtime()))
-
+    platformId = 0
+    if platform=="android":
+        platformId=1
     initScore = 500
-    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime) VALUES(%s, %s, %s, %s, 500, 497, 0)", (username, regTime, nickname, util.getTime()))
+    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
     myCon = getConn()
     module.UserRankModule.initUserScore(myCon, uid, initScore)
     module.UserRankModule.updateScore(myCon, uid, initScore)
@@ -308,8 +317,11 @@ def login():
         if uid==0:
             print "new user"
             nickname = request.form['nickname']
-            uid = initUser(username, nickname)
-            
+            platform = "ios"
+            if 'platform' in request.form:
+                platform = request.form['platform']
+            uid = initUser(username, nickname, platform)
+            loginlogger.info("%s\t%d\treg" % (platform,uid))
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
         #else:
@@ -364,7 +376,12 @@ def getData():
         data['serverTime'] = int(time.mktime(time.localtime()))
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
+        platform = "ios"
+        if 'platform' in request.form:
+            platform = request.args['platform']
+
         data['achieves'] = achieveModule.getAchieves(uid)
+        loginlogger.info("%s\t%d\tlogin" % (platform,uid))
     else:
         data = getUserInfos(uid)
     if data['clan']>0:
@@ -401,6 +418,9 @@ def synData():
     uid = int(request.form.get("uid", 0))
     if uid==0:
         return json.dumps({'code':401})
+    platform = "ios"
+    if 'platform' in request.form:
+        platform = request.form['platform']
     if 'delete' in request.form:
         delete = json.loads(request.form['delete'])
         deleteUserBuilds(uid, delete)
@@ -439,11 +459,11 @@ def synData():
     updateUserInfoById(userInfoUpdate, uid)
     updateUserState(uid, int(request.form.get("eid", 0)))
     if 'stat' in request.form:
-        statlogger.info("%d\t%s" % (uid, request.form['stat']))
+        statlogger.info("%s\t%d\t%s" % (platform, uid, request.form['stat']))
     if 'crystal' in request.form:
         ls = json.loads(request.form['crystal'])
         for l in ls:
-            crystallogger.info("%d\t%s" % (uid, json.dumps(l)))
+            crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
             #加上当前消耗的
             if newCrystal != None:
                 newCrystal += l[2]
@@ -483,6 +503,7 @@ def synData():
         myCon.commit()
         #myCon.close()
     print "oldCrystal", oldCrystal, newCrystal
+    loginlogger.info("%s\t%d\tsynData" % (platform,uid))
     return json.dumps({'code':0})
 
 @app.route("/synBattleData", methods=['POST'])
