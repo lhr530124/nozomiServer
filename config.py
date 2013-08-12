@@ -4,7 +4,7 @@ DEBUG = True
 PASSWORD = 'wavegame1'
 ADMINS = ['233242872@qq.com', 'caesars321@gmail.com', '21024851@qq.com']
 HOSTPORT = 9947
-SORTPORT = 9928
+SORTPORT = 9938
 CHATPORT = 8005
 CHATSERVER = 'http://localhost:%d/sys' % (CHATPORT)
 
