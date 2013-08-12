@@ -1,14 +1,18 @@
 #coding:utf8
 from testConfig import *
 
-r = base2+'login'
-for i in xrange(5000, 100000):
+#r = base2+'login'
+r = 'http://23.21.135.42:9947/'+'login'
+#for i in xrange(5000, 100000):
 #i = 1000
-    data = {
-    'username': 'TEST%d' % (i),
-    'nickname': 'TEST%d' % (i),
-    }
-    req2(r, data)
+
+i = 99999
+data = {
+'username': 'TEST%d' % (i),
+'nickname': 'TEST%d' % (i),
+'platform': 'android',
+}
+req2(r, data)
 
 """
 r = base2+'getData?uid=3'
