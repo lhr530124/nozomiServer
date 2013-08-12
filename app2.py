@@ -51,7 +51,7 @@ def query(self, sql):
     startTime = time.time()*1000
     oldQuery(self, sql)
     endTime = time.time()*1000
-    mysqllogger.info("%s\t%d", sql, int(endTime-startTime))
+    mysqllogger.info("%s\t%d\t%s", sql, int(endTime-startTime), time.asctime())
 
 #setattr(cursor.BaseCursor, 'execute', execute)
 setattr(connections.Connection, 'query', query)
