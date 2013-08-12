@@ -24,6 +24,35 @@ from logging import Formatter
 import BufferMailHandler
 import util
 
+from MySQLdb import cursors, connections
+
+
+mysqlLogHandler = TimedRotatingFileHandler('mysqlLog.log', 'd', 1)
+
+mysqllogger = logging.getLogger("mysqlLogger")
+mysqllogger.addHandler(mysqlLogHandler)
+mysqllogger.setLevel(logging.INFO)
+
+#oldExec = getattr(cursors.BaseCursor, 'execute')
+oldQuery = getattr(connections.Connection, 'query')
+
+"""
+def execute(self, query, args=None):
+    startTime = time.time()*1000
+    oldExec(self, query, args)
+    endTime = time.time()*1000
+    mysqlLogHandler.info("%s %d", query, int(endTime-startTime))
+"""
+    
+def query(self, sql):
+    startTime = time.time()*1000
+    oldQuery(self, sql)
+    endTime = time.time()*1000
+    mysqllogger.info("%s\t%d", sql, int(endTime-startTime))
+
+#setattr(cursor.BaseCursor, 'execute', execute)
+setattr(connections.Connection, 'query', query)
+
 
 
 """
