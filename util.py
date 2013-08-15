@@ -23,3 +23,7 @@ def getAbsYesterday():
     nt = time.localtime()
     yesterday = time.mktime((nt.tm_year, nt.tm_mon, nt.tm_mday-1, 0, 0, 0, 0, 0, 0 ))
     return yesterday
+def getDBID(uid):
+    if uid <= 11844:
+        return 0
+    return 1

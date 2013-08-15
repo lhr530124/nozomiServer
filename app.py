@@ -226,20 +226,20 @@ def getJsonObj(string):
         return json.loads(string)
     
 def getUserBuilds(uid):
-    builds = queryAll("SELECT buildIndex, grid, bid, level, time, hitpoints, extend FROM nozomi_build WHERE id=%s AND state=0", (uid))
+    builds = queryAll("SELECT buildIndex, grid, bid, level, time, hitpoints, extend FROM nozomi_build WHERE id=%s AND state=0", (uid), util.getDBID(uid))
     return builds
 
 def deleteUserBuilds(uid, buildIndexes):
     params = []
     for bindex in buildIndexes:
         params.append([uid, bindex])
-    executemany("UPDATE nozomi_build SET state=1 WHERE id=%s AND buildIndex=%s", params)
+    executemany("UPDATE nozomi_build SET state=1 WHERE id=%s AND buildIndex=%s", params, dbID=util.getDBID(uid))
 
 def updateUserBuilds(uid, datas):
     params = []
     for data in datas:
         params.append([uid, data[0], data[1], data[2], data[3], data[4], data[5], data[6]])
-    executemany("INSERT INTO nozomi_build (id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend) VALUES(%s,%s,%s,0,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE grid=VALUES(grid),state=0,bid=VALUES(bid),level=VALUES(level),`time`=VALUES(time),hitpoints=VALUES(hitpoints),extend=VALUES(extend);", params)
+    executemany("INSERT INTO nozomi_build (id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend) VALUES(%s,%s,%s,0,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE grid=VALUES(grid),state=0,bid=VALUES(bid),level=VALUES(level),`time`=VALUES(time),hitpoints=VALUES(hitpoints),extend=VALUES(extend);", params, util.getDBID(uid))
 
 def getUserResearch(uid):
     researches = queryOne("SELECT research FROM nozomi_research WHERE id=%s", (uid))
@@ -252,13 +252,13 @@ def updateUserBuildHitpoints(uid, datas):
     params = []
     for data in datas:
         params.append([data[1], uid, data[0]])
-    executemany("UPDATE nozomi_build SET hitpoints=%s WHERE id=%s AND buildIndex=%s", params)
+    executemany("UPDATE nozomi_build SET hitpoints=%s WHERE id=%s AND buildIndex=%s", params, util.getDBID(uid))
 
 def updateUserBuildExtends(uid, datas):
     params = []
     for data in datas:
         params.append([data[1], uid, data[0]])
-    executemany("UPDATE nozomi_build SET extend=%s WHERE id=%s AND buildIndex=%s", params)
+    executemany("UPDATE nozomi_build SET extend=%s WHERE id=%s AND buildIndex=%s", params, util.getDBID(uid))
 
 def getUidByName(account):
     ret = queryOne("SELECT id FROM nozomi_user WHERE account=%s", (account))
