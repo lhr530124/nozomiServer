@@ -1,4 +1,6 @@
+#coding:utf8
 import time
+import config
 beginTime = (2013, 1, 1, 0, 0, 0, 0, 0, 0)
 beginTime = int(time.mktime(beginTime))
 def getTime():
@@ -24,6 +26,10 @@ def getAbsYesterday():
     yesterday = time.mktime((nt.tm_year, nt.tm_mon, nt.tm_mday-1, 0, 0, 0, 0, 0, 0 ))
     return yesterday
 def getDBID(uid):
-    if uid <= 11844:
-        return 0
-    return 1
+    #print "getDBID", uid, config.userCut
+    for i in xrange(0, len(config.userCut)):
+        if uid <= config.userCut[i]:
+            #print 'return', i
+            return i
+    #print 'return 2', len(config.userCut)-1
+    return len(config.userCut)-1

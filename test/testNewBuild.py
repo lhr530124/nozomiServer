@@ -7,7 +7,7 @@ req(r)
 
 #新数据库
 r = base2+'login'
-data = {'username':'liyongTest2', 'nickname':'liyongTest2'}
+data = {'username':'liyongTestXXX5', 'nickname':'liyongTestXXX5'}
 l = req2(r, data)
 nuid = l['uid']
 
@@ -61,7 +61,7 @@ req2(r, data)
 
 r = base2+'synBattleData'
 data = {
-'uid':nuid, 'eid':2,
+'uid':nuid, 'eid':nuid,
 'eupdate':json.dumps([[4, 'testExtend']]), 
 'hits': json.dumps([[5, 10]]),
 'score': 20, 
