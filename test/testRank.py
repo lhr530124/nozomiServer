@@ -1,7 +1,7 @@
 #coding:utf8
 from testConfig import *
 
-baseScore = 'http://23.21.135.42:9938/'
+#baseScore = 'http://23.21.135.42:9938/'
 r = baseScore+'updateScore?uid=2&score=10'
 req(r)
 
