@@ -74,8 +74,12 @@ def updateScore(myCon, uid, newScore):
     """
 
     #更新用户的得分
+    #更新搜索对手表格
     sql = 'update nozomi_rank set score = %d where uid = %d' % (newScore, uid)
     myCon.query(sql)
+    sql = 'update nozomi_user_state set score = %d where uid = %d' % (newScore, uid)
+    myCon.query(sql)
+
     myCon.commit()
 
     #如果使用redis 来做数据持久话 则不用担心锁问题
