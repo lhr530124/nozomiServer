@@ -1,3 +1,4 @@
+#coding:utf8
 import MySQLdb
 from DBUtils.PooledDB import PooledDB
 
@@ -15,14 +16,20 @@ class DbManager:
     def __init__(self):
         connKwargs = {'host':HOST,'user':'root','passwd':PASSWORD,'db':'nozomi','charset':"utf8"}
         self._pool = PooledDB(MySQLdb, mincached=1, maxcached=10, maxshared=10, maxusage=10000, **connKwargs)
+        
+        #默认第二个数据库
+        connKwargs2 = {'host':HOST,'user':'root','passwd':PASSWORD,'db':'nozomi2','charset':"utf8"}
+        self._pool2 = PooledDB(MySQLdb, mincached=1, maxcached=10, maxshared=10, maxusage=10000, **connKwargs2)
 
-    def getConn(self):
-        return self._pool.connection()
+        self.allPools = [self._pool, self._pool2]
+
+    def getConn(self, dbID=0):
+        return self.allPools[dbID].connection()
 
 _dbManager = DbManager()
 
-def getConn():
-    return _dbManager.getConn()
+def getConn(dbID=0):
+    return _dbManager.getConn(dbID=0)
 
 def insertAndGetId(sql, params=None):
     con = getConn()
@@ -50,8 +57,8 @@ def update(sql, params=None):
     con.close()
     return rowcount
 
-def executemany(sql, params):
-    con = getConn()
+def executemany(sql, params, dbID=0):
+    con = getConn(dbID)
     cur = con.cursor()
     cur.executemany(sql, params)
     con.commit()
@@ -73,8 +80,8 @@ def queryOne(sql, params=None):
     con.close()
     return ret
 
-def queryAll(sql, params=None):
-    con = getConn()
+def queryAll(sql, params=None, dbID=0):
+    con = getConn(dbID)
     cur = con.cursor()
     rowcount = 0
     if params == None:
