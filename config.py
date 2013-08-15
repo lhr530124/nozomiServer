@@ -12,5 +12,7 @@ ERROR_SERVER = "nozomiError.log"
 ERROR_RANK = "rankError.log"
 STATISTIC_PORT = 9004
 
-dbInfo = [{'host':'localhost', 'user':'root', 'passwd':'badperson3', 'db':'nozomi'}, {'host':'localhost', 'user':'root', 'passwd':'badperson3', 'db':'nozomi2'}]
-userCut = [11844, 99999999]
+dbInfo = [
+{'host':'localhost', 'user':'root', 'passwd':'wavegame1', 'db':'nozomi'}, 
+]
+userCut = [99999999]
