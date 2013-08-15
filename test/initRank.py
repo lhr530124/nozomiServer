@@ -6,6 +6,7 @@ import config
 import MySQLdb
 myCon = MySQLdb.connect(host='localhost', passwd= config.PASSWORD, db=config.DATABASE, user='root', charset='utf8')
 
+#nozomi_rank 用于旧的排名现在使用redis 来做了
 #删除旧的计数
 sql = 'delete from nozomi_score_count'
 myCon.query(sql)
