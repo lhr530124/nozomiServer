@@ -74,7 +74,7 @@ sys.setdefaultencoding('utf-8')
 app = Flask(__name__)
 app.config.from_object("config")
 
-timeLogHandler = TimedRotatingFileHandler('nozomiAccess.log', 'd', 7)
+timeLogHandler = TimedRotatingFileHandler('/data/allLog/nozomiAccess.log', 'd', 7)
 timelogger = logging.getLogger("timeLogger")
 timelogger.addHandler(timeLogHandler)
 timelogger.setLevel(logging.INFO)
@@ -138,15 +138,14 @@ loginlogger.setLevel(logging.INFO)
 
 crystallogger = logging.getLogger("CRYSTAL")
 #f = logging.FileHandler("crystal_stat.log")
-f = TimedRotatingFileHandler('crystal_stat.log', 'd', 1)
+f = TimedRotatingFileHandler('/data/allLog/crystal_stat.log', 'd', 1)
 crystallogger.addHandler(f)
 formatter = logging.Formatter("%(asctime)s\t%(message)s")   
 f.setFormatter(formatter)
 crystallogger.setLevel(logging.INFO)
 
 
-debugLogger = TimedRotatingFileHandler(config.ERROR_SERVER, 'd', 7)
-#debugLogger = logging.FileHandler("nozomiError.log")
+debugLogger = logging.FileHandler("/data/allLog/nozomiError.log", 'd', 7)
 debugLogger.setLevel(logging.ERROR)
 debugLogger.setFormatter(Formatter(
 '''
