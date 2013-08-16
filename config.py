@@ -3,8 +3,8 @@ DATABASE = 'nozomi'
 DEBUG = True
 PASSWORD = 'wavegame1'
 ADMINS = ['233242872@qq.com', 'caesars321@gmail.com', '21024851@qq.com']
-HOSTPORT = 9957
-SORTPORT = 9948
+HOSTPORT = 9967
+SORTPORT = 9958
 CHATPORT = 8005
 CHATSERVER = 'http://localhost:%d/sys' % (CHATPORT)
 

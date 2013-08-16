@@ -25,6 +25,8 @@ import BufferMailHandler
 import util
 
 from MySQLdb import cursors, connections
+from werkzeug.contrib.fixers import ProxyFix
+
 
 
 mysqlLogHandler = TimedRotatingFileHandler('mysqlLog.log', 'd', 1)
@@ -121,14 +123,14 @@ achieveModule = AchieveModule("nozomi_achievement")
 
 statlogger = logging.getLogger("STAT")
 #f = logging.FileHandler("stat.log")
-f = TimedRotatingFileHandler('stat.log', 'd', 1)
+f = TimedRotatingFileHandler('/data/allLog/stat.log', 'd', 1)
 statlogger.addHandler(f)
 formatter = logging.Formatter("%(asctime)s\t%(message)s")   
 f.setFormatter(formatter)
 statlogger.setLevel(logging.INFO)
 
 loginlogger = logging.getLogger("LOGIN")
-f = TimedRotatingFileHandler('login.log','d',1)
+f = TimedRotatingFileHandler('/data/allLog/login.log','d',1)
 loginlogger.addHandler(f)
 formatter = logging.Formatter("%(asctime)s\t%(message)s")
 f.setFormatter(formatter)
@@ -750,6 +752,7 @@ def synErrorLog():
 
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
+app.wsgi_app = ProxyFix(app.wsgi_app)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port = config.HOSTPORT)
