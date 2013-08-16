@@ -24,6 +24,37 @@ from logging import Formatter
 import BufferMailHandler
 import util
 
+from MySQLdb import cursors, connections
+from werkzeug.contrib.fixers import ProxyFix
+
+
+
+mysqlLogHandler = TimedRotatingFileHandler('mysqlLog.log', 'd', 1)
+
+mysqllogger = logging.getLogger("mysqlLogger")
+mysqllogger.addHandler(mysqlLogHandler)
+mysqllogger.setLevel(logging.INFO)
+
+#oldExec = getattr(cursors.BaseCursor, 'execute')
+oldQuery = getattr(connections.Connection, 'query')
+
+"""
+def execute(self, query, args=None):
+    startTime = time.time()*1000
+    oldExec(self, query, args)
+    endTime = time.time()*1000
+    mysqlLogHandler.info("%s %d", query, int(endTime-startTime))
+"""
+    
+def query(self, sql):
+    startTime = time.time()*1000
+    oldQuery(self, sql)
+    endTime = time.time()*1000
+    mysqllogger.info("%s\t%d\t%s", sql, int(endTime-startTime), time.asctime())
+
+#setattr(cursor.BaseCursor, 'execute', execute)
+setattr(connections.Connection, 'query', query)
+
 
 
 """
@@ -92,11 +123,18 @@ achieveModule = AchieveModule("nozomi_achievement")
 
 statlogger = logging.getLogger("STAT")
 #f = logging.FileHandler("stat.log")
-f = TimedRotatingFileHandler('stat.log', 'd', 1)
+f = TimedRotatingFileHandler('/data/allLog/stat.log', 'd', 1)
 statlogger.addHandler(f)
 formatter = logging.Formatter("%(asctime)s\t%(message)s")   
 f.setFormatter(formatter)
 statlogger.setLevel(logging.INFO)
+
+loginlogger = logging.getLogger("LOGIN")
+f = TimedRotatingFileHandler('/data/allLog/login.log','d',1)
+loginlogger.addHandler(f)
+formatter = logging.Formatter("%(asctime)s\t%(message)s")
+f.setFormatter(formatter)
+loginlogger.setLevel(logging.INFO)
 
 crystallogger = logging.getLogger("CRYSTAL")
 #f = logging.FileHandler("crystal_stat.log")
@@ -725,6 +763,7 @@ def synErrorLog():
 
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
+app.wsgi_app = ProxyFix(app.wsgi_app)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port = config.HOSTPORT)
