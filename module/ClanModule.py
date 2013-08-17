@@ -115,7 +115,10 @@ def leaveClan(uid, cid):
         if mtype==2 and clan[6]>0:
             nuid = queryOne("SELECT id FROM `nozomi_user` WHERE clan=%s ORDER BY lscore DESC LIMIT 1", (cid))[0]
             update("UPDATE `nozomi_user` SET memberType=2 WHERE id=%s", (nuid))
-        update("UPDATE `nozomi_clan` SET members=members-1, score=score-%s WHERE id=%s", (lscore, cid))
+        state = clan[9]
+        if clan[6]==1:
+            state = 0
+        update("UPDATE `nozomi_clan` SET members=members-1, score=score-%s, state=%s WHERE id=%s", (lscore, state, cid))
         return clan
     return None
 
@@ -165,7 +168,7 @@ def cancelFindLeagueEnemy(cid):
 def beginLeagueBattle(cid, eid):
     info = getClanInfo(eid)
     curTime = int(time.mktime(time.localtime()))
-    if info[9]==1 and info[10]>curTime:
+    if info[9]==1 and info[10]>curTime and info[6]>0:
         update("UPDATE `nozomi_clan` SET state=2, statetime=%s WHERE id=%s OR id=%s", (curTime+86400, cid, eid))
         cinfo = getClanInfo(cid)
         bid = insertAndGetId("INSERT INTO `nozomi_clan_battle` (cid1, cid2, left1, left2, winner) VALUES (%s,%s,%s,%s,0)", (cid, eid, cinfo[6], info[6]))
