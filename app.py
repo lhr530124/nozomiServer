@@ -589,7 +589,9 @@ def findLeagueEnemy():
     score = int(request.form.get('score', 0))
     if not ClanModule.checkFindLeagueAuth(uid, cid):
         return json.dumps(dict(code=2))
-
+    clan = ClanModule.getClanInfo(cid)
+    if clan[9]!=0:
+        return json.dumps(dict(code=3,state=clan[9],statetime=clan[10]))
     enemy=ClanModule.findLeagueEnemy(cid, score)
     if 'eid' in request.form:
         eid = int(request.form.get('eid', 0))
@@ -605,7 +607,13 @@ def cancelFindLeagueEnemy():
         return json.dumps(dict(code=2))
     ret = 1
     if cid>0:
-        ret = ClanModule.cancelFindLeagueEnemy(cid)
+        clan = ClanModule.getClanInfo(cid)
+        if clan[9]!=1:
+            print("length:%d" % len(clan))
+            print(clan[9], clan[10])
+            return json.dumps(dict(code=3,state=clan[9],statetime=clan[10]))
+        ret = ClanModule.cancelFindLeagueEnemy(cid) 
+    print "cancelFindLeagueEnemy", ret
     return json.dumps(dict(code=ret))
 
 @app.route("/beginLeagueBattle", methods=['POST'])
@@ -616,6 +624,9 @@ def beginLeagueBattle():
     
     if not ClanModule.checkFindLeagueAuth(uid, cid):
         return json.dumps(dict(code=2))
+    clan = ClanModule.getClanInfo(cid)
+    if clan[9]!=0:
+        return json.dumps(dict(code=3, state=clan[9], statetime=clan[10]))
     return json.dumps(dict(code=ClanModule.beginLeagueBattle(cid, eid)))
 
 @app.route("/createClan", methods=['POST'])
@@ -626,7 +637,14 @@ def createClan():
     name = request.form.get('name', "")
     desc = request.form.get('desc', "")
     minScore = int(request.form.get('min', 0))
-    ret = ClanModule.createClan(uid, icon, ltype, name, desc, minScore)
+    user = getUserInfos(uid)
+    if user==None:
+        return json.dumps(dict(clan=0))
+    elif user['clan']!=0:
+        clanInfo = ClanModule.getClanInfo(user['clan'])
+        return json.dumps(dict(clan=0, info=list(clanInfo)))
+    else:
+        ret = ClanModule.createClan(uid, icon, ltype, name, desc, minScore)
     return json.dumps(dict(clan=ret, info=[ret, icon, 0, ltype, name, desc, 1, minScore, uid, 0, 0]))
 
 @app.route("/editClan", methods=['POST'])
@@ -644,6 +662,9 @@ def editClan():
 def joinClan():
     uid = int(request.form.get('uid', 0))
     cid = int(request.form.get('cid', 0))
+    user = getUserInfos(uid)
+    if user==None or user['clan']!=0:
+        return json.dumps(dict(code=2))
     ret = ClanModule.joinClan(uid, cid)
     if ret==None:
         return json.dumps(dict(code=1))
@@ -653,6 +674,9 @@ def joinClan():
 def leaveClan():
     uid = int(request.form.get('uid', 0))
     cid = int(request.form.get('cid', 0))
+    user = getUserInfos(uid)
+    if user==None or user['clan']!=cid:
+        return json.dumps(dict(code=2))
     ret = ClanModule.leaveClan(uid, cid)
     if ret==None:
         return json.dumps(dict(code=1))
