@@ -297,12 +297,12 @@ def updateUserBuildExtends(uid, datas):
         params.append([data[1], uid, data[0]])
     executemany("UPDATE nozomi_build SET extend=%s WHERE id=%s AND buildIndex=%s", params, util.getDBID(uid))
 
-def getUidAndNewbieByName(account):
-    ret = queryOne("SELECT id,guideValue FROM nozomi_user WHERE account=%s", (account))
+def getUidByName(account):
+    ret = queryOne("SELECT id FROM nozomi_user WHERE account=%s", (account))
     if ret==None:
-        return [0,0]
+        return 0
     else:
-        return ret
+        return ret[0]
 
 def updateCrystal(uid, crystal):
     update("UPDATE `nozomi_user` SET crystal=crystal+%s WHERE id=%s", (crystal, id))
@@ -352,8 +352,7 @@ def login():
     print 'login', request.form
     if 'username' in request.form:
         username = request.form['username']
-        user = getUidAndNewbieByName(username)
-        uid = user[0]
+        uid = getUidByName(username)
         ret = dict(code=0, uid=uid)
         if uid==0:
             print "new user"
@@ -366,13 +365,13 @@ def login():
             loginlogger.info("%s\t%d\treg" % (platform, uid))
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
-        elif user[1]>=1400:
-            days = dailyModule.dailyLogin(uid)
-            if days>0:
-                ret['days']=days
-                reward = int((50+30*days)**0.5+0.5)
-                updateCrystal(uid, reward)
-                ret['reward'] = reward
+        #elif user[1]>=1400:
+        #    days = dailyModule.dailyLogin(uid)
+        #    if days>0:
+        #        ret['days']=days
+        #        reward = int((50+30*days)**0.5+0.5)
+        #        updateCrystal(uid, reward)
+        #        ret['reward'] = reward
 
         if False:
 
@@ -425,6 +424,14 @@ def getData():
         if 'platform' in request.form:
             platform = request.args['platform']
         data['achieves'] = achieveModule.getAchieves(uid)
+        if data['guide']>=1400:
+            days = dailyModule.dailyLogin(uid)
+            if days>0:
+                data['days']=days
+                reward = int((50+30*days)**0.5+0.5)
+                updateCrystal(uid, reward)
+                data['reward'] = reward
+                data['crystal'] = data['crystal']+reward
         loginlogger.info("%s\t%d\tlogin" % (platform,uid))
     else:
         data = getUserInfos(uid)
