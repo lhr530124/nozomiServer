@@ -1,10 +1,10 @@
 HOST = 'localhost'
 DATABASE = 'nozomi'
-DEBUG = True
+DEBUG = False
 PASSWORD = '2e4n5k2w2x'
 ADMINS = ['233242872@qq.com']
-HOSTPORT = 9060
-SORTPORT = 9041
+HOSTPORT = 9070
+SORTPORT = 9051
 CHATPORT = 8005
 CHATSERVER = 'http://localhost:%d/sys' % (CHATPORT)
 

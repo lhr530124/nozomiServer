@@ -55,6 +55,7 @@ function createChannel(cid)
     var channel = new function() {
         var messages = [];
         var callbacks = [];
+        var lastTime = 0;
         this.appendMessage = function(uid, name, type, text){
             uid = parseInt(uid, 10)
             switch(type){
@@ -69,6 +70,12 @@ function createChannel(cid)
                 break;
             };
             cur = Math.floor((new Date()).getTime()/1000);
+            if(lastTime>=cur){
+                lastTime = lastTime+1;
+                cur = lastTime;
+            }
+            else
+                lastTime = cur
             m = [uid, name,  text, (cur - beginTime), type];
 
             messages.push(m);
@@ -80,6 +87,13 @@ function createChannel(cid)
         };
         this.appendSys=function(type, info){
             cur = Math.floor((new Date()).getTime()/1000);
+
+            if(lastTime>=cur){
+                lastTime = lastTime+1;
+                cur = lastTime;
+            }
+            else
+                lastTime = cur;
             m = [0, type, info, cur-beginTime, "sys"];
 
             messages.push(m);
@@ -97,6 +111,12 @@ function createChannel(cid)
                 }
             }
             cur = Math.floor((new Date()).getTime()/1000);
+            if(lastTime>=cur){
+                lastTime = lastTime+1;
+                cur = lastTime;
+            }
+            else
+                lastTime = cur;
             m = [uid, name, [space, max, []], (cur-beginTime), "request"];
 
             messages.push(m);
@@ -108,6 +128,17 @@ function createChannel(cid)
         };
         this.appendDonate=function(uid, toUid, sid, slevel, space){
             cur = Math.floor((new Date()).getTime()/1000);
+
+            if(lastTime>=cur){
+                lastTime = lastTime+1;
+                cur = lastTime;
+            }
+            else
+                lastTime = cur;
+            if(messages.length>0 && messages[messages.length-1][3]>=cur){
+                messages[messages.length-1][3] = messages[messages.length-1][3]+1
+                cur = messages[messages.length-1][3]
+            }
             //var update=[toUid, sid, slevel, (cur-beginTime), "donate"];
             for(var i=0; i<messages.length; i++){
                 if (messages[i][4]=="request" && messages[i][0]==toUid){

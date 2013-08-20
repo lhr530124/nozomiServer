@@ -10,7 +10,7 @@ from module import *
 
 import MySQLdb
 import os, sys, time, datetime
-import json
+import json, urllib2
 import logging
 from calendar import monthrange
 import config
@@ -145,7 +145,7 @@ f.setFormatter(formatter)
 crystallogger.setLevel(logging.INFO)
 
 
-debugLogger = logging.FileHandler("/data/allLog/nozomiError.log", 'd', 7)
+debugLogger = TimedRotatingFileHandler("/data/allLog/nozomiError.log", 'd', 7)
 debugLogger.setLevel(logging.ERROR)
 debugLogger.setFormatter(Formatter(
 '''
@@ -238,8 +238,8 @@ def getUserInfos(uid):
     return dict(name=r[0], score=r[1], clan=r[2], mtype=r[3])
 
 def getUserAllInfos(uid):
-    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType FROM nozomi_user WHERE id=%s", (uid))
-    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9])
+    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime FROM nozomi_user WHERE id=%s", (uid))
+    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11])
 
 def updateUserInfoById(params, uid):
     sql = "UPDATE nozomi_user SET "
@@ -297,19 +297,30 @@ def updateUserBuildExtends(uid, datas):
         params.append([data[1], uid, data[0]])
     executemany("UPDATE nozomi_build SET extend=%s WHERE id=%s AND buildIndex=%s", params, util.getDBID(uid))
 
-def getUidByName(account):
-    ret = queryOne("SELECT id FROM nozomi_user WHERE account=%s", (account))
+def getUidAndNewbieByName(account):
+    ret = queryOne("SELECT id,guideValue FROM nozomi_user WHERE account=%s", (account))
     if ret==None:
-        return 0
+        return [0,0]
     else:
-        return ret[0]
+        return ret
 
-def initUser(username, nickname):
+def updateCrystal(uid, crystal):
+    update("UPDATE `nozomi_user` SET crystal=crystal+%s WHERE id=%s", (crystal, id))
+
+def updatePurchaseCrystal(uid, crystal, ctype):
+    if ctype>4:
+        update("UPDATE `nozomi_user` SET totalCrystal=totalCrystal+%s, lastOffTime=%s WHERE id=%s", (crystal, time.mktime(time.localtime()), uid))
+    else:
+        update("UPDATE `nozomi_user` SET totalCrystal=totalCrystal+%s WHERE id=%s", (crystal, uid))
+
+def initUser(username, nickname, platform):
     print "initUser", username, nickname
     regTime = int(time.mktime(time.localtime()))
-
+    platformId = 0
+    if platform=="android":
+        platformId=1
     initScore = 500
-    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime) VALUES(%s, %s, %s, %s, 500, 497, 0)", (username, regTime, nickname, util.getTime()))
+    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
     myCon = getConn()
     module.UserRankModule.initUserScore(myCon, uid, initScore)
     module.UserRankModule.updateScore(myCon, uid, initScore)
@@ -341,19 +352,27 @@ def login():
     print 'login', request.form
     if 'username' in request.form:
         username = request.form['username']
-        uid = getUidByName(username)
+        user = getUidAndNewbieByName(username)
+        uid = user[0]
         ret = dict(code=0, uid=uid)
         if uid==0:
             print "new user"
             nickname = request.form['nickname']
-            uid = initUser(username, nickname)
+            platform = "ios"
+            if 'platform' in request.form:
+                platform = request.form['platform']
+            uid = initUser(username, nickname, platform)
             
+            loginlogger.info("%s\t%d\treg" % (platform, uid))
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
-        #else:
-            #days = dailyModule.dailyLogin(uid)
-            #if days>0:
-            #    ret['days']=days
+        elif user[1]>=1400:
+            days = dailyModule.dailyLogin(uid)
+            if days>0:
+                ret['days']=days
+                reward = int((50+30*days)**0.5+0.5)
+                updateCrystal(uid, reward)
+                ret['reward'] = reward
 
         if False:
 
@@ -402,7 +421,11 @@ def getData():
         data['serverTime'] = int(time.mktime(time.localtime()))
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
+        platform = "ios"
+        if 'platform' in request.form:
+            platform = request.args['platform']
         data['achieves'] = achieveModule.getAchieves(uid)
+        loginlogger.info("%s\t%d\tlogin" % (platform,uid))
     else:
         data = getUserInfos(uid)
     if data['clan']>0:
@@ -433,12 +456,30 @@ def getReplay():
     vid = int(request.args.get("vid"))
     return queryOne("SELECT replay FROM nozomi_replay WHERE id=%s", (vid))[0]
 
+@app.route("/verify", methods=['POST'])
+def verifyIAP():
+    receipt = request.form.get("receipt")
+    if receipt!=None:
+        postData = json.dumps({'receipt-data':receipt})
+        #url = "https://buy.itunes.apple.com/verifyReceipt"
+        url = "https://sandbox.itunes.apple.com/verifyReceipt"
+        req = urllib2.Request(url,postData)
+        rep = urllib2.urlopen(req)
+        page = rep.read()
+        result = json.loads(page)
+        if result['status']==0:
+            return "success"
+    return "fail"
+
 @app.route("/synData", methods=['POST'])
 def synData():
     #print 'synData', request.form
     uid = int(request.form.get("uid", 0))
     if uid==0:
         return json.dumps({'code':401})
+    platform = "ios"
+    if 'platform' in request.form:
+        platform = request.form['platform']
     if 'delete' in request.form:
         delete = json.loads(request.form['delete'])
         deleteUserBuilds(uid, delete)
@@ -456,13 +497,13 @@ def synData():
     #话费的数据
 
     #连接结束自动关闭
-    myCon = getMyConn()
-    sql = 'select crystal from nozomi_user where id = %d' % (uid)
-    myCon.query(sql)
+    #myCon = getMyConn()
+    #sql = 'select crystal from nozomi_user where id = %d' % (uid)
+    #myCon.query(sql)
 
-    res = myCon.store_result().fetch_row(0, 1)
-    oldCrystal = res[0]['crystal']
-    newCrystal = None
+    #res = myCon.store_result().fetch_row(0, 1)
+    #oldCrystal = res[0]['crystal']
+    #newCrystal = None
 
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
     if 'userInfo' in request.form:
@@ -471,56 +512,59 @@ def synData():
         if 'shieldTime' in userInfo:
             setUserShield(uid, userInfo['shieldTime'])
         #获得当前的新水晶数量
-        newCrystal = userInfoUpdate.get('crystal', None)
+        #newCrystal = userInfoUpdate.get('crystal', None)
 
 
     updateUserInfoById(userInfoUpdate, uid)
     updateUserState(uid, int(request.form.get("eid", 0)))
     if 'stat' in request.form:
-        statlogger.info("%d\t%s" % (uid, request.form['stat']))
+        statlogger.info("%s\t%d\t%s" % (platform, uid, request.form['stat']))
     if 'crystal' in request.form:
         ls = json.loads(request.form['crystal'])
         for l in ls:
-            crystallogger.info("%d\t%s" % (uid, json.dumps(l)))
+            crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
+            if l[0]==-1:
+                updatePurchaseCrystal(uid, l[2], l[3])
             #加上当前消耗的
-            if newCrystal != None:
-                newCrystal += l[2]
+            #if newCrystal != None:
+            #    newCrystal += l[2]
     #更新了水晶 且新的水晶数量 大于旧的数量
-    if newCrystal != None and newCrystal > oldCrystal:
-        buyCrystal = int(newCrystal-oldCrystal)
-        value = (buyCrystal/100)*100
-        left = buyCrystal%100
+    #if newCrystal != None and newCrystal > oldCrystal:
+    #    buyCrystal = int(newCrystal-oldCrystal)
+    #    value = (buyCrystal/100)*100
+    #    left = buyCrystal%100
 
         
-        print 'value left', value, left
-        if left > 0:
+    #    print 'value left', value, left
+    #    if left > 0:
             #统计普通进行游戏获取的水晶数量
-            sql = 'insert into `buyCrystal` (uid,  crystal) values (%d,  %d)'  % (uid, left)
-            myCon.query(sql)
+    #        sql = 'insert into `buyCrystal` (uid,  crystal) values (%d,  %d)'  % (uid, left)
+    #        myCon.query(sql)
 
         #单次购买 
         #多次购买
         #
-        price = (500, 1200, 2500, 6500, 14000)
-        combine = dict(
-        [[27000, [14000, 6500, 6500]], [21000, [14000, 6500, 500]], [5000, [2500, 2500]], [19500, [6500, 6500, 6500]], [15500, [6500, 6500, 2500]], [3600, [1200, 1200, 1200]], [2200, [1200, 500, 500]], [7700, [6500, 1200]], [19000, [14000, 2500, 2500]], [15000, [14000, 500, 500]], [21700, [14000, 6500, 1200]], [9500, [6500, 2500, 500]], [14200, [6500, 6500, 1200]], [14500, [14000, 500]], [28500, [14000, 14000, 500]], [9000, [6500, 2500]], [3500, [2500, 500, 500]], [28000, [14000, 14000]], [34500, [14000, 14000, 6500]], [3000, [2500, 500]], [16500, [14000, 2500]], [13500, [6500, 6500, 500]], [15200, [14000, 1200]], [8900, [6500, 1200, 1200]], [13000, [6500, 6500]], [17000, [14000, 2500, 500]], [23000, [14000, 6500, 2500]], [7500, [6500, 500, 500]], [6200, [2500, 2500, 1200]], [2900, [1200, 1200, 500]], [4900, [2500, 1200, 1200]], [7000, [6500, 500]], [1700, [1200, 500]], [1500, [500, 500, 500]], [2400, [1200, 1200]], [16400, [14000, 1200, 1200]], [17700, [14000, 2500, 1200]], [4200, [2500, 1200, 500]], [42000, [14000, 14000, 14000]], [29200, [14000, 14000, 1200]], [11500, [6500, 2500, 2500]], [10200, [6500, 2500, 1200]], [1000, [500, 500]], [3700, [2500, 1200]], [8200, [6500, 1200, 500]], [30500, [14000, 14000, 2500]], [15700, [14000, 1200, 500]], [20500, [14000, 6500]], [5500, [2500, 2500, 500]]]
-        )
+     #   price = (500, 1200, 2500, 6500, 14000)
+     #   combine = dict(
+     #   [[27000, [14000, 6500, 6500]], [21000, [14000, 6500, 500]], [5000, [2500, 2500]], [19500, [6500, 6500, 6500]], [15500, [6500, 6500, 2500]], [3600, [1200, 1200, 1200]], [2200, [1200, 500, 500]], [7700, [6500, 1200]], [19000, [14000, 2500, 2500]], [15000, [14000, 500, 500]], [21700, [14000, 6500, 1200]], [9500, [6500, 2500, 500]], [14200, [6500, 6500, 1200]], [14500, [14000, 500]], [28500, [14000, 14000, 500]], [9000, [6500, 2500]], [3500, [2500, 500, 500]], [28000, [14000, 14000]], [34500, [14000, 14000, 6500]], [3000, [2500, 500]], [16500, [14000, 2500]], [13500, [6500, 6500, 500]], [15200, [14000, 1200]], [8900, [6500, 1200, 1200]], [13000, [6500, 6500]], [17000, [14000, 2500, 500]], [23000, [14000, 6500, 2500]], [7500, [6500, 500, 500]], [6200, [2500, 2500, 1200]], [2900, [1200, 1200, 500]], [4900, [2500, 1200, 1200]], [7000, [6500, 500]], [1700, [1200, 500]], [1500, [500, 500, 500]], [2400, [1200, 1200]], [16400, [14000, 1200, 1200]], [17700, [14000, 2500, 1200]], [4200, [2500, 1200, 500]], [42000, [14000, 14000, 14000]], [29200, [14000, 14000, 1200]], [11500, [6500, 2500, 2500]], [10200, [6500, 2500, 1200]], [1000, [500, 500]], [3700, [2500, 1200]], [8200, [6500, 1200, 500]], [30500, [14000, 14000, 2500]], [15700, [14000, 1200, 500]], [20500, [14000, 6500]], [5500, [2500, 2500, 500]]]
+        #)
 
-        if value in price:
-            sql = 'insert into `buyCrystal` (uid,  crystal) values (%d,  %d)'  % (uid, value)
-            myCon.query(sql)
-        elif value in combine:
-            for v in combine[value]:
-                sql = 'insert into `buyCrystal` (uid, crystal) values (%d, %d)' % (uid, v)
-                myCon.query(sql)
-        elif value > 0:
-            sql = 'insert into `buyCrystal` (uid, crystal) values (%d, %d)' % (uid, value)
-            myCon.query(sql)
+        #if value in price:
+        #    sql = 'insert into `buyCrystal` (uid,  crystal) values (%d,  %d)'  % (uid, value)
+        #    myCon.query(sql)
+        #elif value in combine:
+        #    for v in combine[value]:
+        #        sql = 'insert into `buyCrystal` (uid, crystal) values (%d, %d)' % (uid, v)
+        #        myCon.query(sql)
+        #elif value > 0:
+        #    sql = 'insert into `buyCrystal` (uid, crystal) values (%d, %d)' % (uid, value)
+        #    myCon.query(sql)
             
 
-        myCon.commit()
+        #myCon.commit()
         #myCon.close()
-    print "oldCrystal", oldCrystal, newCrystal
+    #print "oldCrystal", oldCrystal, newCrystal
+    loginlogger.info("%s\t%d\tsynData" % (platform,uid))
     return json.dumps({'code':0})
 
 @app.route("/synBattleData", methods=['POST'])
@@ -646,8 +690,6 @@ def cancelFindLeagueEnemy():
     if cid>0:
         clan = ClanModule.getClanInfo(cid)
         if clan[9]!=1:
-            print("length:%d" % len(clan))
-            print(clan[9], clan[10])
             return json.dumps(dict(code=3,state=clan[9],statetime=clan[10]))
         ret = ClanModule.cancelFindLeagueEnemy(cid) 
     print "cancelFindLeagueEnemy", ret
