@@ -1,0 +1,2 @@
+checkWord?word=xxxx  检测某个字符串是否有敏感词  {res:True} 表示有敏感词
+blockWord?word=xxxx  将某个字符串中所有敏感词替换成 *
