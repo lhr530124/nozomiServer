@@ -1,7 +1,7 @@
 #-*- coding: utf-8 -*-
 
 from flask import Flask, g, abort, session, redirect, url_for, \
-     request, render_template, _app_ctx_stack
+     request, render_template, _app_ctx_stack, jsonify
 #from datetime import datetime
 #from flask import Flask, request, flash, url_for, redirect, \
 #     render_template, abort
@@ -703,6 +703,19 @@ def synErrorLog():
     if uid>0 and log!="":
         update("INSERT INTO `nozomi_error_log` (uid, log) VALUES (%s,%s)", (uid, log))
     return "ok"
+
+@app.route('/checkKeyWord', methods=['GET'])
+def checkKeyWord():
+    word = request.args.get('word', None, type=str)
+    res = filterWord.checkWord(word, filterWord.tree)
+    return jsonify(dict(res=res))
+@app.route('/blockWord', methods=['GET'])
+def blockWord():
+    word = request.args.get('word', None, type=str)
+    word = filterWord.blockWord(word)
+    return jsonify(dict(word=word))
+    
+    
 
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
