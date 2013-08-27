@@ -1,7 +1,7 @@
 #-*- coding: utf-8 -*-
 
 from flask import Flask, g, abort, session, redirect, url_for, \
-     request, render_template, _app_ctx_stack
+     request, render_template, _app_ctx_stack, jsonify
 #from datetime import datetime
 #from flask import Flask, request, flash, url_for, redirect, \
 #     render_template, abort
