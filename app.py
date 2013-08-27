@@ -180,6 +180,8 @@ app.logger.addHandler(mailLogger)
 def user_not_login(error):
     return redirect(url_for('login'))
 
+platformIds = dict(ios=0,android=1,android_mm=2,android_dx=3)
+
 dataBuilds = [
               [1, 170018, 1, 1, 0, 1500, "{\"oil\":1000,\"food\":1000}"],
               [2, 110009, 2, 0, 0, 0, ""],
@@ -316,9 +318,7 @@ def updatePurchaseCrystal(uid, crystal, ctype):
 def initUser(username, nickname, platform):
     print "initUser", username, nickname
     regTime = int(time.mktime(time.localtime()))
-    platformId = 0
-    if platform=="android":
-        platformId=1
+    platformId = platformIds.get(platform, 0)
     initScore = 500
     uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
     myCon = getConn()
