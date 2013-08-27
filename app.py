@@ -714,6 +714,16 @@ def blockWord():
     word = request.args.get('word', None, type=str)
     word = filterWord.blockWord(word)
     return jsonify(dict(word=word))
+
+@app.route('/genRecordId', methods=['GET'])
+def genRecordId():
+    uid = request.args.get('uid', None, type=int)
+    kind = request.args.get('kind', None, type=int)
+    invoice = insertAndGetId('insert into record (uid, kind, state) values(%s, %s, %s) ', (uid, kind, 0))
+    return jsonify(dict(invoice=invoice))
+
+    
+    
     
     
 
