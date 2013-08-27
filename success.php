@@ -1,6 +1,7 @@
 
 <title>success</title>
 <body>
+
 <?php
 //sandboxxx mode 
 //sandbox token
@@ -106,6 +107,6 @@ else if (strcmp ($lines[0], "FAIL") == 0) {
 ?>
 
 <br>Thank you for your payment. Your transaction has been completed, and a receipt for your purchase has been emailed to you. You may log into your account at<a href="http://www.paypal.com/us"> www.paypal.com/us </a> to view details of this transaction.
-<br><a href="close.php">"close Page"</a>
+<br>Now You can close This page!
 </body>
 
