@@ -8,6 +8,8 @@
 //sandbox business user liyonghelpme4@qq.com
 //user  liyonghelpme1@qq.com
 $pp_hostname="www.sandbox.paypal.com"; //change to paypal when product
+$auth_token="UyLisw-tftaVLrgTboT0szTf2UNREd0edJ_54vBJy_O3HgQ0hf_p3PctZmG";
+
 $req = 'cmd=_notify-synch';
 $tx_token=$_GET['tx'];
 $st = $_GET['st'];
@@ -16,7 +18,7 @@ $cc = $_GET['cc'];
 $cm = $_GET['cm'];
 
 //$auth_token="30T_5bQvYO0OJqgYtANaRSgidX5e95kZ5KeDGvVXIGRe5ZCNyOKy-hWqCii";
-$auth_token="UyLisw-tftaVLrgTboT0szTf2UNREd0edJ_54vBJy_O3HgQ0hf_p3PctZmG";
+
 
 $req .= "&tx=$tx_token&at=$auth_token";
 //echo("<br>request $tx_token $st")
@@ -37,11 +39,15 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, array("Host: $pp_hostname"));
 
 $res = curl_exec($ch);
 curl_close($ch);
-!rewind($logfile);
-$con = stream_get_contents($logfile);
-echo "<br>verbose:\n<pre>", htmlspecialchars($con), '</pre>\n';
+
+
+//!rewind($logfile);
+//$con = stream_get_contents($logfile);
+//echo "<br>verbose:\n<pre>", htmlspecialchars($con), '</pre>\n';
+
 fclose($logfile);
 
+/*
 extract(curl_getinfo($ch));
 $metrics = <<<EOD
 URL....: $url
@@ -51,8 +57,9 @@ Time...: $total_time Start @ $starttransfer_time (DNS: $namelookup_time Connect:
 Speed..: Down: $speed_download (avg.) Up: $speed_upload (avg.)
 Curl...: v{$curlVersion['version']}
 EOD;
+*/
 
-echo("<br>response is what $res");
+//echo("<br>response is what $res");
 if(!$res) {
     echo ("<br><b>error</b>");
 } else {
@@ -81,7 +88,15 @@ if(!$res) {
     echo ("<li>Name: $firstname $lastname</li>\n");
     echo ("<li>Item: $itemname</li>\n");
     echo ("<li>Amount: $amount</li>\n");
+    //echo ("<li>Now, You can <b>Close</b> this page!</li>\n");
+    echo ("<li>Your transaction has been completed, and a receipt for your purchase has been emailed to you.</li>\n");
+    echo ("<>li>Now You can close This page!</li>\n");
     echo ("");
+/*
+<br>Thank you for your payment. Your transaction has been completed, and a receipt for your purchase has been emailed to you. You may log into your account at<a href="http://www.paypal.com/us"> www.paypal.com/us </a> to view details of this transaction.
+<br>Now You can close This page!
+
+*/
 
     /*
     //wait ipn to verify
@@ -106,7 +121,4 @@ else if (strcmp ($lines[0], "FAIL") == 0) {
 }
 ?>
 
-<br>Thank you for your payment. Your transaction has been completed, and a receipt for your purchase has been emailed to you. You may log into your account at<a href="http://www.paypal.com/us"> www.paypal.com/us </a> to view details of this transaction.
-<br>Now You can close This page!
 </body>
-

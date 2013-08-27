@@ -1,6 +1,8 @@
 <?php 
 // read the post from PayPal system and add 'cmd' 
 $req = 'cmd=' . urlencode('_notify-validate');
+$host="www.sandbox.paypal.com";
+$password="2e4n5k2w2x";
 
 //$myFile = "PaymentRecord.txt"; 
 //$fh = fopen($myFile, 'w+') or die("can't open file");
@@ -14,14 +16,14 @@ foreach ($_POST as $key => $value)
 //fwrite($fh, $req);
 
 $ch = curl_init(); 
-curl_setopt($ch, CURLOPT_URL, 'https://www.sandbox.paypal.com/cgi-bin/webscr'); 
+curl_setopt($ch, CURLOPT_URL, "https://$host/cgi-bin/webscr"); 
 curl_setopt($ch, CURLOPT_HEADER, 0); 
 curl_setopt($ch, CURLOPT_POST, 1); 
 curl_setopt($ch, CURLOPT_RETURNTRANSFER,1); 
 curl_setopt($ch, CURLOPT_POSTFIELDS, $req); 
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE); 
 curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE); 
-curl_setopt($ch, CURLOPT_HTTPHEADER, array('Host: www.sandbox.paypal.com')); 
+curl_setopt($ch, CURLOPT_HTTPHEADER, array("Host: $host")); 
 $res = curl_exec($ch); 
 curl_close($ch);
 
@@ -41,7 +43,7 @@ $invoice = $_POST['invoice'];
 if (strcmp ($res, "VERIFIED") == 0) {  
 // check the payment_status is Completed  
 if($payment_status == "Completed") {
-    $con = mysqli_connect("localhost", "root", "2e4n5k2w2x", "nozomi" );
+    $con = mysqli_connect("localhost", "root", $password, "nozomi" );
     if(mysqli_connect_errno($con)) {
         echo "Failed to connect to:" . mysqli_connect_error();
     } else {
