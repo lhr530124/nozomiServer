@@ -22,7 +22,7 @@ $cm = $_GET['cm'];
 
 $req .= "&tx=$tx_token&at=$auth_token";
 //echo("<br>request $tx_token $st")
-echo("<br> exis $tx_token $req");
+//echo("<br> exis $tx_token $req");
 
 $logfile = fopen('php://temp', 'rw+');
 $ch = curl_init();
@@ -90,7 +90,7 @@ if(!$res) {
     echo ("<li>Amount: $amount</li>\n");
     //echo ("<li>Now, You can <b>Close</b> this page!</li>\n");
     echo ("<li>Your transaction has been completed, and a receipt for your purchase has been emailed to you.</li>\n");
-    echo ("<>li>Now You can close This page!</li>\n");
+    echo ("<li>Now You can close This page!</li>\n");
     echo ("");
 /*
 <br>Thank you for your payment. Your transaction has been completed, and a receipt for your purchase has been emailed to you. You may log into your account at<a href="http://www.paypal.com/us"> www.paypal.com/us </a> to view details of this transaction.

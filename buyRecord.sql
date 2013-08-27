@@ -33,7 +33,8 @@ CREATE TABLE `buyRecord` (
   `receiver_email` char(255) NOT NULL,
   `invoice` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `txn_id` (`txn_id`)
+  UNIQUE KEY `txn_id` (`txn_id`),
+  UNIQUE KEY `invoice` (`invoice`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

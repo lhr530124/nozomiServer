@@ -25,7 +25,8 @@ echo "<input type='hidden' name='invoice' value='$invoice'>";
 echo "<input type='hidden' name='amount' value='$amount'>";
 echo "<input type='hidden' name='currency_code' value='$currency_code'>";
 
-$domainHost="http://www.caesarsgame.com";
+$domainHost="http://23.21.135.42";
+
 echo "<input type='hidden' name='return' value='$domainHost/success.php'>";
 echo "<input type='hidden' name='cancel_return' value='$domainHost/cancel.html'>";
 ?>
