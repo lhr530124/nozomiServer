@@ -827,6 +827,15 @@ def genRecordId():
     invoice = insertAndGetId('insert into record (uid, kind, state) values(%s, %s, %s) ', (uid, kind, 0))
     return jsonify(dict(invoice=invoice))
 
+#客户端检测服务器上面是否有ipn 通知的数据
+@app.route('/checkBuyRecord', methods=['GET'])
+def checkBuyRecord():
+    uid = request.args.get('uid', None, type=int)
+    invoice = request.args.get('invoice', None, type=int)
+    res = queryOne('select id from buyRecord where invoice = %s', (invoice))
+    if res == None:
+        return jsonify(dict(code=0))
+    return jsonify(dict(code=1))
     
     
 app.secret_key = os.urandom(24)
