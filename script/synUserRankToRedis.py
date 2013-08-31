@@ -14,7 +14,7 @@ myCon = getConn()
 rserver = redis.Redis()
 
 myCon.query('flush table with read lock')
-sql = 'select * from nozomi_rank'
+sql = 'select uid, score from nozomi_rank'
 myCon.query(sql)
 res = myCon.store_result().fetch_row(0, 1)
 for i in res:
