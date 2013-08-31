@@ -467,8 +467,8 @@ def verifyIAP():
     receipt = request.form.get("receipt")
     if receipt!=None:
         postData = json.dumps({'receipt-data':receipt})
-        #url = "https://buy.itunes.apple.com/verifyReceipt"
-        url = "https://sandbox.itunes.apple.com/verifyReceipt"
+        url = "https://buy.itunes.apple.com/verifyReceipt"
+        #url = "https://sandbox.itunes.apple.com/verifyReceipt"
         req = urllib2.Request(url,postData)
         rep = urllib2.urlopen(req)
         page = rep.read()
