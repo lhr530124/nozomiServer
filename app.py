@@ -1,7 +1,7 @@
 #-*- coding: utf-8 -*-
 
 from flask import Flask, g, abort, session, redirect, url_for, \
-     request, render_template, _app_ctx_stack
+     request, render_template, _app_ctx_stack, jsonify
 #from datetime import datetime
 #from flask import Flask, request, flash, url_for, redirect, \
 #     render_template, abort
@@ -770,6 +770,35 @@ def synErrorLog():
         update("INSERT INTO `nozomi_error_log` (uid, log) VALUES (%s,%s)", (uid, log))
     return "ok"
 
+@app.route('/checkKeyWord', methods=['GET'])
+def checkKeyWord():
+    word = request.args.get('word', None, type=str)
+    res = filterWord.checkWord(word, filterWord.tree)
+    return jsonify(dict(res=res))
+@app.route('/blockWord', methods=['GET'])
+def blockWord():
+    word = request.args.get('word', None, type=str)
+    word = filterWord.blockWord(word)
+    return jsonify(dict(word=word))
+
+@app.route('/genRecordId', methods=['GET'])
+def genRecordId():
+    uid = request.args.get('uid', None, type=int)
+    kind = request.args.get('kind', None, type=int)
+    invoice = insertAndGetId('insert into record (uid, kind, state) values(%s, %s, %s) ', (uid, kind, 0))
+    return jsonify(dict(invoice=invoice))
+
+#客户端检测服务器上面是否有ipn 通知的数据
+@app.route('/checkBuyRecord', methods=['GET'])
+def checkBuyRecord():
+    uid = request.args.get('uid', None, type=int)
+    invoice = request.args.get('invoice', None, type=int)
+    res = queryOne('select id from buyRecord where invoice = %s', (invoice))
+    if res == None:
+        return jsonify(dict(code=0))
+    return jsonify(dict(code=1))
+    
+    
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
 app.wsgi_app = ProxyFix(app.wsgi_app)
