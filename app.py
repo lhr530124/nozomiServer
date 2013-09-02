@@ -180,7 +180,9 @@ app.logger.addHandler(mailLogger)
 def user_not_login(error):
     return redirect(url_for('login'))
 
-platformIds = dict(ios=0,android=1,android_mm=2,android_dx=3)
+platformIds = dict(ios=0,android=1,android_mm=2,android_dx=3,android_daqin=4)
+
+newbieCup = [int(time.mktime((2013,6,31,0,0,0,0,0,0)))-util.beginTime, int(time.mktime((2013,9,10,0,0,0,0,0,0)))]
 
 dataBuilds = [
               [1, 170018, 1, 1, 0, 1500, "{\"oil\":1000,\"food\":1000}"],
@@ -240,8 +242,8 @@ def getUserInfos(uid):
     return dict(name=r[0], score=r[1], clan=r[2], mtype=r[3])
 
 def getUserAllInfos(uid):
-    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime FROM nozomi_user WHERE id=%s", (uid))
-    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11])
+    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime, registerTime FROM nozomi_user WHERE id=%s", (uid))
+    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12])
 
 def getBindGameCenter(tempName):
     r = queryOne("SELECT gameCenter FROM `nozomi_gc_bind` WHERE uuid=%s",(tempName))
@@ -253,7 +255,7 @@ def getBindGameCenter(tempName):
 def bindGameCenter(gc,uuid):
     r = update("INSERT IGNORE INTO `nozomi_gc_bind` (gameCenter, uuid) VALUES (%s,%s)", (gc,uuid))
     if r==1:
-        update("UPDATE `nozomi_user` SET account=%s WHERE account=%s",(gc,uuid))
+        update("UPDATE IGNORE `nozomi_user` SET account=%s WHERE account=%s",(gc,uuid))
 
 def updateUserInfoById(params, uid):
     sql = "UPDATE nozomi_user SET "
@@ -321,6 +323,18 @@ def getUidByName(account):
 def updateCrystal(uid, crystal):
     update("UPDATE `nozomi_user` SET crystal=crystal+%s WHERE id=%s", (crystal, id))
 
+def checkUserReward(uid):
+    allRewards = queryAll("SELECT reward, remark FROM `nozomi_reward` WHERE uid=%s", (uid))
+    if allRewards!=None and len(allRewards)>0:
+        sumReward = 0
+        for rewardItem in allRewards:
+            sumReward = sumReward+rewardItem[0]
+        updateCrystal(uid, sumReward)
+        update("DELETE FROM `nozomi_reward` WHERE uid=%s",(uid))
+        return [sumReward, allRewards]
+    else:
+        return None
+
 def updatePurchaseCrystal(uid, crystal, ctype):
     if ctype>4:
         update("UPDATE `nozomi_user` SET totalCrystal=totalCrystal+%s, lastOffTime=%s WHERE id=%s", (crystal, time.mktime(time.localtime()), uid))
@@ -345,6 +359,9 @@ def initUser(username, nickname, platform):
     
     return uid
 
+def getTopNewbies():
+    return queryAll("SELECT ns.id,ns.score,ns.name,nc.icon,nc.name FROM `nozomi_user` AS ns LEFT JOIN `nozomi_clan` AS nc ON ns.clan=nc.id WHERE ns.registerTime>%s ORDER BY score DESC LIMIT 100",(newbieCup[0]))
+
 def updateUserState(uid, eid):
     updateUserOnline(uid)
     if eid!=0:
@@ -364,7 +381,7 @@ def login():
     print 'login', request.form
     tempname = None
     if 'tempname' in request.form:
-        tempname = request.form['username']
+        tempname = request.form['tempname']
     username = None
     if 'username' in request.form:
         username = request.form['username']
@@ -445,6 +462,9 @@ def getData():
         platform = "ios"
         if 'platform' in request.form:
             platform = request.args['platform']
+        if data['registerTime']>newbieCup[0]:
+            data['newbieTime'] = newbieCup[1]
+        data['registerTime'] = None
         data['achieves'] = achieveModule.getAchieves(uid)
         if data['guide']>=1400:
             days = dailyModule.dailyLogin(uid)
@@ -455,6 +475,10 @@ def getData():
                     updateCrystal(uid, reward)
                     data['crystal'] = data['crystal']+reward
                 data['reward'] = reward
+            ret = checkUserReward(uid)
+            if ret!=None:
+                data['crystal'] = data['crystal']+ret[0]
+                data['rewards'] = ret[1]
         loginlogger.info("%s\t%d\tlogin" % (platform,uid))
     else:
         data = getUserInfos(uid)
@@ -827,6 +851,9 @@ def clearBattleState():
 def getLeagueRank():
     return json.dumps(ClanModule.getTopClans())
 
+@app.route("/getNewbieRank", methods=['GET'])
+def getNewbieRank():
+    return json.dumps(getTopNewbies())
 @app.route("/synErrorLog", methods=['POST'])
 def synErrorLog():
     log = request.form.get('log', "")
