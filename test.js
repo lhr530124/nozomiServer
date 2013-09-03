@@ -6,9 +6,10 @@ var mysql = require("mysql");
 var pool = mysql.createPool({
  host:'127.0.0.1',
  user:'root',
- password:'badperson3',
+ password:'2e4n5k2w2x',
  socketPath:'/var/run/mysqld/mysqld.sock',
  database: 'nozomi',
+    insecureAuth:true,
 });
 
 if (!String.prototype.format) {
@@ -118,6 +119,7 @@ function createChannel(cid)
                         var message = messages[i];
                         matching.push(message);
                     }
+                    console.log("matchInfo", matching.length);
                     //初始化结束 调用所有的回调函数返回数据
                     if(matching.length > 0) {
                         while(callbacks.length>0){
