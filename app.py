@@ -251,7 +251,7 @@ def getBindGameCenter(tempName):
 def bindGameCenter(gc,uuid):
     r = update("INSERT IGNORE INTO `nozomi_gc_bind` (gameCenter, uuid) VALUES (%s,%s)", (gc,uuid))
     if r==1:
-        update("UPDATE `nozomi_user` SET account=%s WHERE account=%s",(gc,uuid))
+        update("UPDATE IGNORE `nozomi_user` SET account=%s WHERE account=%s",(gc,uuid))
 
 def updateUserInfoById(params, uid):
     sql = "UPDATE nozomi_user SET "
@@ -495,10 +495,14 @@ def verifyIAP():
         req = urllib2.Request(url,postData)
         rep = urllib2.urlopen(req)
         page = rep.read()
-        update("INSERT INTO `buyCrystalVerify` (verify_code,verify_result) VALUES(%s,%s)", (receipt,page))
+        #update("INSERT INTO `buyCrystalVerify` (verify_code,verify_result) VALUES(%s,%s)", (receipt,page))
         result = json.loads(page)
         if result['status']==0:
-            return "success"
+            receipt = result['receipt']
+            if int(receipt['original_purchase_date_ms'][:-3])>int(time.mktime(time.localtime())-86400):
+                uniqInsert = update("INSERT IGNORE INTO `nozomi_iap_record` (transaction_id, buy_item, verify_data) VALUES(%s,%s,%s)",(receipt['original_transaction_id'],receipt['product_id'],page))
+                if uniqInsert>0:
+                    return "success"
     return "fail"
 
 @app.route("/synData", methods=['POST'])
