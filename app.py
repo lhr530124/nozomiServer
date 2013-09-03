@@ -836,6 +836,14 @@ def checkBuyRecord():
     if res == None:
         return jsonify(dict(code=0))
     return jsonify(dict(code=1))
+
+@app.route('/logError', methods=['POST'])
+def logError():
+    uid = request.form.get('uid', 0, type=int)
+    log = request.form.get('log', None, type=str)
+    iid = insertAndGetId('insert into errorLog (uid, log) values (%s, %s)', (uid, log)) 
+    return jsonify(dict(code=iid)) 
+    
     
     
 app.secret_key = os.urandom(24)
