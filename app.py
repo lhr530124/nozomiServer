@@ -145,7 +145,7 @@ f.setFormatter(formatter)
 crystallogger.setLevel(logging.INFO)
 
 
-debugLogger = TimedRotatingFileHandler("/data/allLog/nozomiError_2.log", 'd', 7)
+debugLogger = TimedRotatingFileHandler("/data/allLog/nozomiError_3.log", 'd', 7)
 debugLogger.setLevel(logging.ERROR)
 debugLogger.setFormatter(Formatter(
 '''
