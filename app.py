@@ -828,6 +828,10 @@ def checkBuyRecord():
     if res == None:
         return jsonify(dict(code=0))
     return jsonify(dict(code=1))
+
+#@app.route('/getAllUnPaiedRecord', methods=['GET'])
+#def getAllUnPaiedRecord():
+#    uid = request.args
     
     
 app.secret_key = os.urandom(24)
