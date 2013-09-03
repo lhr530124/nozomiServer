@@ -6,7 +6,7 @@ var mysql = require("mysql");
 var pool = mysql.createPool({
  host:'127.0.0.1',
  user:'root',
- password:'2e4n5k2w2x',
+ password:'wavegame1',
  socketPath:'/var/run/mysqld/mysqld.sock',
  database: 'nozomi',
     insecureAuth:true,
