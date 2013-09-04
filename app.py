@@ -149,6 +149,7 @@ Message:
 '''))
 app.logger.addHandler(debugLogger)
 
+"""
 mailLogger = BufferMailHandler.BufferMailHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Application Failed!\ncheck nozomiError.log file")
 mailLogger.setLevel(logging.ERROR)
 mailLogger.setFormatter(Formatter(
@@ -162,6 +163,7 @@ Message:
 %(message)s
 '''))
 app.logger.addHandler(mailLogger)
+"""
 
 
 #handlers = [TimedRotatingFileHandler('nozomiAccess.log', 'd', 7), ]
