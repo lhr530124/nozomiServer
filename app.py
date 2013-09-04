@@ -785,7 +785,7 @@ def getLeagueMemberData():
 
 @app.route("/clearBattleState", methods=['POST'])
 def clearBattleState():
-    eid = int(request.args.get('eid', 0))
+    eid = int(request.form.get('eid', 0))
     ClanModule.clearBattleStateAtOnce(eid)
     return json.dumps(dict(code=0))
 
