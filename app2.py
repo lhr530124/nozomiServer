@@ -18,12 +18,6 @@ import BufferMailHandler
 
 from MySQLdb import cursors, connections
 
-"""
-HOST = 'localhost'
-DATABASE = 'nozomi'
-DEBUG = True
-PASSWORD = '2e4n5k2w2x'
-"""
 
 
 reload(sys)
@@ -89,6 +83,7 @@ Message:
 '''))
 app.logger.addHandler(debugLogger)
 
+"""
 mailLogger = BufferMailHandler.BufferMailHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Rank Application Failed!\ncheck errorRank.log file")
 mailLogger.setLevel(logging.ERROR)
 mailLogger.setFormatter(Formatter(
@@ -102,6 +97,7 @@ Message:
 %(message)s
 '''))
 app.logger.addHandler(mailLogger)
+"""
 
 
 @app.errorhandler(500)
