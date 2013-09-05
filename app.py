@@ -144,6 +144,12 @@ formatter = logging.Formatter("%(asctime)s\t%(message)s")
 f.setFormatter(formatter)
 crystallogger.setLevel(logging.INFO)
 
+testlogger = logging.getLogger("TEST")
+f = logging.FileHandler("/data/allLog/test.log")
+testlogger.addHandler(f)
+formatter = logging.Formatter("%(asctime)s\t%(message)s")
+f.setFormatter(formatter)
+testlogger.setLevel(logging.INFO)
 
 debugLogger = TimedRotatingFileHandler("/data/allLog/nozomiError_3.log", 'd', 7)
 debugLogger.setLevel(logging.ERROR)
@@ -287,6 +293,12 @@ def deleteUserBuilds(uid, buildIndexes):
 def updateUserBuilds(uid, datas):
     params = []
     for data in datas:
+        if data[3]==1002 and data[6]!="":
+            researches = getUserResearch(uid)
+            rid = json.loads(data[6])['rid']-1
+            if researches[rid] == 5:
+                testlogger.info("uid:%d,rid;%d,lab-exception" % (uid, rid))
+                data[6] = ""
         params.append([uid, data[0], data[1], data[2], data[3], data[4], data[5], data[6]])
     executemany("INSERT INTO nozomi_build (id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend) VALUES(%s,%s,%s,0,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE grid=VALUES(grid),state=0,bid=VALUES(bid),level=VALUES(level),`time`=VALUES(time),hitpoints=VALUES(hitpoints),extend=VALUES(extend);", params, util.getDBID(uid))
 
@@ -364,7 +376,7 @@ def login():
     print 'login', request.form
     tempname = None
     if 'tempname' in request.form:
-        tempname = request.form['username']
+        tempname = request.form['tempname']
     username = None
     if 'username' in request.form:
         username = request.form['username']
@@ -394,33 +406,6 @@ def login():
         #        updateCrystal(uid, reward)
         #        ret['reward'] = reward
 
-        if False:
-
-            con = MySQLdb.connect(host="192.168.3.105", user='root', passwd="badperson", db="nozomi", charset='utf8')
-            sql = 'select * from nozomi_params'
-            con.query(sql)
-            res = con.store_result().fetch_row(0, 1)
-            params = dict()
-            for r in res:
-                params[r['key']] = int(r['value'])
-            sql = 'select * from nozomi_zombie_attack'
-            con.query(sql)
-            res = con.store_result().fetch_row(0, 1)
-            waves = []
-            for i in range(9):
-                waves.append([])
-                for j in range(1):
-                    waves[i].append([])
-                    for k in range(8):
-                        waves[i][j].append(0)
-            for r in res:
-                item = waves[int(r['nozomi_level'])-1][int(r['attack_wave'])-1]
-                for i in range(8):
-                    item[i] = int(r['zombie%d_num' % (i+11)])
-            params['attackWaves'] = waves
-            ret['params'] = params
-            con.close()
-
         return json.dumps(ret)
     else:
         #time.sleep(209) 
@@ -442,7 +427,7 @@ def getData():
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
         platform = "ios"
-        if 'platform' in request.form:
+        if 'platform' in request.args:
             platform = request.args['platform']
         data['achieves'] = achieveModule.getAchieves(uid)
         if data['guide']>=1400:
@@ -489,6 +474,7 @@ def getReplay():
 def verifyIAP():
     receipt = request.form.get("receipt")
     if receipt!=None:
+        testlogger.info("verify-code:%s" % receipt)
         postData = json.dumps({'receipt-data':receipt})
         url = "https://buy.itunes.apple.com/verifyReceipt"
         #url = "https://sandbox.itunes.apple.com/verifyReceipt"
@@ -520,15 +506,15 @@ def synData():
     if 'delete' in request.form:
         delete = json.loads(request.form['delete'])
         deleteUserBuilds(uid, delete)
-    if 'update' in request.form:
-        update = json.loads(request.form['update'])
-        updateUserBuilds(uid, update)
     if 'achieves' in request.form:
         achieves = json.loads(request.form['achieves'])
         achieveModule.updateAchieves(uid, achieves)
     if 'research' in request.form:
         researches = json.loads(request.form['research'])
         updateUserResearch(uid, researches)
+    if 'update' in request.form:
+        update = json.loads(request.form['update'])
+        updateUserBuilds(uid, update)
     #先得到 现有的数据
     #更新的数据
     #话费的数据
@@ -829,7 +815,14 @@ def checkBuyRecord():
         return jsonify(dict(code=0))
     return jsonify(dict(code=1))
     
-    
+#client syn the lua error to server
+@app.route("/synLuaError", methods=['POST'])
+def synLuaError():
+    uid = request.form.get('uid', 0, type=int)
+    error = request.form.get("error","")
+    testlogger.info("userId:%d\n%s" % (uid,error))
+    return "success"
+
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
 app.wsgi_app = ProxyFix(app.wsgi_app)
