@@ -91,6 +91,7 @@ function createChannel(cid)
 
     var channel = new function() {
         var messages = [];
+        var donates = [];
         var callbacks = [];
         var lastTime = 0;
         //异步的初始化channel 所以要等 channel 初始化结束了 才能返回数据
@@ -255,10 +256,6 @@ function createChannel(cid)
             }
             else
                 lastTime = cur;
-            if(messages.length>0 && messages[messages.length-1][3]>=cur){
-                messages[messages.length-1][3] = messages[messages.length-1][3]+1
-                cur = messages[messages.length-1][3]
-            }
             //var update=[toUid, sid, slevel, (cur-beginTime), "donate"];
             for(var i=0; i<messages.length; i++){
                 //给该用户赠送兵力
@@ -286,9 +283,13 @@ function createChannel(cid)
 
                     });
 
-
+                    var dm = [toUid, uid, property, (cur-beginTime), "donate"];
+                    donates.push(dm);
+                    while(donates[0][3]<=cur-beginTime-60){
+                        donates.shift();
+                    }
                     while(callbacks.length>0){
-                        callbacks.shift().callback([[toUid, uid, property, (cur-beginTime), "donate"]]);
+                        callbacks.shift().callback([dm]);
                     }
                 }
             }
@@ -302,6 +303,12 @@ function createChannel(cid)
                 var message = messages[i];
                 if(message[3] > since) {
                     matching.push(message);
+                }
+            }
+            for(var i = 0; i < donates.length; i++){
+                var donate = donates[i];
+                if(donate[3] > since && donate[3]<since+60) {
+                    matching.push(donate);
                 }
             }
 
