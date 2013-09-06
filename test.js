@@ -7,7 +7,8 @@ var pool = mysql.createPool({
  host:'127.0.0.1',
  user:'root',
  password:'wavegame1',
- socketPath:'/var/run/mysqld/mysqld.sock',
+ //socketPath:'/var/run/mysqld/mysqld.sock',
+ socketPath:'/var/lib/mysql/mysql.sock',
  database: 'nozomi',
     insecureAuth:true,
 });
@@ -66,7 +67,7 @@ ser.listen=function(port, host){
 };
 
 HOST = null;
-port = 8005;
+port = 8006;
 
 var channels = {};//cid channel
 function createChannel(cid)
