@@ -151,7 +151,7 @@ formatter = logging.Formatter("%(asctime)s\t%(message)s")
 f.setFormatter(formatter)
 testlogger.setLevel(logging.INFO)
 
-debugLogger = TimedRotatingFileHandler("/data/allLog/nozomiError_3.log", 'd', 7)
+debugLogger = TimedRotatingFileHandler("/data/allLog/nozomiError_4.log", 'd', 7)
 debugLogger.setLevel(logging.ERROR)
 debugLogger.setFormatter(Formatter(
 '''
