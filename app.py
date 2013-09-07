@@ -460,7 +460,7 @@ def getData():
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
         platform = "ios"
-        if 'platform' in request.form:
+        if 'platform' in request.args:
             platform = request.args['platform']
         if data['registerTime']>newbieCup[0]:
             data['newbieTime'] = newbieCup[1]
