@@ -438,8 +438,44 @@ def getData():
         data = getUserInfos(uid)
     if data['clan']>0:
         data['clanInfo'] = ClanModule.getClanInfo(data['clan'])
-    data['builds'] = getUserBuilds(uid)
+    #data['builds'] = getUserBuilds(uid)
     data['researches'] = getUserResearch(uid)
+    #fix data
+    repairDatas = []
+    builds = getUserBuilds(uid)
+    builds = [list(r) for r in builds]
+    builders = []
+    errorBuilderNum = 0
+    for build in builds:
+        if build[2]==1002:
+            if build[6]!="":
+                rid = json.loads(build[6])['rid']
+                if data['researches'][rid-1]==5:
+                    build[6]=""
+                    repairDatas.append([build[0],""])
+        elif build[2]==2004:
+            try:
+                check = json.loads(build[6])
+                if check['resource'] == 0:
+                    errorBuilderNum = errorBuilderNum+1
+                    builders.append(build)
+            except e:
+                print e
+
+            #if build[6]=='{"resource":0}':
+        if build[4]>0:
+            errorBuilderNum = errorBuilderNum-1
+    print 'errorNum', errorBuilderNum
+    while errorBuilderNum>0:
+        errorBuilderNum = errorBuilderNum-1
+        builders[errorBuilderNum][6]='{"resource":1}'
+        repairDatas.append([builders[errorBuilderNum][0],'{"resource":1}'])
+
+    if len(repairDatas)>0:
+        testlogger.info("repair data when get data:%s" % json.dumps(repairDatas))
+        if 'login' in request.args:
+            updateUserBuildExtends(uid, repairDatas)
+    data['builds']=builds
     return json.dumps(data)
 
 @app.route("/reverge", methods=['GET'])
