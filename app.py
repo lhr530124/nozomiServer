@@ -287,12 +287,6 @@ def deleteUserBuilds(uid, buildIndexes):
 def updateUserBuilds(uid, datas):
     params = []
     for data in datas:
-        if data[3]==1002 and data[6]!="":
-            researches = getUserResearch(uid)
-            rid = json.loads(data[6])['rid']-1
-            if researches[rid] == 5:
-                testlogger.info("uid:%d,rid;%d,lab-exception" % (uid, rid))
-                data[6] = ""
         params.append([uid, data[0], data[1], data[2], data[3], data[4], data[5], data[6]])
     executemany("INSERT INTO nozomi_build (id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend) VALUES(%s,%s,%s,0,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE grid=VALUES(grid),state=0,bid=VALUES(bid),level=VALUES(level),`time`=VALUES(time),hitpoints=VALUES(hitpoints),extend=VALUES(extend);", params, util.getDBID(uid))
 
@@ -429,7 +423,8 @@ def getData():
             if days>0:
                 data['days']=days
                 reward = int((50+30*days)**0.5+0.5)
-                if days!=7 and days!=14 and days!=30:
+                version = request.args.get("version", 0, type=int)
+                if version==0 or (days!=7 and days!=14 and days!=30):
                     updateCrystal(uid, reward)
                     data['crystal'] = data['crystal']+reward
                 data['reward'] = reward
@@ -470,7 +465,6 @@ def getData():
         errorBuilderNum = errorBuilderNum-1
         builders[errorBuilderNum][6]='{"resource":1}'
         repairDatas.append([builders[errorBuilderNum][0],'{"resource":1}'])
-
     if len(repairDatas)>0:
         testlogger.info("repair data when get data:%s" % json.dumps(repairDatas))
         if 'login' in request.args:
