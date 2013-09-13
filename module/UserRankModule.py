@@ -61,12 +61,33 @@ def myInsort(a, x):
 
 def updateScore(myCon, uid, newScore):
     #don't care about oldScore
+    """
+    oldScore = -1
+    #获得用户旧的得分
+    sql = 'select * from nozomi_rank where uid = %d' % (uid)
+    myCon.query(sql)
+    res = myCon.store_result().fetch_row(0, 1)
+    if len(res) > 0:
+        oldScore = res[0]['score']
+    """
+    sql = 'select score from nozomi_user where id = %d' % (uid)
+    myCon.query(sql)
+    res = myCon.store_result().fetch_row(0, 1)
+    oldScore = 0
+    if len(res) > 0:
+        oldScore = res[0]['score']
+    #积分变动太大了
+    print oldScore, newScore
+    if abs(newScore-oldScore) > 200:
+        return
 
     #更新用户的得分
     #更新搜索对手表格
     sql = 'update nozomi_rank set score = %d where uid = %d' % (newScore, uid)
     myCon.query(sql)
     sql = 'update nozomi_user_state set score = %d where uid = %d' % (newScore, uid)
+    myCon.query(sql)
+    sql = 'update nozomi_user set score = %d where id = %d' % (newScore, uid)
     myCon.query(sql)
 
     myCon.commit()

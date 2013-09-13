@@ -15,6 +15,6 @@ ERROR_RANK = "rankError.log"
 STATISTIC_PORT = 9004
 
 dbInfo = [
-{'host':'localhost', 'user':'root', 'passwd':'2e4n5k2w2x', 'db':'nozomi'}, 
+{'host':'localhost', 'user':'root', 'passwd':'wavegame1', 'db':DATABASE}, 
 ]
 userCut = [99999999]
