@@ -1,6 +1,6 @@
 HOST = 'localhost'
 DATABASE = 'nozomi'
-DEBUG = True
+DEBUG = False
 PASSWORD = 'wavegame1'
 ADMINS = ['233242872@qq.com', 'caesars321@gmail.com', '21024851@qq.com']
 HOSTPORT = 9967
