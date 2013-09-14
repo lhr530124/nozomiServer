@@ -72,7 +72,7 @@ def updateScore(myCon, uid, newScore):
     if len(res) > 0:
         oldScore = res[0]['score']
     """
-    sql = 'select score from nozomi_user where id = %d' % (uid)
+    sql = 'select score from nozomi_rank where uid = %d' % (uid)
     myCon.query(sql)
     res = myCon.store_result().fetch_row(0, 1)
     oldScore = 0
