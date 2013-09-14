@@ -6,5 +6,7 @@ res = con.store_result().fetch_row(0, 1)
 for i in res:
     sql = 'update nozomi_user_state set score = %d where uid = %d' % (i['score'], i['id'])
     con.query(sql)
+    sql = 'update nozomi_rank set score = %d where uid = %d' % (i['score'], i['id'])
+    con.query(sql)
 con.commit()
 con.close()
