@@ -317,7 +317,7 @@ def getUidByName(account):
         return ret[0]
 
 def updateCrystal(uid, crystal):
-    update("UPDATE `nozomi_user` SET crystal=crystal+%s WHERE id=%s", (crystal, id))
+    update("UPDATE `nozomi_user` SET crystal=crystal+%s WHERE id=%s", (crystal, uid))
 
 def updatePurchaseCrystal(uid, crystal, ctype):
     if ctype>4:
@@ -426,6 +426,8 @@ def getData():
                 version = request.args.get("version", 0, type=int)
                 if version==0 or (days!=7 and days!=14 and days!=30):
                     updateCrystal(uid, reward)
+                    if version==0 and (days==7 or days==14 or days==30):
+                        dailyModule.loginWithDays(uid, days)
                     data['crystal'] = data['crystal']+reward
                 data['reward'] = reward
         loginlogger.info("%s\t%d\tlogin" % (platform,uid))
@@ -460,7 +462,6 @@ def getData():
             #if build[6]=='{"resource":0}':
         if build[4]>0:
             errorBuilderNum = errorBuilderNum-1
-    print 'errorNum', errorBuilderNum
     while errorBuilderNum>0:
         errorBuilderNum = errorBuilderNum-1
         builders[errorBuilderNum][6]='{"resource":1}'
@@ -524,6 +525,34 @@ def synData():
     platform = "ios"
     if 'platform' in request.form:
         platform = request.form['platform']
+    oldCrystal = getUserAllInfos(uid)['crystal']
+    newCrystal = oldCrystal
+    userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
+    if 'userInfo' in request.form:
+        userInfo = json.loads(request.form['userInfo'])
+        userInfoUpdate.update(userInfo)
+        if 'score' in userInfo:
+            userInfoUpdate.pop('score')
+        if 'shieldTime' in userInfo:
+            setUserShield(uid, userInfo['shieldTime'])
+        if 'crystal' in userInfo:
+            newCrystal = userInfo['crystal']
+    if 'crystal' in request.form:
+        ls = json.loads(request.form['crystal'])
+        allAdd = 0
+        for l in ls:
+            if l[0]==-1:
+                allAdd = allAdd+l[2]
+            else:
+                allAdd = allAdd-l[2]
+        if oldCrystal+allAdd-newCrystal<=-200:
+            abort(401)
+        for l in ls:
+            crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
+            if l[0] == -1:
+                updatePurchaseCrystal(uid, l[2], l[3])
+    elif newCrystal-oldCrystal>=200:
+        abort(401)
     if 'days' in request.form:
         days = int(request.form['days'])
         dailyModule.loginWithDays(uid, days)
@@ -539,39 +568,10 @@ def synData():
     if 'update' in request.form:
         update = json.loads(request.form['update'])
         updateUserBuilds(uid, update)
-    #先得到 现有的数据
-    #更新的数据
-    #话费的数据
-
-    #连接结束自动关闭
-    #myCon = getMyConn()
-    #sql = 'select crystal from nozomi_user where id = %d' % (uid)
-    #myCon.query(sql)
-
-    #res = myCon.store_result().fetch_row(0, 1)
-    #oldCrystal = res[0]['crystal']
-    #newCrystal = None
-
-    userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
-    if 'userInfo' in request.form:
-        userInfo = json.loads(request.form['userInfo'])
-        userInfoUpdate.update(userInfo)
-        if 'shieldTime' in userInfo:
-            setUserShield(uid, userInfo['shieldTime'])
-        #获得当前的新水晶数量
-        #newCrystal = userInfoUpdate.get('crystal', None)
-
-
     updateUserInfoById(userInfoUpdate, uid)
     updateUserState(uid, int(request.form.get("eid", 0)))
     if 'stat' in request.form:
         statlogger.info("%s\t%d\t%s" % (platform, uid, request.form['stat']))
-    if 'crystal' in request.form:
-        ls = json.loads(request.form['crystal'])
-        for l in ls:
-            crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
-            if l[0] == -1:
-                updatePurchaseCrystal(uid, l[2], l[3])
 
     loginlogger.info("%s\t%d\tsynData" % (platform,uid))
     return json.dumps({'code':0})
@@ -596,13 +596,20 @@ def synBattleData():
         if 'hits' in request.form:
             hits = json.loads(request.form['hits'])
             updateUserBuildHitpoints(eid, hits)
-        baseScore = getUserInfos(eid)['score']
-        userInfoUpdate=dict(score=baseScore+incScore)
+        #baseScore = getUserInfos(eid)['score']
+        #userInfoUpdate=dict(score=baseScore+incScore)
+
         if 'shieldTime' in request.form:
             t = int(request.form['shieldTime'])
-            userInfoUpdate['shieldTime'] = t
+            #userInfoUpdate['shieldTime'] = t
             setUserShield(eid, t)
-        updateUserInfoById(userInfoUpdate, eid)
+            userInfoUpdate=dict(shieldTime=t)
+            updateUserInfoById(userInfoUpdate, eid)
+        #updateUserInfoById(userInfoUpdate, eid)
+    #if incScore!=0:
+    #    myScore = getUserInfos(uid)['score']-incScore
+    #    userInfoUpdate=dict(score=myScore)
+    #    updateUserInfoById(userInfoUpdate, uid)
     updateUserState(uid, eid)
     reverged = 0
     if 'isReverge' in request.form:
