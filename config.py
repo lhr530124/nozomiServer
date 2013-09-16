@@ -7,6 +7,7 @@ HOSTPORT = 9800
 SORTPORT = 9958
 CHATPORT = 8005
 CHATSERVER = 'http://localhost:%d/sys' % (CHATPORT)
+REDIS_HOST = '10.68.55.40'
 
 ERROR_SERVER = "nozomiTestError.log"
 ERROR_RANK = "rankError.log"

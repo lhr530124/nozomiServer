@@ -10,9 +10,12 @@
 
 #得分排序 从小到大排序
 #sortedScore = []
+import sys
+sys.path.append('..')
+import config
 import redis
 def getServer():
-    rserver = redis.Redis()
+    rserver = redis.Redis(host=config.REDIS_HOST)
     return rserver
 
 #cold synchronize database and redis
