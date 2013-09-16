@@ -319,6 +319,18 @@ def getUidByName(account):
 def updateCrystal(uid, crystal):
     update("UPDATE `nozomi_user` SET crystal=crystal+%s WHERE id=%s", (crystal, uid))
 
+def checkUserReward(uid):
+    allRewards = queryAll("SELECT reward, remark FROM `nozomi_reward` WHERE uid=%s", (uid))
+    if allRewards!=None and len(allRewards)>0:
+        sumReward = 0
+        for rewardItem in allRewards:
+            sumReward = sumReward+rewardItem[0]
+        updateCrystal(uid, sumReward)
+        update("DELETE FROM `nozomi_reward` WHERE uid=%s",(uid))
+        return [sumReward, allRewards]
+    else:
+        return None
+
 def updatePurchaseCrystal(uid, crystal, ctype):
     if ctype>4:
         update("UPDATE `nozomi_user` SET totalCrystal=totalCrystal+%s, lastOffTime=%s WHERE id=%s", (crystal, time.mktime(time.localtime()), uid))
