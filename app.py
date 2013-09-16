@@ -335,17 +335,6 @@ def checkUserReward(uid):
     else:
         return None
 
-def checkUserReward(uid):
-    allRewards = queryAll("SELECT reward, remark FROM `nozomi_reward` WHERE uid=%s", (uid))
-    if allRewards!=None and len(allRewards)>0:
-        sumReward = 0
-        for rewardItem in allRewards:
-            sumReward = sumReward+rewardItem[0]
-        updateCrystal(uid, sumReward)
-        update("DELETE FROM `nozomi_reward` WHERE uid=%s",(uid))
-        return [sumReward, allRewards]
-    else:
-        return None
 
 def updatePurchaseCrystal(uid, crystal, ctype):
     if ctype>4:
