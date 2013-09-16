@@ -428,10 +428,16 @@ def getData():
                 version = request.args.get("version", 0, type=int)
                 if version==0 or (days!=7 and days!=14 and days!=30):
                     updateCrystal(uid, reward)
+                    testlogger.info("[crystal]DailyBonus\t%d\t%d\t%d" % (uid,data['crystal'], data['crystal']+reward))
                     if version==0 and (days==7 or days==14 or days==30):
                         dailyModule.loginWithDays(uid, days)
                     data['crystal'] = data['crystal']+reward
                 data['reward'] = reward
+            ret = checkUserReward(uid)
+            if ret!=None:
+                testlogger.info("[crystal]Reward\t%d\t%d\t%d" % (uid, data['crystal'], data['crystal']+ret[0]))
+                data['crystal'] = data['crystal']+ret[0]
+                data['rewards'] = ret[1]
         loginlogger.info("%s\t%d\tlogin" % (platform,uid))
     else:
         data = getUserInfos(uid)
@@ -555,6 +561,8 @@ def synData():
                 updatePurchaseCrystal(uid, l[2], l[3])
     elif newCrystal-oldCrystal>=200:
         abort(401)
+    if newCrystal!=oldCrystal:
+        testlogger.info("[crystal]SynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
     if 'days' in request.form:
         days = int(request.form['days'])
         dailyModule.loginWithDays(uid, days)
