@@ -15,6 +15,6 @@ STATISTIC_PORT = 9004
 
 dbInfo = [
 {'host':'10.68.55.40', 'user':'root', 'passwd':'wavegame1', 'db':DATABASE}, 
-{'host':'10.151.82.234', 'user':'root', 'passwd':'wavegame1', 'db':nozomi2}, 
+{'host':'10.151.82.234', 'user':'root', 'passwd':'wavegame1', 'db':'nozomi2'}, 
 ]
 userCut = [100000, 99999999]
