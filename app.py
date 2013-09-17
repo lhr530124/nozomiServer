@@ -57,14 +57,6 @@ setattr(connections.Connection, 'query', query)
 
 
 
-"""
-HOST = 'localhost'
-DATABASE = 'nozomi'
-DEBUG = True
-PASSWORD = '2e4n5k2w2x'
-"""
-
-
 reload(sys)
 sys.setdefaultencoding('utf-8') 
 
@@ -100,7 +92,7 @@ def internalError(exception):
     ''' % (str(request.args), str(request.form), exception))
     return '', 500 
     
-
+    
 #可能没有web 上下文环境
 def getConn():
     return MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
@@ -241,6 +233,18 @@ def getUserAllInfos(uid):
     r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime FROM nozomi_user WHERE id=%s", (uid))
     return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11])
 
+def getBindGameCenter(tempName):
+    r = queryOne("SELECT gameCenter FROM `nozomi_gc_bind` WHERE uuid=%s",(tempName))
+    if r==None:
+        return tempName
+    else:
+        return r
+
+def bindGameCenter(gc,uuid):
+    r = update("INSERT IGNORE INTO `nozomi_gc_bind` (gameCenter, uuid) VALUES (%s,%s)", (gc,uuid))
+    if r==1:
+        update("UPDATE IGNORE `nozomi_user` SET account=%s WHERE account=%s",(gc,uuid))
+
 def updateUserInfoById(params, uid):
     sql = "UPDATE nozomi_user SET "
     isFirst = True
@@ -328,7 +332,7 @@ def initUser(username, nickname, platform):
     myCon.close()
 
     updateUserBuilds(uid, dataBuilds)
-    update("INSERT INTO nozomi_research (id, research) VALUES(%s, '[1,1,1,1,1,1,1,1,1,1]')", (uid))
+    update("INSERT INTO nozomi_research (id, research) VALUES(%s, '[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]')", (uid))
     newUserState(uid)
     
     return uid
@@ -350,8 +354,18 @@ def getBattleHistory():
 @app.route("/login", methods=['POST', 'GET'])
 def login():
     print 'login', request.form
+    tempname = None
+    if 'tempname' in request.form:
+        tempname = request.form['username']
+    username = None
     if 'username' in request.form:
         username = request.form['username']
+    if tempname!=None:
+        if username==None:
+            username = getBindGameCenter(tempname)
+        else:
+            bindGameCenter(username, tempname)
+    if username!=None:
         uid = getUidByName(username)
         ret = dict(code=0, uid=uid)
         if uid==0:
@@ -428,9 +442,10 @@ def getData():
             if days>0:
                 data['days']=days
                 reward = int((50+30*days)**0.5+0.5)
-                updateCrystal(uid, reward)
+                if days!=7 and days!=14 and days!=30:
+                    updateCrystal(uid, reward)
+                    data['crystal'] = data['crystal']+reward
                 data['reward'] = reward
-                data['crystal'] = data['crystal']+reward
         loginlogger.info("%s\t%d\tlogin" % (platform,uid))
     else:
         data = getUserInfos(uid)
@@ -472,9 +487,14 @@ def verifyIAP():
         req = urllib2.Request(url,postData)
         rep = urllib2.urlopen(req)
         page = rep.read()
+        #update("INSERT INTO `buyCrystalVerify` (verify_code,verify_result) VALUES(%s,%s)", (receipt,page))
         result = json.loads(page)
         if result['status']==0:
-            return "success"
+            receipt = result['receipt']
+            if int(receipt['original_purchase_date_ms'][:-3])>int(time.mktime(time.localtime())-86400):
+                uniqInsert = update("INSERT IGNORE INTO `nozomi_iap_record` (transaction_id, buy_item, verify_data) VALUES(%s,%s,%s)",(receipt['original_transaction_id'],receipt['product_id'],page))
+                if uniqInsert>0:
+                    return "success"
     return "fail"
 
 @app.route("/synData", methods=['POST'])
@@ -486,6 +506,9 @@ def synData():
     platform = "ios"
     if 'platform' in request.form:
         platform = request.form['platform']
+    if 'days' in request.form:
+        days = int(request.form['days'])
+        dailyModule.loginWithDays(uid, days)
     if 'delete' in request.form:
         delete = json.loads(request.form['delete'])
         deleteUserBuilds(uid, delete)

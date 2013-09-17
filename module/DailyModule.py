@@ -16,7 +16,12 @@ class DailyModule:
                 days = 0
             elif timedelta==1:
                 days = ret[0]+1
-        if days>0:
+                if days>30:
+                    days = (days-1)%30 + 1
+        if days>0 and days!=7 and days!=14 and days!=30:
             update(self.updateSql, (uid, days, today))
         return days
-        
+
+    def loginWithDays(self, uid, days):
+        today = datetime.date.today()
+        update(self.updateSql, (uid, days, today))        
