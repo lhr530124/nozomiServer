@@ -144,6 +144,12 @@ formatter = logging.Formatter("%(asctime)s\t%(message)s")
 f.setFormatter(formatter)
 crystallogger.setLevel(logging.INFO)
 
+testlogger = logging.getLogger("TEST")
+f = logging.FileHandler("/data/allLog/test.log")
+testlogger.addHandler(f)
+formatter = logging.Formatter("%(asctime)s\t%(message)s")
+f.setFormatter(formatter)
+testlogger.setLevel(logging.INFO)
 
 debugLogger = TimedRotatingFileHandler("/data/allLog/nozomiError.log", 'd', 7)
 debugLogger.setLevel(logging.ERROR)
@@ -346,7 +352,8 @@ def initUser(username, nickname, platform):
     regTime = int(time.mktime(time.localtime()))
     platformId = platformIds.get(platform, 0)
     initScore = 500
-    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
+#    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
+    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime) VALUES(%s, %s, %s, %s, 500, 497, 0, %s, %s)", (username, regTime, nickname, util.getTime(), platformId, regTime))
     myCon = getConn()
     module.UserRankModule.initUserScore(myCon, uid, initScore)
     module.UserRankModule.updateScore(myCon, uid, initScore)
@@ -487,7 +494,7 @@ def getData():
         data = getUserInfos(uid)
     if data['clan']>0:
         data['clanInfo'] = ClanModule.getClanInfo(data['clan'])
-    data['builds'] = getUserBuilds(uid)
+    #data['builds'] = getUserBuilds(uid)
     data['researches'] = getUserResearch(uid)
     #fix data
     repairDatas = []
@@ -553,6 +560,7 @@ def verifyIAP():
     receipt = request.form.get("receipt")
     if receipt!=None:
         postData = json.dumps({'receipt-data':receipt})
+        #ios verifty 
         #url = "https://buy.itunes.apple.com/verifyReceipt"
         url = "https://sandbox.itunes.apple.com/verifyReceipt"
         req = urllib2.Request(url,postData)
@@ -906,6 +914,13 @@ def logError():
     return jsonify(dict(code=iid)) 
     
     
+#client syn the lua error to server
+@app.route("/synLuaError", methods=['POST'])
+def synLuaError():
+    uid = request.form.get('uid', 0, type=int)
+    error = request.form.get("error","")
+    testlogger.info("userId:%d\n%s" % (uid,error))
+    return "success"
     
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
