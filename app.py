@@ -614,9 +614,6 @@ def synData():
     if 'delete' in request.form:
         delete = json.loads(request.form['delete'])
         deleteUserBuilds(uid, delete)
-    if 'update' in request.form:
-        update = json.loads(request.form['update'])
-        updateUserBuilds(uid, update)
     if 'achieves' in request.form:
         achieves = json.loads(request.form['achieves'])
         achieveModule.updateAchieves(uid, achieves)
