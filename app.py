@@ -471,7 +471,8 @@ def getData():
             if days>0:
                 data['days']=days
                 reward = int((50+30*days)**0.5+0.5)
-                if days!=7 and days!=14 and days!=30:
+                version = request.args.get("version", 0, type=int)
+                if version==0 or (days!=7 and days!=14 and days!=30):
                     updateCrystal(uid, reward)
                     if version==0 and (days==7 or days==14 or days==30):
                         dailyModule.loginWithDays(uid, days)
@@ -519,7 +520,7 @@ def getData():
         repairDatas.append([builders[errorBuilderNum][0],'{"resource":1}'])
 
     if len(repairDatas)>0:
-        testlogger.info("repair data when get data:%s" % json.dumps(repairDatas))
+        #testlogger.info("repair data when get data:%s" % json.dumps(repairDatas))
         if 'login' in request.args:
             updateUserBuildExtends(uid, repairDatas)
     data['builds']=builds
