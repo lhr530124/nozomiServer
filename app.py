@@ -186,7 +186,7 @@ app.logger.addHandler(mailLogger)
 def user_not_login(error):
     return redirect(url_for('login'))
 
-platformIds = dict(ios=0,android=1,android_mm=2,android_dx=3,android_daqin=4)
+platformIds = dict(ios=0,android=1,android_mm=2,android_dx=3,android_daqin=4, android_wiipay=5)
 
 newbieCup = [int(time.mktime((2013,6,31,0,0,0,0,0,0)))-util.beginTime, int(time.mktime((2013,9,10,0,0,0,0,0,0)))]
 
@@ -352,7 +352,7 @@ def initUser(username, nickname, platform):
     regTime = int(time.mktime(time.localtime()))
     platformId = platformIds.get(platform, 0)
     initScore = 500
-#    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
+    #uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
     uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime) VALUES(%s, %s, %s, %s, 500, 497, 0, %s, %s)", (username, regTime, nickname, util.getTime(), platformId, regTime))
     myCon = getConn()
     module.UserRankModule.initUserScore(myCon, uid, initScore)
