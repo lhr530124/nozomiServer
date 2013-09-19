@@ -78,7 +78,13 @@ def beforeQuest():
 @app.after_request
 def afterQuest(response):
     endTime = time.time()
-    timelogger.info('%s %d  %d' % (request.url, int(g.startTime), int((endTime-g.startTime)*10**3)) )
+    timelogger.info("""
+    url %s 
+    args %s
+    form %s
+    startTime %d  
+    costTime %d
+    """ % (request.url, str(request.args), str(request.form) int(g.startTime), int((endTime-g.startTime)*10**3)) )
     return response
 
 
@@ -349,7 +355,15 @@ def getBattleHistory():
     if ret==None:
         return "[]"
     else:
-        return json.dumps([[json.loads(r[0]), r[1], r[2], r[3], r[4]] for r in ret])
+        try:
+            return json.dumps([[json.loads(r[0]), r[1], r[2], r[3], r[4]] for r in ret])
+        except Exception as e:
+            app.logger.exception('''
+            url %s
+            args %s
+            form %s
+            ''' % (request.url, str(request.args), str(request.form)))
+            return "[]"
 
 @app.route("/login", methods=['POST', 'GET'])
 def login():
