@@ -614,7 +614,7 @@ def synData():
 
 @app.route("/synBattleData", methods=['POST'])
 def synBattleData():
-    #print 'synBattleData', request.form
+    print 'synBattleData', request.form
     uid = int(request.form.get("uid", 0))
     eid = int(request.form.get("eid", 0))
     print("test uid and eid %d,%d" % (uid, eid))
@@ -651,6 +651,9 @@ def synBattleData():
     if 'isReverge' in request.form:
         reverged = 1
         update("UPDATE nozomi_battle_history SET reverged=1 WHERE uid=%s AND eid=%s", (uid, eid))
+    
+    #服务器上视频Id
+    videoId = -1
     if eid>1:
         videoId = 0
         if 'replay' in request.form:
@@ -663,7 +666,13 @@ def synBattleData():
             ClanModule.changeBattleState(uid, eid, cid, ecid, bid, videoId, lscore)
         if 'history' in request.form:
             update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s)", (eid, uid, videoId, int(time.mktime(time.localtime())), request.form['history'], reverged))
-    return json.dumps({'code':0})
+    return json.dumps({'code':0, 'videoId':videoId})
+
+@app.route("/synVideo", methods=['POST'])
+def synVideo():
+    uid = int(request.form.get("uid", 0))
+    videoId = insertAndGetId("INSERT INTO nozomi_replay (replay) VALUES(%s)", (request.form['replay']))
+    return jsonify({'videoId':videoId})
 
 @app.route("/findEnemy", methods=['GET'])
 def findEnemy():

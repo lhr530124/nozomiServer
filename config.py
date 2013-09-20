@@ -5,7 +5,7 @@ PASSWORD = 'badperson3'
 ADMINS = ['233242872@qq.com']
 HOSTPORT = 9012
 SORTPORT = 9003
-CHATPORT = 8005
+CHATPORT = 8009
 CHATSERVER = 'http://localhost:%d/sys' % (CHATPORT)
 REDIS_HOST = 'localhost'
 
