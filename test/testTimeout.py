@@ -26,7 +26,7 @@ def handleTimeout():
         toAddrs = ['233242872@qq.com', 'caesars321@gmail.com', '21024851@qq.com']
 
         #msg = ('From: %s\r\nTo: %s\r\n' % (fromAddr, ','.join(toAddrs)))
-        msg = "server break at %d %d %d %d %d" % (now.tm_year, now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min)
+        msg = "english server break at %d %d %d %d %d" % (now.tm_year, now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min)
         msg = MIMEText(msg)
         msg['Subject'] = "server break down"
         msg['From'] = 'liyonghelpme@gmail.com'
@@ -54,9 +54,9 @@ def handleTimeout():
 import urllib
 while True:
     try:
-        ret = urllib2.urlopen("http://localhost:%d/login" % (HOSTPORT), urllib.urlencode({}), 15)
+        ret = urllib2.urlopen("http://localhost:%d/login" % (config.HOSTPORT), urllib.urlencode({}), 15)
         code = ret.getcode()
-        print code, ret
+        #print code, ret
     except socket.timeout, e:
         handleTimeout()
     except urllib2.URLError, e:

@@ -1,3 +1,4 @@
+#coding:utf8
 #!/bin/python
 import MySQLdb
 import time
@@ -78,10 +79,11 @@ while True:
     cursor.execute(sql)
     result = cursor.fetchall()
     num = result[0][0]
-    f.write('Total number of Users: %d\n' % (num))
+    #去掉没有前1000个测试用户
+    f.write('Total number of Users: %d\n' % (num-1100))
 
 
-    sql = 'select count(*) from nozomi_user where lastSynTime >= %d and lastSynTime < %d' % (util.getAbsYesterday(), util.getAbsToday())
+    sql = 'select count(*) from nozomi_user where lastSynTime >= %d and lastSynTime < %d and id > 1100' % (util.getAbsYesterday(), util.getAbsToday())
     cursor.execute(sql)
     result = cursor.fetchall()
     num = result[0][0]
@@ -137,13 +139,19 @@ while True:
     f.write('Daily CN income: %d\n'% totalCost)
     f.write('Daily ENG income: %d\n'% totalEng)
 
+    sql = 'select max(id) from nozomi_user'
+    cursor.execute(sql)
+    result = cursor.fetchall()
+    num = result[0][0]
+    f.write('Today max user id: %d\n' % (num))
+
     f.close()
     myCon.close()
 
 
-    #os.system('cat buyCry.log >> totalCrystal.log')
-    #os.system('mv buyCry.log /var/www/html/crystal.log')
-    #os.system('cp totalCrystal.log /var/www/html/')
+    os.system('cat buyCry.log >> totalCrystal.log')
+    os.system('mv buyCry.log /var/www/html/crystal.log')
+    os.system('cp totalCrystal.log /var/www/html/')
     time.sleep(86400)
 
     

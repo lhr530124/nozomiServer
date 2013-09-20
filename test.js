@@ -65,7 +65,7 @@ ser.listen=function(port, host){
 };
 
 HOST = null;
-port = 8004;
+port = 8005;
 
 var channels = {};//cid channel
 function createChannel(cid)
@@ -90,48 +90,7 @@ function createChannel(cid)
     var channel = new function() {
         var messages = [];
         var callbacks = [];
-        //异步的初始化channel 所以要等 channel 初始化结束了 才能返回数据
-        function initMessage() {
-            pool.getConnection(function(err, connection) {
-                console.log("connection Error", err);
-                connection.query(
-                "select mid, uid, name, type, text  from chatMessage where cid = {0} ".format(cid), 
-                function(err, rows, fields) {
-                    console.log("initMessage", rows);
-                    for(var i in rows) {
-                       var msg = rows[i];
-                       if(msg.type === "msg" || msg.type === "join" || msg.type === "part" || msg.type == "sys") {
-                            var m = [msg.uid, msg.name,  msg.text, msg.mid, msg.type];
-                            messages.push(m);
-                       } else if(msg.type === "request") {
-                            var m = [msg.uid, msg.name, JSON.parse(msg.text), msg.mid, msg.type];
-                            messages.push(m);
-                       } else {
-                            console.log("Error initMessage", msg);
-                       }
-                    }
-                    connection.release();
-
-                    var matching = [];
-                    for(var i = 0; i < messages.length; i++){
-                        var message = messages[i];
-                        matching.push(message);
-                    }
-                    //初始化结束 调用所有的回调函数返回数据
-                    if(matching.length > 0) {
-                        while(callbacks.length>0){
-                            callbacks.shift().callback(matching);
-                        }
-                    }
-
-                });
-
-            });
-        }
-
-
-
-        //多种类型消息 appendMessage
+        var lastTime = 0;
         this.appendMessage = function(uid, name, type, text){
             uid = parseInt(uid, 10)
             switch(type){
@@ -145,18 +104,14 @@ function createChannel(cid)
                 sys.puts(nick+" part");
                 break;
             };
-            var cur = Math.floor((new Date()).getTime()/1000);
-            var m = [uid, name,  text, (cur - beginTime), type];
-            pool.getConnection(function(err, connection) {
-                console.log("connection Error", err);
-                connection.query(
-                "insert into chatMessage (cid, mid, uid, name, type, text) values({0}, {1}, {2}, '{3}', '{4}', '{5}')".format(cid, cur-beginTime, uid, name, type, text), 
-                function(err, rows) {
-                    console.log("query error", err);
-                    connection.release();
-                });
-
-            });
+            cur = Math.floor((new Date()).getTime()/1000);
+            if(lastTime>=cur){
+                lastTime = lastTime+1;
+                cur = lastTime;
+            }
+            else
+                lastTime = cur
+            m = [uid, name,  text, (cur - beginTime), type];
 
             messages.push(m);
             while(callbacks.length>0){
@@ -169,6 +124,13 @@ function createChannel(cid)
         };
         this.appendSys=function(type, info){
             cur = Math.floor((new Date()).getTime()/1000);
+
+            if(lastTime>=cur){
+                lastTime = lastTime+1;
+                cur = lastTime;
+            }
+            else
+                lastTime = cur;
             m = [0, type, info, cur-beginTime, "sys"];
 
             pool.getConnection(function(err, connection) {
@@ -201,6 +163,12 @@ function createChannel(cid)
                 }
             }
             cur = Math.floor((new Date()).getTime()/1000);
+            if(lastTime>=cur){
+                lastTime = lastTime+1;
+                cur = lastTime;
+            }
+            else
+                lastTime = cur;
             m = [uid, name, [space, max, []], (cur-beginTime), "request"];
 
             pool.getConnection(function(err, connection) {
@@ -225,6 +193,17 @@ function createChannel(cid)
         };
         this.appendDonate=function(uid, toUid, sid, slevel, space){
             cur = Math.floor((new Date()).getTime()/1000);
+
+            if(lastTime>=cur){
+                lastTime = lastTime+1;
+                cur = lastTime;
+            }
+            else
+                lastTime = cur;
+            if(messages.length>0 && messages[messages.length-1][3]>=cur){
+                messages[messages.length-1][3] = messages[messages.length-1][3]+1
+                cur = messages[messages.length-1][3]
+            }
             //var update=[toUid, sid, slevel, (cur-beginTime), "donate"];
             for(var i=0; i<messages.length; i++){
                 //给该用户赠送兵力

@@ -1,10 +1,13 @@
 #coding:utf8
+import socket
 import logging
 import logging.handlers
 import time
 class BufferMailHandler(logging.handlers.SMTPHandler):
     def __init__(self, mailhost, fromaddr, toaddr, subject, credentials=None, secure=None):
-        logging.handlers.SMTPHandler.__init__(self, mailhost, fromaddr, toaddr, subject, credentials, secure)
+        subject = socket.gethostname()+subject
+        #2.6 python no secure
+        logging.handlers.SMTPHandler.__init__(self, mailhost, fromaddr, toaddr, subject, credentials)
         self.lastSendTime = 0
     def emit(self, record):
         now = int(time.time())

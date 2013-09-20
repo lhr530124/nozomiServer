@@ -13,12 +13,12 @@ myCon = getConn()
 
 rserver = redis.Redis()
 
-myCon.query('flush table with read lock')
-sql = 'select * from nozomi_rank'
+myCon.query('flush tables with read lock')
+sql = 'select id, score from nozomi_user'
 myCon.query(sql)
 res = myCon.store_result().fetch_row(0, 1)
 for i in res:
-    rserver.zadd('userRank', i['uid'], i['score'])
+    rserver.zadd('userRank', i['id'], i['score'])
 
 myCon.query('unlock table')
 

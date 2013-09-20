@@ -10,9 +10,12 @@
 
 #得分排序 从小到大排序
 #sortedScore = []
+import sys
+sys.path.append('..')
+import config
 import redis
 def getServer():
-    rserver = redis.Redis()
+    rserver = redis.Redis(host=config.REDIS_HOST)
     return rserver
 
 #cold synchronize database and redis
@@ -39,22 +42,10 @@ def initUserScore(myCon, uid, score):
     myCon.query(sql)
     myCon.commit()
     
-    """
-    sql = 'insert nozomi_score_count (`score`, `count`) values (%d, 1) on duplicate key update count = count+1 ' % (score)
-    myCon.query(sql)
-    """
-
     
     rserver = getServer()
     rserver.zadd('userRank', uid, score)
 
-    """
-    if score in scoreCount:
-        scoreCount[score] += 1
-    else:
-        scoreCount[score] = 1
-        myInsort(sortedScore, score)
-    """
     
 
 def myInsort(a, x):
@@ -75,21 +66,24 @@ def myInsort(a, x):
 
 def updateScore(myCon, uid, newScore):
     #don't care about oldScore
-    """
-    oldScore = -1
-    #获得用户旧的得分
-    sql = 'select * from nozomi_rank where uid = %d' % (uid)
+    sql = 'select score from nozomi_rank where uid = %d' % (uid)
     myCon.query(sql)
     res = myCon.store_result().fetch_row(0, 1)
+    oldScore = 0
     if len(res) > 0:
         oldScore = res[0]['score']
-    """
+    #积分变动太大了
+    print oldScore, newScore
+    if abs(newScore-oldScore) > 200:
+        return
 
     #更新用户的得分
     #更新搜索对手表格
     sql = 'update nozomi_rank set score = %d where uid = %d' % (newScore, uid)
     myCon.query(sql)
     sql = 'update nozomi_user_state set score = %d where uid = %d' % (newScore, uid)
+    myCon.query(sql)
+    sql = 'update nozomi_user set score = %d where id = %d' % (newScore, uid)
     myCon.query(sql)
 
     myCon.commit()
