@@ -57,14 +57,6 @@ setattr(connections.Connection, 'query', query)
 
 
 
-"""
-HOST = 'localhost'
-DATABASE = 'nozomi'
-DEBUG = True
-PASSWORD = '2e4n5k2w2x'
-"""
-
-
 reload(sys)
 sys.setdefaultencoding('utf-8') 
 
@@ -86,7 +78,13 @@ def beforeQuest():
 @app.after_request
 def afterQuest(response):
     endTime = time.time()
-    timelogger.info('%s %d  %d' % (request.url, int(g.startTime), int((endTime-g.startTime)*10**3)) )
+    timelogger.info("""
+    url %s 
+    args %s
+    form %s
+    startTime %d  
+    costTime %d
+    """ % (request.url, str(request.args), str(request.form), int(g.startTime), int((endTime-g.startTime)*10**3)) )
     return response
 
 
@@ -151,7 +149,7 @@ formatter = logging.Formatter("%(asctime)s\t%(message)s")
 f.setFormatter(formatter)
 testlogger.setLevel(logging.INFO)
 
-debugLogger = TimedRotatingFileHandler("/data/allLog/nozomiError_3.log", 'd', 7)
+debugLogger = TimedRotatingFileHandler("/data/allLog/nozomiError_4.log", 'd', 7)
 debugLogger.setLevel(logging.ERROR)
 debugLogger.setFormatter(Formatter(
 '''
@@ -185,6 +183,10 @@ app.logger.addHandler(mailLogger)
 @app.errorhandler(501)
 def user_not_login(error):
     return redirect(url_for('login'))
+
+platformIds = dict(ios=0,android=1,android_mm=2,android_dx=3,android_daqin=4)
+
+newbieCup = [int(time.mktime((2013,6,31,0,0,0,0,0,0)))-util.beginTime, int(time.mktime((2013,9,10,0,0,0,0,0,0)))]
 
 dataBuilds = [
               [1, 170018, 1, 1, 0, 1500, "{\"oil\":1000,\"food\":1000}"],
@@ -244,8 +246,8 @@ def getUserInfos(uid):
     return dict(name=r[0], score=r[1], clan=r[2], mtype=r[3])
 
 def getUserAllInfos(uid):
-    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime FROM nozomi_user WHERE id=%s", (uid))
-    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11])
+    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime, registerTime FROM nozomi_user WHERE id=%s", (uid))
+    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12])
 
 def getBindGameCenter(tempName):
     r = queryOne("SELECT gameCenter FROM `nozomi_gc_bind` WHERE uuid=%s",(tempName))
@@ -293,12 +295,6 @@ def deleteUserBuilds(uid, buildIndexes):
 def updateUserBuilds(uid, datas):
     params = []
     for data in datas:
-        if data[3]==1002 and data[6]!="":
-            researches = getUserResearch(uid)
-            rid = json.loads(data[6])['rid']-1
-            if researches[rid] == 5:
-                testlogger.info("uid:%d,rid;%d,lab-exception" % (uid, rid))
-                data[6] = ""
         params.append([uid, data[0], data[1], data[2], data[3], data[4], data[5], data[6]])
     executemany("INSERT INTO nozomi_build (id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend) VALUES(%s,%s,%s,0,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE grid=VALUES(grid),state=0,bid=VALUES(bid),level=VALUES(level),`time`=VALUES(time),hitpoints=VALUES(hitpoints),extend=VALUES(extend);", params, util.getDBID(uid))
 
@@ -329,7 +325,19 @@ def getUidByName(account):
         return ret[0]
 
 def updateCrystal(uid, crystal):
-    update("UPDATE `nozomi_user` SET crystal=crystal+%s WHERE id=%s", (crystal, id))
+    update("UPDATE `nozomi_user` SET crystal=crystal+%s WHERE id=%s", (crystal, uid))
+
+def checkUserReward(uid):
+    allRewards = queryAll("SELECT reward, remark FROM `nozomi_reward` WHERE uid=%s", (uid))
+    if allRewards!=None and len(allRewards)>0:
+        sumReward = 0
+        for rewardItem in allRewards:
+            sumReward = sumReward+rewardItem[0]
+        updateCrystal(uid, sumReward)
+        update("DELETE FROM `nozomi_reward` WHERE uid=%s",(uid))
+        return [sumReward, allRewards]
+    else:
+        return None
 
 def updatePurchaseCrystal(uid, crystal, ctype):
     if ctype>4:
@@ -344,7 +352,9 @@ def initUser(username, nickname, platform):
     if platform=="android":
         platformId=1
     initScore = 500
-    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
+    #uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
+    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime) VALUES(%s, %s, %s, %s, 500, 497, 0, %s, %s)", (username, regTime, nickname, util.getTime(), platformId, regTime))
+
     myCon = getConn()
     module.UserRankModule.initUserScore(myCon, uid, initScore)
     module.UserRankModule.updateScore(myCon, uid, initScore)
@@ -356,6 +366,9 @@ def initUser(username, nickname, platform):
     newUserState(uid)
     
     return uid
+
+def getTopNewbies():
+    return queryAll("SELECT ns.id,ns.score,ns.name,nc.icon,nc.name FROM `nozomi_user` AS ns LEFT JOIN `nozomi_clan` AS nc ON ns.clan=nc.id WHERE ns.registerTime>%s ORDER BY score DESC LIMIT 100",(newbieCup[0]))
 
 def updateUserState(uid, eid):
     updateUserOnline(uid)
@@ -369,7 +382,15 @@ def getBattleHistory():
     if ret==None:
         return "[]"
     else:
-        return json.dumps([[json.loads(r[0]), r[1], r[2], r[3], r[4]] for r in ret])
+        try:
+            return json.dumps([[json.loads(r[0]), r[1], r[2], r[3], r[4]] for r in ret])
+        except Exception as e:
+            app.logger.exception('''
+            url %s
+            args %s
+            form %s
+            ''' % (request.url, str(request.args), str(request.form)))
+            return "[]"
 
 @app.route("/login", methods=['POST', 'GET'])
 def login():
@@ -429,23 +450,70 @@ def getData():
         platform = "ios"
         if 'platform' in request.args:
             platform = request.args['platform']
+        #if data['registerTime']>newbieCup[0]:
+        #    data['newbieTime'] = newbieCup[1]
+        #data['registerTime'] = None
         data['achieves'] = achieveModule.getAchieves(uid)
         if data['guide']>=1400:
             days = dailyModule.dailyLogin(uid)
             if days>0:
                 data['days']=days
                 reward = int((50+30*days)**0.5+0.5)
-                if days!=7 and days!=14 and days!=30:
+                version = request.args.get("version", 0, type=int)
+                if version==0 or (days!=7 and days!=14 and days!=30):
                     updateCrystal(uid, reward)
+                    testlogger.info("[crystal]DailyBonus\t%d\t%d\t%d" % (uid,data['crystal'], data['crystal']+reward))
+                    if version==0 and (days==7 or days==14 or days==30):
+                        dailyModule.loginWithDays(uid, days)
                     data['crystal'] = data['crystal']+reward
                 data['reward'] = reward
+            ret = checkUserReward(uid)
+            if ret!=None:
+                testlogger.info("[crystal]Reward\t%d\t%d\t%d" % (uid, data['crystal'], data['crystal']+ret[0]))
+                data['crystal'] = data['crystal']+ret[0]
+                data['rewards'] = ret[1]
         loginlogger.info("%s\t%d\tlogin" % (platform,uid))
     else:
         data = getUserInfos(uid)
     if data['clan']>0:
         data['clanInfo'] = ClanModule.getClanInfo(data['clan'])
-    data['builds'] = getUserBuilds(uid)
+    #data['builds'] = getUserBuilds(uid)
     data['researches'] = getUserResearch(uid)
+    #fix data
+    repairDatas = []
+    builds = getUserBuilds(uid)
+    builds = [list(r) for r in builds]
+    builders = []
+    errorBuilderNum = 0
+    for build in builds:
+        if build[2]==1002:
+            if build[6]!="":
+                rid = json.loads(build[6])['rid']
+                if data['researches'][rid-1]==5:
+                    build[6]=""
+                    repairDatas.append([build[0],""])
+        elif build[2]==2004:
+            try:
+                check = json.loads(build[6])
+                if check['resource'] == 0:
+                    errorBuilderNum = errorBuilderNum+1
+                    builders.append(build)
+            except e:
+                print e
+
+            #if build[6]=='{"resource":0}':
+        if build[4]>0:
+            errorBuilderNum = errorBuilderNum-1
+    while errorBuilderNum>0:
+        errorBuilderNum = errorBuilderNum-1
+        builders[errorBuilderNum][6]='{"resource":1}'
+        repairDatas.append([builders[errorBuilderNum][0],'{"resource":1}'])
+
+    if len(repairDatas)>0:
+        testlogger.info("repair data when get data:%s" % json.dumps(repairDatas))
+        if 'login' in request.args:
+            updateUserBuildExtends(uid, repairDatas)
+    data['builds']=builds
     return json.dumps(data)
 
 @app.route("/reverge", methods=['GET'])
@@ -500,6 +568,36 @@ def synData():
     platform = "ios"
     if 'platform' in request.form:
         platform = request.form['platform']
+    oldCrystal = getUserAllInfos(uid)['crystal']
+    newCrystal = oldCrystal
+    userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
+    if 'userInfo' in request.form:
+        userInfo = json.loads(request.form['userInfo'])
+        userInfoUpdate.update(userInfo)
+        if 'score' in userInfo:
+            userInfoUpdate.pop('score')
+        if 'shieldTime' in userInfo:
+            setUserShield(uid, userInfo['shieldTime'])
+        if 'crystal' in userInfo:
+            newCrystal = userInfo['crystal']
+    if 'crystal' in request.form:
+        ls = json.loads(request.form['crystal'])
+        allAdd = 0
+        for l in ls:
+            if l[0]==-1:
+                allAdd = allAdd+l[2]
+            else:
+                allAdd = allAdd-l[2]
+        if oldCrystal+allAdd-newCrystal<=-200:
+            abort(401)
+        for l in ls:
+            crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
+            if l[0] == -1:
+                updatePurchaseCrystal(uid, l[2], l[3])
+    elif newCrystal-oldCrystal>=200:
+        abort(401)
+    if newCrystal!=oldCrystal:
+        testlogger.info("[crystal]SynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
     if 'days' in request.form:
         days = int(request.form['days'])
         dailyModule.loginWithDays(uid, days)
@@ -515,39 +613,10 @@ def synData():
     if 'update' in request.form:
         update = json.loads(request.form['update'])
         updateUserBuilds(uid, update)
-    #先得到 现有的数据
-    #更新的数据
-    #话费的数据
-
-    #连接结束自动关闭
-    #myCon = getMyConn()
-    #sql = 'select crystal from nozomi_user where id = %d' % (uid)
-    #myCon.query(sql)
-
-    #res = myCon.store_result().fetch_row(0, 1)
-    #oldCrystal = res[0]['crystal']
-    #newCrystal = None
-
-    userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
-    if 'userInfo' in request.form:
-        userInfo = json.loads(request.form['userInfo'])
-        userInfoUpdate.update(userInfo)
-        if 'shieldTime' in userInfo:
-            setUserShield(uid, userInfo['shieldTime'])
-        #获得当前的新水晶数量
-        #newCrystal = userInfoUpdate.get('crystal', None)
-
-
     updateUserInfoById(userInfoUpdate, uid)
     updateUserState(uid, int(request.form.get("eid", 0)))
     if 'stat' in request.form:
         statlogger.info("%s\t%d\t%s" % (platform, uid, request.form['stat']))
-    if 'crystal' in request.form:
-        ls = json.loads(request.form['crystal'])
-        for l in ls:
-            crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
-            if l[0] == -1:
-                updatePurchaseCrystal(uid, l[2], l[3])
 
     loginlogger.info("%s\t%d\tsynData" % (platform,uid))
     return json.dumps({'code':0})
@@ -572,13 +641,20 @@ def synBattleData():
         if 'hits' in request.form:
             hits = json.loads(request.form['hits'])
             updateUserBuildHitpoints(eid, hits)
-        baseScore = getUserInfos(eid)['score']
-        userInfoUpdate=dict(score=baseScore+incScore)
+        #baseScore = getUserInfos(eid)['score']
+        #userInfoUpdate=dict(score=baseScore+incScore)
+
         if 'shieldTime' in request.form:
             t = int(request.form['shieldTime'])
-            userInfoUpdate['shieldTime'] = t
+            #userInfoUpdate['shieldTime'] = t
             setUserShield(eid, t)
-        updateUserInfoById(userInfoUpdate, eid)
+            userInfoUpdate=dict(shieldTime=t)
+            updateUserInfoById(userInfoUpdate, eid)
+        #updateUserInfoById(userInfoUpdate, eid)
+    #if incScore!=0:
+    #    myScore = getUserInfos(uid)['score']-incScore
+    #    userInfoUpdate=dict(score=myScore)
+    #    updateUserInfoById(userInfoUpdate, uid)
     updateUserState(uid, eid)
     reverged = 0
     if 'isReverge' in request.form:
@@ -779,6 +855,9 @@ def clearBattleState():
 def getLeagueRank():
     return json.dumps(ClanModule.getTopClans())
 
+@app.route("/getNewbieRank", methods=['GET'])
+def getNewbieRank():
+    return json.dumps(getTopNewbies())
 @app.route("/synErrorLog", methods=['POST'])
 def synErrorLog():
     log = request.form.get('log', "")

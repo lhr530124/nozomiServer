@@ -7,10 +7,6 @@ sys.path.append('..')
 
 #from config import *
 import config
-"""
-HOST = 'localhost'
-PASSWD = '2e4n5k2w2x'
-"""
 
 class DbManager:
 
