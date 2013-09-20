@@ -17,7 +17,7 @@ def req(r):
         sys.stderr.write(r+'\n'+s+'\n')
     return l
 
-baseurl = 'http://localhost:8004/'
+baseurl = 'http://23.21.135.42:8006/'
 r = baseurl+'send?'
 data = {
 'uid':123,
