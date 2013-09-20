@@ -1,2 +1,9 @@
 checkWord?word=xxxx  检测某个字符串是否有敏感词  {res:True} 表示有敏感词
 blockWord?word=xxxx  将某个字符串中所有敏感词替换成 *
+
+后台服务器架构:
+app.py  登录 战斗
+app2.py 排名
+testTornado.py 视频
+checkVideo.py  视频生成
+test.js 聊天

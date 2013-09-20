@@ -1,4 +1,4 @@
-HOST = '10.68.55.40'
+HOST = 'localhost'
 DATABASE = 'nozomi'
 DEBUG = True
 PASSWORD = 'badperson3'
