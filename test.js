@@ -2,6 +2,29 @@ var createServer = require("http").createServer;
 var sys = require("sys");
 var url = require("url");
 var qs = require("querystring")
+var mysql = require("mysql");
+var pool = mysql.createPool({
+ host:'127.0.0.1',
+ user:'root',
+ password:'wavegame1',
+ //socketPath:'/var/run/mysqld/mysqld.sock',
+ socketPath:'/var/lib/mysql/mysql.sock',
+ database: 'nozomi',
+    insecureAuth:true,
+});
+
+if (!String.prototype.format) {
+  String.prototype.format = function() {
+    var args = arguments;
+    return this.replace(/{(\d+)}/g, function(match, number) { 
+      return typeof args[number] != 'undefined'
+        ? args[number]
+        : match
+      ;
+    });
+  };
+}
+
 
 
 var ser = exports;
@@ -44,7 +67,7 @@ ser.listen=function(port, host){
 };
 
 HOST = null;
-port = 8005;
+port = 8009;
 
 var channels = {};//cid channel
 function createChannel(cid)
@@ -52,10 +75,68 @@ function createChannel(cid)
     var channel = channels[cid];
     if(channel)
         return channel;
+
+    function deleteMsg(msg) {
+        pool.getConnection(function(err, connection) {
+            console.log("connection Error", err);
+            connection.query(
+            "delete from chatMessage where cid = {0} and mid = {1}  and uid = {2}".format(cid, msg[3], msg[0]), 
+            function(err, rows) {
+                console.log("query error", err);
+                connection.release();
+            });
+
+        });
+    }
+
     var channel = new function() {
         var messages = [];
+        var donates = [];
         var callbacks = [];
         var lastTime = 0;
+        //异步的初始化channel 所以要等 channel 初始化结束了 才能返回数据
+        function initMessage() {
+            pool.getConnection(function(err, connection) {
+                console.log("connection Error", err);
+                connection.query(
+                "select mid, uid, name, type, text  from chatMessage where cid = {0} ".format(cid), 
+                function(err, rows, fields) {
+                    console.log("initMessage", rows);
+                    for(var i in rows) {
+                       var msg = rows[i];
+                       if(msg.type === "msg" || msg.type === "join" || msg.type === "part" || msg.type == "sys") {
+                            var m = [msg.uid, msg.name,  msg.text, msg.mid, msg.type];
+                            messages.push(m);
+                       } else if(msg.type === "request") {
+                            var m = [msg.uid, msg.name, JSON.parse(msg.text), msg.mid, msg.type];
+                            messages.push(m);
+                       } else {
+                            console.log("Error initMessage", msg);
+                       }
+                    }
+                    connection.release();
+
+                    var matching = [];
+                    for(var i = 0; i < messages.length; i++){
+                        var message = messages[i];
+                        matching.push(message);
+                    }
+                    console.log("matchInfo", matching.length);
+                    //初始化结束 调用所有的回调函数返回数据
+                    if(matching.length > 0) {
+                        while(callbacks.length>0){
+                            callbacks.shift().callback(matching);
+                        }
+                    }
+
+                });
+
+            });
+        }
+
+
+
+        //多种类型消息 appendMessage
         this.appendMessage = function(uid, name, type, text){
             uid = parseInt(uid, 10)
             switch(type){
@@ -69,21 +150,33 @@ function createChannel(cid)
                 sys.puts(nick+" part");
                 break;
             };
-            cur = Math.floor((new Date()).getTime()/1000);
+            var cur = Math.floor((new Date()).getTime()/1000);
             if(lastTime>=cur){
                 lastTime = lastTime+1;
                 cur = lastTime;
             }
             else
                 lastTime = cur
-            m = [uid, name,  text, (cur - beginTime), type];
+            var m = [uid, name,  text, (cur - beginTime), type];
+            pool.getConnection(function(err, connection) {
+                console.log("connection Error", err);
+                connection.query(
+                "insert into chatMessage (cid, mid, uid, name, type, text) values({0}, {1}, {2}, '{3}', '{4}', '{5}')".format(cid, cur-beginTime, uid, name, type, text), 
+                function(err, rows) {
+                    console.log("query error", err);
+                    connection.release();
+                });
+
+            });
 
             messages.push(m);
             while(callbacks.length>0){
                 callbacks.shift().callback([m]);
             }
-            while(messages.length > 100)
-                messages.shift();
+            while(messages.length > 100) {
+                var dm = messages.shift();
+                deleteMsg(dm);
+            }
         };
         this.appendSys=function(type, info){
             cur = Math.floor((new Date()).getTime()/1000);
@@ -96,17 +189,32 @@ function createChannel(cid)
                 lastTime = cur;
             m = [0, type, info, cur-beginTime, "sys"];
 
+            pool.getConnection(function(err, connection) {
+                console.log("connection Error", err);
+                connection.query(
+                "insert into chatMessage (cid, mid, uid, name, type, text) values({0}, {1}, {2}, '{3}', '{4}', '{5}')".format(cid, cur-beginTime, 0, type, 'sys', info), 
+                function(err, rows) {
+                    console.log("query error", err);
+                    connection.release();
+                });
+
+            });
+
             messages.push(m);
-            while(messages.length>100)
-                messages.shift();
+            while(messages.length>100) {
+                var msg = messages.shift();
+                deleteMsg(msg);
+            }
             while(callbacks.length>0){
                 callbacks.shift().callback([m]);
             }
         }
         this.appendRequest=function(uid, name, space, max){
+            //删除旧的请求士兵的请求
             for(var i=0; i < messages.length; i++){
                 if (messages[i][4]=="request" && messages[i][0]==uid){
-                    messages.splice(i, 1);
+                    var m = messages.splice(i, 1);
+                    deleteMsg(m[0]);
                     break;
                 }
             }
@@ -119,12 +227,25 @@ function createChannel(cid)
                 lastTime = cur;
             m = [uid, name, [space, max, []], (cur-beginTime), "request"];
 
+            pool.getConnection(function(err, connection) {
+                console.log("connection Error", err);
+                connection.query(
+                "insert into chatMessage (cid, mid, uid, name, type, text) values({0}, {1}, {2}, '{3}', '{4}', '{5}')".format(cid, cur-beginTime, uid, name, 'request', JSON.stringify([space, max, []])), 
+                function(err, rows) {
+                    console.log("query error", err);
+                    connection.release();
+                });
+
+            });
+
             messages.push(m);
             while(callbacks.length>0){
                 callbacks.shift().callback([m]);
             }
-            while(messages.length>100)
-                messages.shift();
+            while(messages.length>100) {
+                var msg = messages.shift();
+                deleteMsg(msg);
+            }
         };
         this.appendDonate=function(uid, toUid, sid, slevel, space){
             cur = Math.floor((new Date()).getTime()/1000);
@@ -135,23 +256,40 @@ function createChannel(cid)
             }
             else
                 lastTime = cur;
-            if(messages.length>0 && messages[messages.length-1][3]>=cur){
-                messages[messages.length-1][3] = messages[messages.length-1][3]+1
-                cur = messages[messages.length-1][3]
-            }
             //var update=[toUid, sid, slevel, (cur-beginTime), "donate"];
             for(var i=0; i<messages.length; i++){
+                //给该用户赠送兵力
                 if (messages[i][4]=="request" && messages[i][0]==toUid){
                     property = messages[i][2];
                     if(property[0]+space>property[1]){
                         break;
                     }
                     property[0] += space;
+
                     //update.push(property[0]);
                     var helps = property[2];
                     helps.push([uid, sid, slevel])
+                    var m = messages[i];
+                    console.log("doDonate", m);
+
+                    pool.getConnection(function(err, connection) {
+                        console.log("connection Error", err);
+                        connection.query(
+                        "update chatMessage set text = '{0}' where cid = {1} and uid = {2} and type = '{3}' and mid = {4}".format(JSON.stringify(property), cid, toUid, 'request', m[3]), 
+                        function(err, rows) {
+                            console.log("query error", err);
+                            connection.release();
+                        });
+
+                    });
+
+                    var dm = [toUid, uid, property, (cur-beginTime), "donate"];
+                    donates.push(dm);
+                    while(donates[0][3]<=cur-beginTime-60){
+                        donates.shift();
+                    }
                     while(callbacks.length>0){
-                        callbacks.shift().callback([[toUid, uid, property, (cur-beginTime), "donate"]]);
+                        callbacks.shift().callback([dm]);
                     }
                 }
             }
@@ -167,19 +305,22 @@ function createChannel(cid)
                     matching.push(message);
                 }
             }
+            for(var i = 0; i < donates.length; i++){
+                var donate = donates[i];
+                if(donate[3] > since && donate[3]<since+60) {
+                    matching.push(donate);
+                }
+            }
 
-            //if(since == 0 && matching.length == 0)
-            //{
-		//now = (new Date()).getTime()/1000 - beginTime;
-	        //now = Math.floor(now)
-            //    welcome = []
- 	        //matching.push(welcome)   
-            //}
             if(matching.length > 0)//have message to send callback
                 callback(matching);
             else
                 callbacks.push({timestamp:new Date(), callback: callback});//no message just hold on 
         };
+        //从数据库初始化 消息 
+        initMessage();
+        console.log("msg Length", messages.length);
+
         setInterval(function(){//remove long callbacks
             var now = new Date();
             while(callbacks.length > 0 && now - callbacks[0].timestamp > 30*1000) {

@@ -78,7 +78,13 @@ def beforeQuest():
 @app.after_request
 def afterQuest(response):
     endTime = time.time()
-    timelogger.info('%s %d  %d' % (request.url, int(g.startTime), int((endTime-g.startTime)*10**3)) )
+    timelogger.info("""
+    url %s 
+    args %s
+    form %s
+    startTime %d  
+    costTime %d
+    """ % (request.url, str(request.args), str(request.form), int(g.startTime), int((endTime-g.startTime)*10**3)) )
     return response
 
 
@@ -143,7 +149,7 @@ formatter = logging.Formatter("%(asctime)s\t%(message)s")
 f.setFormatter(formatter)
 testlogger.setLevel(logging.INFO)
 
-debugLogger = TimedRotatingFileHandler("/data/allLog/nozomiError_3.log", 'd', 7)
+debugLogger = TimedRotatingFileHandler("/data/allLog/nozomiError_4.log", 'd', 7)
 debugLogger.setLevel(logging.ERROR)
 debugLogger.setFormatter(Formatter(
 '''
@@ -335,7 +341,6 @@ def checkUserReward(uid):
     else:
         return None
 
-
 def updatePurchaseCrystal(uid, crystal, ctype):
     if ctype>4:
         update("UPDATE `nozomi_user` SET totalCrystal=totalCrystal+%s, lastOffTime=%s WHERE id=%s", (crystal, time.mktime(time.localtime()), uid))
@@ -379,7 +384,15 @@ def getBattleHistory():
     if ret==None:
         return "[]"
     else:
-        return json.dumps([[json.loads(r[0]), r[1], r[2], r[3], r[4]] for r in ret])
+        try:
+            return json.dumps([[json.loads(r[0]), r[1], r[2], r[3], r[4]] for r in ret])
+        except Exception as e:
+            app.logger.exception('''
+            url %s
+            args %s
+            form %s
+            ''' % (request.url, str(request.args), str(request.form)))
+            return "[]"
 
 @app.route("/login", methods=['POST', 'GET'])
 def login():
@@ -881,6 +894,10 @@ def checkBuyRecord():
     if res == None:
         return jsonify(dict(code=0))
     return jsonify(dict(code=1))
+
+#@app.route('/getAllUnPaiedRecord', methods=['GET'])
+#def getAllUnPaiedRecord():
+#    uid = request.args
     
 #client syn the lua error to server
 @app.route("/synLuaError", methods=['POST'])

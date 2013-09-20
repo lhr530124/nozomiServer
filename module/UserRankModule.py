@@ -10,6 +10,9 @@
 
 #得分排序 从小到大排序
 #sortedScore = []
+import sys
+sys.path.append('..')
+import config
 import redis
 import sys
 sys.path.append('..')
