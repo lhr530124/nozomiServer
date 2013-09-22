@@ -114,9 +114,9 @@ def afterQuest(response):
     url %s 
     args %s
     form %s
-    startTime %d  
+    startTime %s 
     costTime %d
-    """ % (request.url, str(request.args), str(request.form), int(g.startTime), int((endTime-g.startTime)*10**3)) )
+    """ % (request.url, str(request.args), str(request.form), time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime(g.startTime)), int((endTime-g.startTime)*10**3)) )
     return response
 
 
