@@ -615,13 +615,13 @@ def synData():
             else:
                 allAdd = allAdd-l[2]
         if oldCrystal+allAdd-newCrystal<=-200:
-            abort(401)
+            testlogger.info("[crystal]BadSynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
         for l in ls:
             crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
             if l[0] == -1:
                 updatePurchaseCrystal(uid, l[2], l[3])
     elif newCrystal-oldCrystal>=200:
-        abort(401)
+        testlogger.info("[crystal]BadSynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
     if newCrystal!=oldCrystal:
         testlogger.info("[crystal]SynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
     if 'days' in request.form:
