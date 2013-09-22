@@ -186,7 +186,7 @@ app.logger.addHandler(mailLogger)
 def user_not_login(error):
     return redirect(url_for('login'))
 
-platformIds = dict(ios=0,android=1,android_mm=2,android_dx=3,android_daqin=4, android_wiipay=5)
+platformIds = dict(ios=0,android=1,android_mm=2,android_dx=3,android_daqin=4, android_wiipay=5, android_astep=6)
 
 newbieCup = [int(time.mktime((2013,6,31,0,0,0,0,0,0)))-util.beginTime, int(time.mktime((2013,9,10,0,0,0,0,0,0)))]
 
