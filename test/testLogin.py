@@ -1,7 +1,10 @@
 from testConfig import *
 r = base2+'login'
 data = {'username':'liyong2014', 'nickname':'liyong'}
+<<<<<<< HEAD
 
+=======
+>>>>>>> 2f0e93b1c31271499dbb6412e9628ebd859dd769
 #for i in xrange(0, 100000):
 i = 0
 data = {

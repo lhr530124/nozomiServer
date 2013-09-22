@@ -123,7 +123,6 @@ def getUser(myCon, rank):
         return None
     return int(ret[0])
 
-
 #得到某个阶段排名所有用户[start, end) [0, 1) = 0
 #允许并列排名的学生 0  1 1 3 
 

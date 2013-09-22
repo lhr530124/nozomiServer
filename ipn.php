@@ -2,7 +2,11 @@
 // read the post from PayPal system and add 'cmd' 
 $req = 'cmd=' . urlencode('_notify-validate');
 $host="www.sandbox.paypal.com";
+<<<<<<< HEAD
 $password="2e4n5k2w2x";
+=======
+$password="wavegame1";
+>>>>>>> 2f0e93b1c31271499dbb6412e9628ebd859dd769
 
 //$myFile = "PaymentRecord.txt"; 
 //$fh = fopen($myFile, 'w+') or die("can't open file");

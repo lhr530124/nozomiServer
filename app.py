@@ -56,13 +56,37 @@ def query(self, sql):
 setattr(connections.Connection, 'query', query)
 
 
+from MySQLdb import cursors, connections
+from werkzeug.contrib.fixers import ProxyFix
+
+
+
+mysqlLogHandler = TimedRotatingFileHandler('mysqlLog.log', 'd', 1)
+
+mysqllogger = logging.getLogger("mysqlLogger")
+mysqllogger.addHandler(mysqlLogHandler)
+mysqllogger.setLevel(logging.INFO)
+
+#oldExec = getattr(cursors.BaseCursor, 'execute')
+oldQuery = getattr(connections.Connection, 'query')
 
 """
-HOST = 'localhost'
-DATABASE = 'nozomi'
-DEBUG = True
-PASSWORD = '2e4n5k2w2x'
+def execute(self, query, args=None):
+    startTime = time.time()*1000
+    oldExec(self, query, args)
+    endTime = time.time()*1000
+    mysqlLogHandler.info("%s %d", query, int(endTime-startTime))
 """
+    
+def query(self, sql):
+    startTime = time.time()*1000
+    oldQuery(self, sql)
+    endTime = time.time()*1000
+    mysqllogger.info("%s\t%d\t%s", sql, int(endTime-startTime), time.asctime())
+
+#setattr(cursor.BaseCursor, 'execute', execute)
+setattr(connections.Connection, 'query', query)
+
 
 
 reload(sys)
@@ -74,7 +98,7 @@ sys.setdefaultencoding('utf-8')
 app = Flask(__name__)
 app.config.from_object("config")
 
-timeLogHandler = TimedRotatingFileHandler('/data/allLog/nozomiAccess.log', 'd', 7)
+timeLogHandler = TimedRotatingFileHandler('/data/allLog/nozomiAccess_2.log', 'd', 7)
 timelogger = logging.getLogger("timeLogger")
 timelogger.addHandler(timeLogHandler)
 timelogger.setLevel(logging.INFO)
@@ -86,7 +110,13 @@ def beforeQuest():
 @app.after_request
 def afterQuest(response):
     endTime = time.time()
-    timelogger.info('%s %d  %d' % (request.url, int(g.startTime), int((endTime-g.startTime)*10**3)) )
+    timelogger.info("""
+    url %s 
+    args %s
+    form %s
+    startTime %d  
+    costTime %d
+    """ % (request.url, str(request.args), str(request.form), int(g.startTime), int((endTime-g.startTime)*10**3)) )
     return response
 
 
@@ -138,7 +168,7 @@ loginlogger.setLevel(logging.INFO)
 
 crystallogger = logging.getLogger("CRYSTAL")
 #f = logging.FileHandler("crystal_stat.log")
-f = TimedRotatingFileHandler('/data/allLog/crystal_stat.log', 'd', 1)
+f = TimedRotatingFileHandler('/data/allLog/crystal_stat_2.log', 'd', 1)
 crystallogger.addHandler(f)
 formatter = logging.Formatter("%(asctime)s\t%(message)s")   
 f.setFormatter(formatter)
@@ -151,7 +181,7 @@ formatter = logging.Formatter("%(asctime)s\t%(message)s")
 f.setFormatter(formatter)
 testlogger.setLevel(logging.INFO)
 
-debugLogger = TimedRotatingFileHandler("/data/allLog/nozomiError.log", 'd', 7)
+debugLogger = TimedRotatingFileHandler("/data/allLog/nozomiError_4.log", 'd', 7)
 debugLogger.setLevel(logging.ERROR)
 debugLogger.setFormatter(Formatter(
 '''
@@ -354,6 +384,7 @@ def initUser(username, nickname, platform):
     initScore = 500
     #uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
     uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime) VALUES(%s, %s, %s, %s, 500, 497, 0, %s, %s)", (username, regTime, nickname, util.getTime(), platformId, regTime))
+
     myCon = getConn()
     module.UserRankModule.initUserScore(myCon, uid, initScore)
     module.UserRankModule.updateScore(myCon, uid, initScore)
@@ -381,7 +412,15 @@ def getBattleHistory():
     if ret==None:
         return "[]"
     else:
-        return json.dumps([[json.loads(r[0]), r[1], r[2], r[3], r[4]] for r in ret])
+        try:
+            return json.dumps([[json.loads(r[0]), r[1], r[2], r[3], r[4]] for r in ret])
+        except Exception as e:
+            app.logger.exception('''
+            url %s
+            args %s
+            form %s
+            ''' % (request.url, str(request.args), str(request.form)))
+            return "[]"
 
 @app.route("/login", methods=['POST', 'GET'])
 def login():
@@ -407,45 +446,9 @@ def login():
             if 'platform' in request.form:
                 platform = request.form['platform']
             uid = initUser(username, nickname, platform)
-            
-            loginlogger.info("%s\t%d\treg" % (platform, uid))
+            loginlogger.info("%s\t%d\treg" % (platform,uid))
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
-        #elif user[1]>=1400:
-        #    days = dailyModule.dailyLogin(uid)
-        #    if days>0:
-        #        ret['days']=days
-        #        reward = int((50+30*days)**0.5+0.5)
-        #        updateCrystal(uid, reward)
-        #        ret['reward'] = reward
-
-        if False:
-
-            con = MySQLdb.connect(host="192.168.3.105", user='root', passwd="badperson", db="nozomi", charset='utf8')
-            sql = 'select * from nozomi_params'
-            con.query(sql)
-            res = con.store_result().fetch_row(0, 1)
-            params = dict()
-            for r in res:
-                params[r['key']] = int(r['value'])
-            sql = 'select * from nozomi_zombie_attack'
-            con.query(sql)
-            res = con.store_result().fetch_row(0, 1)
-            waves = []
-            for i in range(9):
-                waves.append([])
-                for j in range(1):
-                    waves[i].append([])
-                    for k in range(8):
-                        waves[i][j].append(0)
-            for r in res:
-                item = waves[int(r['nozomi_level'])-1][int(r['attack_wave'])-1]
-                for i in range(8):
-                    item[i] = int(r['zombie%d_num' % (i+11)])
-            params['attackWaves'] = waves
-            ret['params'] = params
-            con.close()
-
         return json.dumps(ret)
     else:
         #time.sleep(209) 
@@ -453,12 +456,35 @@ def login():
         #测试timeout
         #pass
 
+updateUrls = dict()
+settings = [3,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime]
+
 @app.route("/getData", methods=['GET'])
 def getData():
     print 'getData', request.args
     uid = int(request.args.get("uid"))
     data = None
     if "login" in request.args:
+        version = request.args.get("version", 0, type=int)
+        if 'check' in request.args:
+            checkVersion = request.args.get("checkVersion", 0, type=int)
+            if checkVersion<settings[0]:
+                country = request.args.get('country',"us").lower()
+                ret = dict(serverUpdate=1,title="New Version",content="Please update your version", button="Update")
+                if country in updateUrls:
+                    ret['url'] = updateUrls[country]
+                else:
+                    url = queryOne("SELECT url FROM nozomi_ios_update_url WHERE country=%s",(country))
+                    if url!=None:
+                        updateUrls[country] = url[0]
+                        ret['url'] = url[0]
+                    elif 'us' in updateUrls:
+                        ret['url'] = updateUrls['us']
+                    else:
+                        url = queryOne("SELECT url FROM nozomi_ios_update_url WHERE country='us'")[0]
+                        updateUrls['us'] = url
+                        ret['url'] = url
+                return json.dumps(ret)
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
@@ -469,9 +495,10 @@ def getData():
         platform = "ios"
         if 'platform' in request.args:
             platform = request.args['platform']
+        #ios new user cup
         if data['registerTime']>newbieCup[0]:
             data['newbieTime'] = newbieCup[1]
-        data['registerTime'] = None
+        #data['registerTime'] = None
         data['achieves'] = achieveModule.getAchieves(uid)
         if data['guide']>=1400:
             days = dailyModule.dailyLogin(uid)
@@ -481,12 +508,14 @@ def getData():
                 version = request.args.get("version", 0, type=int)
                 if version==0 or (days!=7 and days!=14 and days!=30):
                     updateCrystal(uid, reward)
+                    testlogger.info("[crystal]DailyBonus\t%d\t%d\t%d" % (uid,data['crystal'], data['crystal']+reward))
                     if version==0 and (days==7 or days==14 or days==30):
                         dailyModule.loginWithDays(uid, days)
                     data['crystal'] = data['crystal']+reward
                 data['reward'] = reward
             ret = checkUserReward(uid)
             if ret!=None:
+                testlogger.info("[crystal]Reward\t%d\t%d\t%d" % (uid, data['crystal'], data['crystal']+ret[0]))
                 data['crystal'] = data['crystal']+ret[0]
                 data['rewards'] = ret[1]
         loginlogger.info("%s\t%d\tlogin" % (platform,uid))
@@ -527,7 +556,7 @@ def getData():
         repairDatas.append([builders[errorBuilderNum][0],'{"resource":1}'])
 
     if len(repairDatas)>0:
-        #testlogger.info("repair data when get data:%s" % json.dumps(repairDatas))
+        testlogger.info("repair data when get data:%s" % json.dumps(repairDatas))
         if 'login' in request.args:
             updateUserBuildExtends(uid, repairDatas)
     data['builds']=builds
@@ -560,15 +589,28 @@ def verifyIAP():
     receipt = request.form.get("receipt")
     if receipt!=None:
         postData = json.dumps({'receipt-data':receipt})
+        testlogger.info("verify-code:%s" % receipt)
         #ios verifty 
-        #url = "https://buy.itunes.apple.com/verifyReceipt"
-        url = "https://sandbox.itunes.apple.com/verifyReceipt"
+        
+        url = "https://buy.itunes.apple.com/verifyReceipt"
         req = urllib2.Request(url,postData)
         rep = urllib2.urlopen(req)
         page = rep.read()
         result = json.loads(page)
+        #if production failed then sandbox
+        if result['status'] == 21007:
+            url = "https://sandbox.itunes.apple.com/verifyReceipt"
+            req = urllib2.Request(url,postData)
+            rep = urllib2.urlopen(req)
+            page = rep.read()
+            result = json.loads(page)
+                
         if result['status']==0:
-            return "success"
+            receipt = result['receipt']
+            if int(receipt['original_purchase_date_ms'][:-3])>int(time.mktime(time.localtime())-86400):
+                uniqInsert = update("INSERT IGNORE INTO `nozomi_iap_record` (transaction_id, buy_item, verify_data) VALUES(%s,%s,%s)",(receipt['original_transaction_id'],receipt['product_id'],page))
+                if uniqInsert>0:
+                    return "success"
     return "fail"
 
 @app.route("/synData", methods=['POST'])
@@ -601,13 +643,15 @@ def synData():
             else:
                 allAdd = allAdd-l[2]
         if oldCrystal+allAdd-newCrystal<=-200:
-            abort(401)
+            testlogger.info("[crystal]BadSynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
         for l in ls:
             crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
             if l[0] == -1:
                 updatePurchaseCrystal(uid, l[2], l[3])
     elif newCrystal-oldCrystal>=200:
-        abort(401)
+        testlogger.info("[crystal]BadSynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
+    if newCrystal!=oldCrystal:
+        testlogger.info("[crystal]SynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
     if 'days' in request.form:
         days = int(request.form['days'])
         dailyModule.loginWithDays(uid, days)
@@ -632,7 +676,7 @@ def synData():
 
 @app.route("/synBattleData", methods=['POST'])
 def synBattleData():
-    print 'synBattleData', request.form
+    #print 'synBattleData', request.form
     uid = int(request.form.get("uid", 0))
     eid = int(request.form.get("eid", 0))
     print("test uid and eid %d,%d" % (uid, eid))
@@ -918,7 +962,6 @@ def synLuaError():
     error = request.form.get("error","")
     testlogger.info("userId:%d\n%s" % (uid,error))
     return "success"
-    
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
 app.wsgi_app = ProxyFix(app.wsgi_app)

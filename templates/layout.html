@@ -1,6 +1,15 @@
 <!doctype html>
 <title>统计数据</title>
 <link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
+<<<<<<< HEAD
+=======
+<script type=text/javascript 
+src= "http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" ></script>
+<script type=text/javascript>
+var $SCRIPT_ROOT={{request.script_root|tojson|safe}};
+</script>
+
+>>>>>>> 2f0e93b1c31271499dbb6412e9628ebd859dd769
 <div class=page>
   <h1>{{title}}</h1>
   {% for message in get_flashed_messages() %}

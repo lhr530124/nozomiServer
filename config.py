@@ -1,4 +1,4 @@
-HOST = 'localhost'
+HOST = '10.132.24.180'
 DATABASE = 'nozomi'
 DEBUG = False
 PASSWORD = '2e4n5k2w2x'
@@ -9,9 +9,8 @@ CHATPORT = 8005
 CHATSERVER = 'http://localhost:%d/sys' % (CHATPORT)
 REDIS_HOST = 'localhost'
 
-CHATPORT = 8004
-CHATSERVER = 'http://localhost:%d/sys' % (CHATPORT)
-ERROR_SERVER = "nozomiError.log"
+
+ERROR_SERVER = "nozomiTestError.log"
 ERROR_RANK = "rankError.log"
 STATISTIC_PORT = 9004
 

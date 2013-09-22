@@ -1,6 +1,10 @@
 #coding:utf8
 import MySQLdb 
+<<<<<<< HEAD
 from flask import Flask, request, g, render_template, _app_ctx_stack
+=======
+from flask import Flask, request, g, render_template, _app_ctx_stack, jsonify
+>>>>>>> 2f0e93b1c31271499dbb6412e9628ebd859dd769
 import time
 import json
 import datetime
@@ -74,6 +78,28 @@ def getIncome():
     
     return render_template("showCrystal.html", data=allData)
      
+<<<<<<< HEAD
+=======
+#过去5分钟在线的用户
+@app.route('/getOnline')
+def getOnline():
+    myCon = getConn()
+    now = int(time.time())
+    sql = 'select count(*) from nozomi_user where lastSynTime >= %d' % (now-300)
+    myCon.query(sql)
+    res = myCon.store_result().fetch_row(0, 0)
+    return render_template('showOnline.html', data=int(res[0][0]))
+
+@app.route('/getNum')
+def getNum():
+    myCon = getConn()
+    now = int(time.time())
+    sql = 'select count(*) from nozomi_user where lastSynTime >= %d' % (now-300)
+    myCon.query(sql)
+    res = myCon.store_result().fetch_row(0, 0)
+    return jsonify(result=res[0][0])
+
+>>>>>>> 2f0e93b1c31271499dbb6412e9628ebd859dd769
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=config.STATISTIC_PORT)
