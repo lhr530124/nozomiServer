@@ -10,7 +10,7 @@ sys.path.append('..')
 import config
 #myCon = MySQLdb.connect(host='uhz000738.chinaw3.com', passwd='2e4n5k2w2x', db='nozomi', user='root', charset='utf8')
 
-myCon = MySQLdb.connect(host='localhost', passwd='wavegame1', db='nozomiTest', user='root', charset='utf8')
+#myCon = MySQLdb.connect(host='localhost', passwd='wavegame1', db='nozomiTest', user='root', charset='utf8')
 
 base2 = 'http://localhost:%d/' % (config.HOSTPORT)
 baseScore = 'http://localhost:%d/' % (config.SORTPORT)

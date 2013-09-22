@@ -435,7 +435,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [3,int(time.mktime((2013,6,31,0,0,0,0,0,0)))-util.beginTime]
+settings = [3,int(time.mktime((2013,9,22,1,0,0,0,0,0)))-util.beginTime]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -477,10 +477,12 @@ def getData():
         #    data['newbieTime'] = newbieCup[1]
         #data.pop('registerTime')
         data['achieves'] = achieveModule.getAchieves(uid)
+        print 'guide', data['guide']
         if data['guide']>=1400:
             days = 0
             if data['registerTime'] < settings[1]:
                 days = dailyModule.dailyLogin(uid)
+            print 'days', days
             if days>0:
                 data['days']=days
                 reward = int((50+30*days)**0.5+0.5)
