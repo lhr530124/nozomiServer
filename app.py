@@ -434,12 +434,35 @@ def login():
         #测试timeout
         #pass
 
+updateUrls = dict()
+settings = [3,int(time.mktime((2013,6,31,0,0,0,0,0,0)))-util.beginTime]
+
 @app.route("/getData", methods=['GET'])
 def getData():
     print 'getData', request.args
     uid = int(request.args.get("uid"))
     data = None
     if "login" in request.args:
+        version = request.args.get("version", 0, type=int)
+        if 'check' in request.args:
+            checkVersion = request.args.get("checkVersion", 0, type=int)
+            if checkVersion<settings[0]:
+                country = request.args.get('country',"us").lower()
+                ret = dict(serverUpdate=1,title="New Version",content="Please update your version", button="Update")
+                if country in updateUrls:
+                    ret['url'] = updateUrls[country]
+                else:
+                    url = queryOne("SELECT url FROM nozomi_ios_update_url WHERE country=%s",(country))
+                    if url!=None:
+                        updateUrls[country] = url[0]
+                        ret['url'] = url[0]
+                    elif 'us' in updateUrls:
+                        ret['url'] = updateUrls['us']
+                    else:
+                        url = queryOne("SELECT url FROM nozomi_ios_update_url WHERE country='us'")[0]
+                        updateUrls['us'] = url
+                        ret['url'] = url
+                return json.dumps(ret)
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
@@ -452,14 +475,15 @@ def getData():
             platform = request.args['platform']
         #if data['registerTime']>newbieCup[0]:
         #    data['newbieTime'] = newbieCup[1]
-        #data['registerTime'] = None
+        #data.pop('registerTime')
         data['achieves'] = achieveModule.getAchieves(uid)
         if data['guide']>=1400:
-            days = dailyModule.dailyLogin(uid)
+            days = 0
+            if data['registerTime'] < settings[1]:
+                days = dailyModule.dailyLogin(uid)
             if days>0:
                 data['days']=days
                 reward = int((50+30*days)**0.5+0.5)
-                version = request.args.get("version", 0, type=int)
                 if version==0 or (days!=7 and days!=14 and days!=30):
                     updateCrystal(uid, reward)
                     testlogger.info("[crystal]DailyBonus\t%d\t%d\t%d" % (uid,data['crystal'], data['crystal']+reward))
