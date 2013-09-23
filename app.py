@@ -428,7 +428,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [3,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime]
+settings = [3,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, false]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -437,11 +437,12 @@ def getData():
     data = None
     if "login" in request.args:
         version = request.args.get("version", 0, type=int)
+        ret = None
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
             if checkVersion<settings[0]:
                 country = request.args.get('country',"us").lower()
-                ret = dict(serverUpdate=1,title="New Version",content="Please update your version", button="Update")
+                ret = dict(serverUpdate=1,title="New Version",content="Please update your version", button1="Update Now", button2="Later")
                 if country in updateUrls:
                     ret['url'] = updateUrls[country]
                 else:
@@ -455,11 +456,15 @@ def getData():
                         url = queryOne("SELECT url FROM nozomi_ios_update_url WHERE country='us'")[0]
                         updateUrls['us'] = url
                         ret['url'] = url
-                return json.dumps(ret)
+                if settings[2]==True:
+                    ret['forceUpdate']=1
+                    return json.dumps(ret)
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
         data = getUserAllInfos(uid)
+        if ret!=None:
+            data.update(ret)
         data['serverTime'] = int(time.mktime(time.localtime()))
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
