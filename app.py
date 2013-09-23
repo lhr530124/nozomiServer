@@ -419,13 +419,6 @@ def login():
             loginlogger.info("%s\t%d\treg" % (platform,uid))
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
-        #elif user[1]>=1400:
-        #    days = dailyModule.dailyLogin(uid)
-        #    if days>0:
-        #        ret['days']=days
-        #        reward = int((50+30*days)**0.5+0.5)
-        #        updateCrystal(uid, reward)
-        #        ret['reward'] = reward
 
         return json.dumps(ret)
     else:
@@ -488,14 +481,12 @@ def getData():
                 reward = int((50+30*days)**0.5+0.5)
                 if version==0 or (days!=7 and days!=14 and days!=30):
                     updateCrystal(uid, reward)
-                    testlogger.info("[crystal]DailyBonus\t%d\t%d\t%d" % (uid,data['crystal'], data['crystal']+reward))
                     if version==0 and (days==7 or days==14 or days==30):
                         dailyModule.loginWithDays(uid, days)
                     data['crystal'] = data['crystal']+reward
                 data['reward'] = reward
             ret = checkUserReward(uid)
             if ret!=None:
-                testlogger.info("[crystal]Reward\t%d\t%d\t%d" % (uid, data['crystal'], data['crystal']+ret[0]))
                 data['crystal'] = data['crystal']+ret[0]
                 data['rewards'] = ret[1]
         loginlogger.info("%s\t%d\tlogin" % (platform,uid))
@@ -536,7 +527,7 @@ def getData():
         repairDatas.append([builders[errorBuilderNum][0],'{"resource":1}'])
 
     if len(repairDatas)>0:
-        testlogger.info("repair data when get data:%s" % json.dumps(repairDatas))
+        testlogger.info("repair data %d:%s" % (uid, json.dumps(repairDatas)))
         if 'login' in request.args:
             updateUserBuildExtends(uid, repairDatas)
     data['builds']=builds
@@ -567,8 +558,8 @@ def getReplay():
 @app.route("/verify", methods=['POST'])
 def verifyIAP():
     receipt = request.form.get("receipt")
+    uid = request.form.get('uid', 0, type=int)
     if receipt!=None:
-        testlogger.info("verify-code:%s" % receipt)
         postData = json.dumps({'receipt-data':receipt})
         url = "https://buy.itunes.apple.com/verifyReceipt"
         #url = "https://sandbox.itunes.apple.com/verifyReceipt"
@@ -580,8 +571,11 @@ def verifyIAP():
         if result['status']==0:
             receipt = result['receipt']
             if int(receipt['original_purchase_date_ms'][:-3])>int(time.mktime(time.localtime())-86400):
-                uniqInsert = update("INSERT IGNORE INTO `nozomi_iap_record` (transaction_id, buy_item, verify_data) VALUES(%s,%s,%s)",(receipt['original_transaction_id'],receipt['product_id'],page))
+                uniqInsert = update("INSERT IGNORE INTO `nozomi_iap_record` (transaction_id, buy_item, verify_data, uid) VALUES(%s,%s,%s,%s)",(receipt['original_transaction_id'],receipt['product_id'],page,uid))
                 if uniqInsert>0:
+                    if uid>0:
+                        crystal = [500,1200,2500,6500,14000,0][int(receipt['product_id'][-1:])]
+                        updateCrystal(uid, crystal)
                     return "success"
     return "fail"
 
@@ -606,6 +600,14 @@ def synData():
             setUserShield(uid, userInfo['shieldTime'])
         if 'crystal' in userInfo:
             newCrystal = userInfo['crystal']
+    changeCrystal = 0
+    if 'cc' in request.form:
+        baseCrystal = request.form.get('bs',0,type=int)
+        changeCrystal = request.form.get('cc',0,type=int)
+        if baseCrystal>oldCrystal+100:
+            return '{"code":1}'
+        newCrystal = baseCrystal+changeCrystal
+        userInfoUpdate['crystal'] = newCrystal
     if 'crystal' in request.form:
         ls = json.loads(request.form['crystal'])
         allAdd = 0
@@ -614,16 +616,14 @@ def synData():
                 allAdd = allAdd+l[2]
             else:
                 allAdd = allAdd-l[2]
-        if oldCrystal+allAdd-newCrystal<=-200:
+        if (changeCrystal>0 and allAdd+200<changeCrystal) or (oldCrystal+allAdd-newCrystal<=-200):
             testlogger.info("[crystal]BadSynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
         for l in ls:
             crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
             if l[0] == -1:
                 updatePurchaseCrystal(uid, l[2], l[3])
-    elif newCrystal-oldCrystal>=200:
+    elif changeCrystal==0 and newCrystal-oldCrystal>=200:
         testlogger.info("[crystal]BadSynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
-    if newCrystal!=oldCrystal:
-        testlogger.info("[crystal]SynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
     if 'days' in request.form:
         days = int(request.form['days'])
         dailyModule.loginWithDays(uid, days)
@@ -675,6 +675,7 @@ def synBattleData():
             #userInfoUpdate['shieldTime'] = t
             setUserShield(eid, t)
             userInfoUpdate=dict(shieldTime=t)
+        testlogger.info("[crystal]SynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
             updateUserInfoById(userInfoUpdate, eid)
         #updateUserInfoById(userInfoUpdate, eid)
     #if incScore!=0:
