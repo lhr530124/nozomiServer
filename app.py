@@ -27,6 +27,11 @@ import util
 from MySQLdb import cursors, connections
 from werkzeug.contrib.fixers import ProxyFix
 
+rootLogger = logging.getLogger('')
+rootLogger.setLevel(logging.INFO)
+socketHandler = logging.handlers.SocketHandler(config.LOG_HOST, logging.handlers.DEFAULT_TCP_LOGGING_PORT)
+rootLogger.addHandler(socketHandler)
+
 
 
 mysqlLogHandler = TimedRotatingFileHandler('mysqlLog.log', 'd', 1)
