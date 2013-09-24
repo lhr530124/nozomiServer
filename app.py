@@ -581,7 +581,7 @@ def verifyIAP():
                 #uniqInsert = 1
                 if uniqInsert>0:
                     if uid>0:
-                        crystal = [500,1200,2500,6500,14000,0][int(receipt['product_id'][-1:])]
+                        crystal = [500,1200,2500,6500,14000,200,0][int(receipt['product_id'][-1:])]
                         updateCrystal(uid, crystal)
                     return "success"
     return "fail"
