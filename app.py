@@ -574,6 +574,14 @@ def verifyIAP():
         page = rep.read()
         #update("INSERT INTO `buyCrystalVerify` (verify_code,verify_result) VALUES(%s,%s)", (receipt,page))
         result = json.loads(page)
+        print uid, receipt
+        if result['status']==21007:
+            url = "https://sandbox.itunes.apple.com/verifyReceipt"
+            req = urllib2.Request(url,postData)
+            rep = urllib2.urlopen(req)
+            page = rep.read()
+            result = json.loads(page)
+            
         if result['status']==0:
             receipt = result['receipt']
             if int(receipt['original_purchase_date_ms'][:-3])>int(time.mktime(time.localtime())-86400):
