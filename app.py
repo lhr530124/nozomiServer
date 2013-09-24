@@ -34,22 +34,14 @@ rootLogger.addHandler(socketHandler)
 
 
 
-mysqlLogHandler = TimedRotatingFileHandler('mysqlLog.log', 'd', 1)
-
+#mysqlLogHandler = TimedRotatingFileHandler('mysqlLog.log', 'd', 1)
 mysqllogger = logging.getLogger("mysqlLogger")
-mysqllogger.addHandler(mysqlLogHandler)
 mysqllogger.setLevel(logging.INFO)
+#mysqllogger.addHandler(mysqlLogHandler)
+
 
 #oldExec = getattr(cursors.BaseCursor, 'execute')
 oldQuery = getattr(connections.Connection, 'query')
-
-"""
-def execute(self, query, args=None):
-    startTime = time.time()*1000
-    oldExec(self, query, args)
-    endTime = time.time()*1000
-    mysqlLogHandler.info("%s %d", query, int(endTime-startTime))
-"""
     
 def query(self, sql):
     startTime = time.time()*1000
@@ -71,10 +63,11 @@ sys.setdefaultencoding('utf-8')
 app = Flask(__name__)
 app.config.from_object("config")
 
-timeLogHandler = TimedRotatingFileHandler('/data/allLog/nozomiAccess_2.log', 'd', 7)
+#timeLogHandler = TimedRotatingFileHandler('/data/allLog/nozomiAccess_2.log', 'd', 7)
 timelogger = logging.getLogger("timeLogger")
-timelogger.addHandler(timeLogHandler)
 timelogger.setLevel(logging.INFO)
+#timelogger.addHandler(timeLogHandler)
+
 
 @app.before_request
 def beforeQuest():
@@ -126,32 +119,32 @@ achieveModule = AchieveModule("nozomi_achievement")
 
 statlogger = logging.getLogger("STAT")
 #f = logging.FileHandler("stat.log")
-f = TimedRotatingFileHandler('/data/allLog/stat_2.log', 'd', 1)
-statlogger.addHandler(f)
-formatter = logging.Formatter("%(asctime)s\t%(message)s")   
-f.setFormatter(formatter)
+#f = TimedRotatingFileHandler('/data/allLog/stat_2.log', 'd', 1)
+#statlogger.addHandler(f)
+#formatter = logging.Formatter("%(asctime)s\t%(message)s")   
+#f.setFormatter(formatter)
 statlogger.setLevel(logging.INFO)
 
 loginlogger = logging.getLogger("LOGIN")
-f = TimedRotatingFileHandler('/data/allLog/login_2.log','d',1)
-loginlogger.addHandler(f)
-formatter = logging.Formatter("%(asctime)s\t%(message)s")
-f.setFormatter(formatter)
+#f = TimedRotatingFileHandler('/data/allLog/login_2.log','d',1)
+#loginlogger.addHandler(f)
+#formatter = logging.Formatter("%(asctime)s\t%(message)s")
+#f.setFormatter(formatter)
 loginlogger.setLevel(logging.INFO)
 
 crystallogger = logging.getLogger("CRYSTAL")
 #f = logging.FileHandler("crystal_stat.log")
-f = TimedRotatingFileHandler('/data/allLog/crystal_stat_2.log', 'd', 1)
-crystallogger.addHandler(f)
-formatter = logging.Formatter("%(asctime)s\t%(message)s")   
-f.setFormatter(formatter)
+#f = TimedRotatingFileHandler('/data/allLog/crystal_stat_2.log', 'd', 1)
+#crystallogger.addHandler(f)
+#formatter = logging.Formatter("%(asctime)s\t%(message)s")   
+#f.setFormatter(formatter)
 crystallogger.setLevel(logging.INFO)
 
 testlogger = logging.getLogger("TEST")
-f = logging.FileHandler("/data/allLog/test.log")
-testlogger.addHandler(f)
-formatter = logging.Formatter("%(asctime)s\t%(message)s")
-f.setFormatter(formatter)
+#f = logging.FileHandler("/data/allLog/test.log")
+#testlogger.addHandler(f)
+#formatter = logging.Formatter("%(asctime)s\t%(message)s")
+#f.setFormatter(formatter)
 testlogger.setLevel(logging.INFO)
 
 debugLogger = TimedRotatingFileHandler("/data/allLog/nozomiError_4.log", 'd', 7)
