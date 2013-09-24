@@ -5,6 +5,7 @@ import logging.handlers
 import SocketServer
 import struct
 
+from logging import Formatter
 from logging.handlers import TimedRotatingFileHandler
 
 
@@ -86,45 +87,62 @@ def main():
         format='%(relativeCreated)5d %(name)-15s %(levelname)-8s %(message)s')
     rootLogger = logging.getLogger('')
     rootLogger.setLevel(logging.DEBUG)
-    fileHandler = logging.handlers.TimedRotatingFileHandler("allLog.log", "d", 1)
+    fileHandler = logging.handlers.TimedRotatingFileHandler("allLog/allLog.log", "d", 1)
     rootLogger.addHandler(fileHandler)
+
+    mysqlLogHandler = TimedRotatingFileHandler('allLog/mysqlLog.log', 'd', 1)
+    mysqllogger = logging.getLogger("mysqlLogger")
+    mysqllogger.addHandler(mysqlLogHandler)
+    mysqllogger.setLevel(logging.INFO)
+
     
-    timeLoggerHandler = TimedRotatingFileHandler("nozomiAccess_2.log", 'd', 1)
+    timeLoggerHandler = TimedRotatingFileHandler("allLog/nozomiAccess_2.log", 'd', 1)
     timeLogger = logging.getLogger("timeLogger")
     timeLogger.addHandler(timeLoggerHandler)
     timeLogger.setLevel(logging.INFO)
 
     statlogger = logging.getLogger("STAT")
-    f = TimedRotatingFileHandler('stat_2.log', 'd', 1)
+    f = TimedRotatingFileHandler('allLog/stat_2.log', 'd', 1)
     statlogger.addHandler(f)
     formatter = logging.Formatter("%(asctime)s\t%(message)s")   
     f.setFormatter(formatter)
     statlogger.setLevel(logging.INFO)
 
     loginlogger = logging.getLogger("LOGIN")
-    f = TimedRotatingFileHandler('login_2.log','d',1)
+    f = TimedRotatingFileHandler('allLog/login_2.log','d',1)
     loginlogger.addHandler(f)
     formatter = logging.Formatter("%(asctime)s\t%(message)s")
     f.setFormatter(formatter)
     loginlogger.setLevel(logging.INFO)
 
     crystallogger = logging.getLogger("CRYSTAL")
-    f = TimedRotatingFileHandler('crystal_stat_2.log', 'd', 1)
+    f = TimedRotatingFileHandler('allLog/crystal_stat_2.log', 'd', 1)
     crystallogger.addHandler(f)
     formatter = logging.Formatter("%(asctime)s\t%(message)s")   
     f.setFormatter(formatter)
     crystallogger.setLevel(logging.INFO)
 
     testlogger = logging.getLogger("TEST")
-    f = logging.FileHandler("test.log")
+    f = logging.FileHandler("allLog/test.log")
     testlogger.addHandler(f)
     formatter = logging.Formatter("%(asctime)s\t%(message)s")
     f.setFormatter(formatter)
     testlogger.setLevel(logging.INFO)
 
+    #app name __main__ 对应的log 
     debug = logging.getLogger("__main__")
-    debugLogger = TimedRotatingFileHandler("nozomiError_4.log", 'd', 7)
+    debugLogger = TimedRotatingFileHandler("allLog/nozomiError_4.log", 'd', 7)
     debugLogger.setLevel(logging.ERROR)
+    debugLogger.setFormatter(Formatter(
+    '''
+    Message type:  %(levelname)s
+    Location:      %(pathname)s:%(lineno)d
+    Module:        %(module)s
+    Function:      %(funcName)s
+    Time:          %(asctime)s
+    Message:
+    %(message)s
+    '''))
     debug.addHandler(debugLogger)
 
 

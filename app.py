@@ -34,10 +34,10 @@ rootLogger.addHandler(socketHandler)
 
 
 
-mysqlLogHandler = TimedRotatingFileHandler('mysqlLog.log', 'd', 1)
+#mysqlLogHandler = TimedRotatingFileHandler('mysqlLog.log', 'd', 1)
 
 mysqllogger = logging.getLogger("mysqlLogger")
-mysqllogger.addHandler(mysqlLogHandler)
+#mysqllogger.addHandler(mysqlLogHandler)
 mysqllogger.setLevel(logging.INFO)
 
 #oldExec = getattr(cursors.BaseCursor, 'execute')
@@ -71,9 +71,9 @@ sys.setdefaultencoding('utf-8')
 app = Flask(__name__)
 app.config.from_object("config")
 
-timeLogHandler = TimedRotatingFileHandler('nozomiAccess_2.log', 'd', 7)
+#timeLogHandler = TimedRotatingFileHandler('nozomiAccess_2.log', 'd', 7)
 timelogger = logging.getLogger("timeLogger")
-timelogger.addHandler(timeLogHandler)
+#timelogger.addHandler(timeLogHandler)
 timelogger.setLevel(logging.INFO)
 
 @app.before_request
@@ -125,34 +125,35 @@ achieveModule = AchieveModule("nozomi_achievement")
 
 statlogger = logging.getLogger("STAT")
 #f = logging.FileHandler("stat.log")
-f = TimedRotatingFileHandler('stat_2.log', 'd', 1)
-statlogger.addHandler(f)
-formatter = logging.Formatter("%(asctime)s\t%(message)s")   
-f.setFormatter(formatter)
+#f = TimedRotatingFileHandler('stat_2.log', 'd', 1)
+#statlogger.addHandler(f)
+#formatter = logging.Formatter("%(asctime)s\t%(message)s")   
+#f.setFormatter(formatter)
 statlogger.setLevel(logging.INFO)
 
 loginlogger = logging.getLogger("LOGIN")
-f = TimedRotatingFileHandler('login_2.log','d',1)
-loginlogger.addHandler(f)
-formatter = logging.Formatter("%(asctime)s\t%(message)s")
-f.setFormatter(formatter)
+#f = TimedRotatingFileHandler('login_2.log','d',1)
+#loginlogger.addHandler(f)
+#formatter = logging.Formatter("%(asctime)s\t%(message)s")
+#f.setFormatter(formatter)
 loginlogger.setLevel(logging.INFO)
 
 crystallogger = logging.getLogger("CRYSTAL")
 #f = logging.FileHandler("crystal_stat.log")
-f = TimedRotatingFileHandler('crystal_stat_2.log', 'd', 1)
-crystallogger.addHandler(f)
-formatter = logging.Formatter("%(asctime)s\t%(message)s")   
-f.setFormatter(formatter)
+#f = TimedRotatingFileHandler('crystal_stat_2.log', 'd', 1)
+#crystallogger.addHandler(f)
+#formatter = logging.Formatter("%(asctime)s\t%(message)s")   
+#f.setFormatter(formatter)
 crystallogger.setLevel(logging.INFO)
 
 testlogger = logging.getLogger("TEST")
-f = logging.FileHandler("test.log")
-testlogger.addHandler(f)
-formatter = logging.Formatter("%(asctime)s\t%(message)s")
-f.setFormatter(formatter)
+#f = logging.FileHandler("test.log")
+#testlogger.addHandler(f)
+#formatter = logging.Formatter("%(asctime)s\t%(message)s")
+#f.setFormatter(formatter)
 testlogger.setLevel(logging.INFO)
 
+"""
 debugLogger = TimedRotatingFileHandler("nozomiError_4.log", 'd', 7)
 debugLogger.setLevel(logging.ERROR)
 debugLogger.setFormatter(Formatter(
@@ -164,6 +165,7 @@ Message:
 %(message)s
 '''))
 app.logger.addHandler(debugLogger)
+"""
 
 mailLogger = BufferMailHandler.BufferMailHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Application Failed!\ncheck nozomiError.log file")
 mailLogger.setLevel(logging.ERROR)
@@ -929,4 +931,4 @@ app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
 app.wsgi_app = ProxyFix(app.wsgi_app)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port = config.HOSTPORT)
+    app.run(host='0.0.0.0', port = config.HOSTPORT)
