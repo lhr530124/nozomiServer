@@ -82,9 +82,9 @@ def afterQuest(response):
     url %s 
     args %s
     form %s
-    startTime %d  
+    startTime %s  
     costTime %d
-    """ % (request.url, str(request.args), str(request.form), int(g.startTime), int((endTime-g.startTime)*10**3)) )
+    """ % (request.url, str(request.args), str(request.form), time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(g.startTime)), int((endTime-g.startTime)*10**3)) )
     return response
 
 
@@ -412,6 +412,7 @@ def login():
         uid = getUidByName(username)
         ret = dict(code=0, uid=uid)
         if uid==0:
+            timelogger.info("new user %s %d " % (username, uid))
             print "new user"
             nickname = request.form['nickname']
             platform = "ios"
