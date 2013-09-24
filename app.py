@@ -29,13 +29,14 @@ from werkzeug.contrib.fixers import ProxyFix
 
 rootLogger = logging.getLogger('')
 rootLogger.setLevel(logging.INFO)
-socketHandler = logging.handlers.SocketHandler(config.LOG_HOST, logging.handlers.DEFAULT_TCP_LOGGING_PORT)
+socketHandler = logging.handlers.SocketHandler(config.LOG_HOST, config.LOG_PORT)
 rootLogger.addHandler(socketHandler)
 
 
 
 #mysqlLogHandler = TimedRotatingFileHandler('mysqlLog.log', 'd', 1)
 mysqllogger = logging.getLogger("mysqlLogger")
+#mysqllogger.addHandler(mysqlLogHandler)
 mysqllogger.setLevel(logging.INFO)
 #mysqllogger.addHandler(mysqlLogHandler)
 
@@ -118,46 +119,17 @@ dailyModule = DailyModule("nozomi_user_login")
 achieveModule = AchieveModule("nozomi_achievement")
 
 statlogger = logging.getLogger("STAT")
-#f = logging.FileHandler("stat.log")
-#f = TimedRotatingFileHandler('/data/allLog/stat_2.log', 'd', 1)
-#statlogger.addHandler(f)
-#formatter = logging.Formatter("%(asctime)s\t%(message)s")   
-#f.setFormatter(formatter)
 statlogger.setLevel(logging.INFO)
 
 loginlogger = logging.getLogger("LOGIN")
-#f = TimedRotatingFileHandler('/data/allLog/login_2.log','d',1)
-#loginlogger.addHandler(f)
-#formatter = logging.Formatter("%(asctime)s\t%(message)s")
-#f.setFormatter(formatter)
 loginlogger.setLevel(logging.INFO)
 
 crystallogger = logging.getLogger("CRYSTAL")
-#f = logging.FileHandler("crystal_stat.log")
-#f = TimedRotatingFileHandler('/data/allLog/crystal_stat_2.log', 'd', 1)
-#crystallogger.addHandler(f)
-#formatter = logging.Formatter("%(asctime)s\t%(message)s")   
-#f.setFormatter(formatter)
 crystallogger.setLevel(logging.INFO)
 
 testlogger = logging.getLogger("TEST")
-#f = logging.FileHandler("/data/allLog/test.log")
-#testlogger.addHandler(f)
-#formatter = logging.Formatter("%(asctime)s\t%(message)s")
-#f.setFormatter(formatter)
 testlogger.setLevel(logging.INFO)
 
-debugLogger = TimedRotatingFileHandler("/data/allLog/nozomiError_4.log", 'd', 7)
-debugLogger.setLevel(logging.ERROR)
-debugLogger.setFormatter(Formatter(
-'''
-Message type:  %(levelname)s
-Module:        %(module)s
-Time:          %(asctime)s
-Message:
-%(message)s
-'''))
-app.logger.addHandler(debugLogger)
 
 mailLogger = BufferMailHandler.BufferMailHandler("127.0.0.1", "liyonghelpme@gmail.com", config.ADMINS, "Your Application Failed!\ncheck nozomiError.log file")
 mailLogger.setLevel(logging.ERROR)
@@ -172,10 +144,6 @@ Message:
 %(message)s
 '''))
 app.logger.addHandler(mailLogger)
-
-
-#handlers = [TimedRotatingFileHandler('nozomiAccess.log', 'd', 7), ]
-
 
 
 @app.errorhandler(501)
@@ -950,4 +918,4 @@ app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
 app.wsgi_app = ProxyFix(app.wsgi_app)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port = config.HOSTPORT)
+    app.run(host='0.0.0.0', port = config.HOSTPORT)

@@ -5,8 +5,11 @@ import logging.handlers
 import SocketServer
 import struct
 
+from logging import Formatter
 from logging.handlers import TimedRotatingFileHandler
 
+#name pair fileHandler if not exist then create new file
+allHandlers = {}
 
 class LogRecordStreamHandler(SocketServer.StreamRequestHandler):
     """Handler for a streaming logging request.
@@ -52,6 +55,20 @@ class LogRecordStreamHandler(SocketServer.StreamRequestHandler):
         # is normally called AFTER logger-level filtering. If you want
         # to do filtering, do it at the client end to save wasting
         # cycles and network bandwidth!
+        if allHandlers.get(name) == None:
+            allHandlers[name] = True
+            debugLogger = TimedRotatingFileHandler("allLog/%s.log"%(name), 'd', 1)
+            debugLogger.setFormatter(Formatter(
+            '''
+            Message type:  %(levelname)s
+            Location:      %(pathname)s:%(lineno)d
+            Module:        %(module)s
+            Function:      %(funcName)s
+            Time:          %(asctime)s
+            Message:
+            %(message)s
+            '''))
+            logger.addHandler(debugLogger)
         logger.handle(record)
 
 class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
@@ -91,13 +108,15 @@ def main():
 
     mysqlLogHandler = TimedRotatingFileHandler('allLog/mysqlLog.log', 'd', 1)
     mysqllogger = logging.getLogger("mysqlLogger")
-    mysqllogger.setLevel(logging.INFO)
     mysqllogger.addHandler(mysqlLogHandler)
-        
+    mysqllogger.setLevel(logging.INFO)
+    allHandlers['mysqlLogger'] = True
+
     timeLoggerHandler = TimedRotatingFileHandler("allLog/nozomiAccess_2.log", 'd', 1)
     timeLogger = logging.getLogger("timeLogger")
     timeLogger.addHandler(timeLoggerHandler)
     timeLogger.setLevel(logging.INFO)
+    allHandlers['timeLogger'] = True
 
     statlogger = logging.getLogger("STAT")
     f = TimedRotatingFileHandler('allLog/stat_2.log', 'd', 1)
@@ -105,6 +124,7 @@ def main():
     formatter = logging.Formatter("%(asctime)s\t%(message)s")   
     f.setFormatter(formatter)
     statlogger.setLevel(logging.INFO)
+    allHandlers['STAT'] = True
 
     loginlogger = logging.getLogger("LOGIN")
     f = TimedRotatingFileHandler('allLog/login_2.log','d',1)
@@ -112,6 +132,7 @@ def main():
     formatter = logging.Formatter("%(asctime)s\t%(message)s")
     f.setFormatter(formatter)
     loginlogger.setLevel(logging.INFO)
+    allHandlers['LOGIN'] = True
 
     crystallogger = logging.getLogger("CRYSTAL")
     f = TimedRotatingFileHandler('allLog/crystal_stat_2.log', 'd', 1)
@@ -119,6 +140,7 @@ def main():
     formatter = logging.Formatter("%(asctime)s\t%(message)s")   
     f.setFormatter(formatter)
     crystallogger.setLevel(logging.INFO)
+    allHandlers['CRYSTAL'] = True
 
     testlogger = logging.getLogger("TEST")
     f = logging.FileHandler("allLog/test.log")
@@ -126,14 +148,27 @@ def main():
     formatter = logging.Formatter("%(asctime)s\t%(message)s")
     f.setFormatter(formatter)
     testlogger.setLevel(logging.INFO)
+    allHandlers['TEST'] = True
 
+    #app name __main__ 对应的log 
     debug = logging.getLogger("__main__")
     debugLogger = TimedRotatingFileHandler("allLog/nozomiError_4.log", 'd', 7)
     debugLogger.setLevel(logging.ERROR)
+    debugLogger.setFormatter(Formatter(
+    '''
+    Message type:  %(levelname)s
+    Location:      %(pathname)s:%(lineno)d
+    Module:        %(module)s
+    Function:      %(funcName)s
+    Time:          %(asctime)s
+    Message:
+    %(message)s
+    '''))
     debug.addHandler(debugLogger)
+    allHandlers['__main__'] = True
 
 
-    tcpserver = LogRecordSocketReceiver(host='0.0.0.0')
+    tcpserver = LogRecordSocketReceiver(host='0.0.0.0', port=9020)
     print('About to start TCP server...')
     tcpserver.serve_until_stopped()
 
