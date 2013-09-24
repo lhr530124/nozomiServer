@@ -428,7 +428,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [3,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, false]
+settings = [2,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, False]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -442,7 +442,7 @@ def getData():
             checkVersion = request.args.get("checkVersion", 0, type=int)
             if checkVersion<settings[0]:
                 country = request.args.get('country',"us").lower()
-                ret = dict(serverUpdate=1,title="New Version",content="Please update your version", button1="Update Now", button2="Later")
+                ret = dict(serverUpdate=1,title="New Version",content="Please update your version, the updates is:\n1.test the line break;\n2. fix some bug\n3.more than 4 lines?\nnot the first char.4\nover.", button1="Update Now", button2="Later")
                 if country in updateUrls:
                     ret['url'] = updateUrls[country]
                 else:
@@ -577,6 +577,7 @@ def verifyIAP():
             receipt = result['receipt']
             if int(receipt['original_purchase_date_ms'][:-3])>int(time.mktime(time.localtime())-86400):
                 uniqInsert = update("INSERT IGNORE INTO `nozomi_iap_record` (transaction_id, buy_item, verify_data, uid) VALUES(%s,%s,%s,%s)",(receipt['original_transaction_id'],receipt['product_id'],page,uid))
+                #uniqInsert = 1
                 if uniqInsert>0:
                     if uid>0:
                         crystal = [500,1200,2500,6500,14000,0][int(receipt['product_id'][-1:])]
@@ -680,7 +681,6 @@ def synBattleData():
             #userInfoUpdate['shieldTime'] = t
             setUserShield(eid, t)
             userInfoUpdate=dict(shieldTime=t)
-        testlogger.info("[crystal]SynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
             updateUserInfoById(userInfoUpdate, eid)
         #updateUserInfoById(userInfoUpdate, eid)
     #if incScore!=0:
