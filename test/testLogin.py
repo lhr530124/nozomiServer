@@ -1,16 +1,13 @@
+#coding:utf8
 from testConfig import *
-r = base2+'login'
-data = {'username':'liyong2014', 'nickname':'liyong'}
-<<<<<<< HEAD
-
-=======
->>>>>>> 2f0e93b1c31271499dbb6412e9628ebd859dd769
+r = 'http://localhost:9993/'+'login'
+data = {'username':'liyongtestlog', 'nickname':'liyong'}
 #for i in xrange(0, 100000):
-i = 0
-data = {
-'username': 'TEST%d' % (i),
-'nickname': 'TEST%d' % (i),
-}
+#i = 0
+#data = {
+#'username': 'TEST%d' % (i),
+#'nickname': 'TEST%d' % (i),
+#}
 req2(r, data)
 
 """
