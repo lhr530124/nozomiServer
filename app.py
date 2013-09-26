@@ -45,10 +45,11 @@ mysqllogger.setLevel(logging.INFO)
 oldQuery = getattr(connections.Connection, 'query')
     
 def query(self, sql):
+    mysqllogger.info("%s\n%s", sql, time.asctime())
     startTime = time.time()*1000
     oldQuery(self, sql)
     endTime = time.time()*1000
-    mysqllogger.info("%s\t%d\t%s", sql, int(endTime-startTime), time.asctime())
+
 
 #setattr(cursor.BaseCursor, 'execute', execute)
 setattr(connections.Connection, 'query', query)
@@ -222,7 +223,7 @@ def getBindGameCenter(tempName):
     if r==None:
         return tempName
     else:
-        return r
+        return r[0]
 
 def bindGameCenter(gc,uuid):
     r = update("INSERT IGNORE INTO `nozomi_gc_bind` (gameCenter, uuid) VALUES (%s,%s)", (gc,uuid))
