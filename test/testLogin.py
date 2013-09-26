@@ -1,7 +1,7 @@
 #coding:utf8
 from testConfig import *
-r = base2+'login'
-data = {'username':'liyong9891', 'nickname':'liyong'}
+r = 'http://localhost:9993/'+'login'
+data = {'username':'liyongtestlog', 'nickname':'liyong'}
 #for i in xrange(0, 100000):
 #i = 0
 #data = {
