@@ -153,7 +153,7 @@ def main():
     #app name __main__ 对应的log 
     debug = logging.getLogger("__main__")
     debugLogger = TimedRotatingFileHandler("allLog/nozomiError_4.log", 'd', 7)
-    debugLogger.setLevel(logging.ERROR)
+    #debugLogger.setLevel(logging.ERROR)
     debugLogger.setFormatter(Formatter(
     '''
     Message type:  %(levelname)s
