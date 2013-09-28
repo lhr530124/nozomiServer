@@ -140,6 +140,14 @@ def updateScore():
     UserRankModule.updateScore(myCon, uid, newScore)
     return json.dumps(dict(id=1))
 
+@app.route("/restoreScore")
+def restoreScore():
+    myCon = getConn()
+    uid = int(request.args['uid'])
+    newScore = int(request.args['score'])
+    UserRankModule.updateScore(myCon, uid, newScore, force=True)
+    return json.dumps(dict(id=1))
+
 
 import cProfile, pstats, io
 @app.route('/getUserRank')
@@ -183,4 +191,4 @@ def getUserRank():
 app.secret_key = os.urandom(24)
 
 if __name__ == '__main__':
-    app.run(debug=False, host='0.0.0.0', port=config.SORTPORT)
+    app.run(debug=True, host='0.0.0.0', port=config.SORTPORT)
