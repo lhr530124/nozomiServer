@@ -23,13 +23,15 @@ import time
 from logging import Formatter
 import BufferMailHandler
 import util
+import IpSocketHandler
 
 from MySQLdb import cursors, connections
 from werkzeug.contrib.fixers import ProxyFix
 
 rootLogger = logging.getLogger('')
 rootLogger.setLevel(logging.INFO)
-socketHandler = logging.handlers.SocketHandler(config.LOG_HOST, logging.handlers.DEFAULT_TCP_LOGGING_PORT)
+#socketHandler = logging.handlers.SocketHandler(config.LOG_HOST, logging.handlers.DEFAULT_TCP_LOGGING_PORT)
+socketHandler = IpSocketHandler.IpSocketHandler(config.LOG_HOST, logging.handlers.DEFAULT_TCP_LOGGING_PORT)
 rootLogger.addHandler(socketHandler)
 
 
