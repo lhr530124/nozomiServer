@@ -140,6 +140,8 @@ def main():
     Module:        %(module)s
     Function:      %(funcName)s
     Time:          %(asctime)s
+    process:       %(processName)s %(process)d
+    thread:        %(thread)d      %(threadName)s
     Message:
     %(message)s
     '''))
