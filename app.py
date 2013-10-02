@@ -28,6 +28,11 @@ from MySQLdb import cursors, connections
 from werkzeug.contrib.fixers import ProxyFix
 
 
+rootLogger = logging.getLogger('')
+rootLogger.setLevel(logging.INFO)
+socketHandler = logging.handlers.SocketHandler('localhost', logging.handlers.DEFAULT_TCP_LOGGING_PORT)
+rootLogger.addHandler(socketHandler)
+
 
 mysqlLogHandler = TimedRotatingFileHandler('mysqlLog.log', 'd', 1)
 
@@ -155,6 +160,7 @@ debugLogger.setFormatter(Formatter(
 Message type:  %(levelname)s
 Module:        %(module)s
 Time:          %(asctime)s
+name:          %(name)s
 Message:
 %(message)s
 '''))
@@ -394,6 +400,7 @@ def getBattleHistory():
 @app.route("/login", methods=['POST', 'GET'])
 def login():
     print 'login', request.form
+    print a12
     tempname = None
     if 'tempname' in request.form:
         tempname = request.form['tempname']
@@ -924,4 +931,4 @@ app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
 app.wsgi_app = ProxyFix(app.wsgi_app)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port = config.HOSTPORT)
+    app.run(host='0.0.0.0', port = config.HOSTPORT)
