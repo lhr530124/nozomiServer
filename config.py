@@ -8,6 +8,7 @@ SORTPORT = 9003
 CHATPORT = 8009
 CHATSERVER = 'http://localhost:%d/sys' % (CHATPORT)
 REDIS_HOST = 'localhost'
+LOG_HOST= 'localhost'
 
 
 
