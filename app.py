@@ -642,6 +642,8 @@ def synData():
     updateUserState(uid, int(request.form.get("eid", 0)))
     if 'stat' in request.form:
         statlogger.info("%s\t%d\t%s" % (platform, uid, request.form['stat']))
+    if 'bcl' in request.form:
+        testlogger.info("[BuyCrystalList]%d\t%s" % (uid, request.form['bcl']))
 
     loginlogger.info("%s\t%d\tsynData" % (platform,uid))
     return json.dumps({'code':0})
