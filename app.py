@@ -630,7 +630,8 @@ def synData():
         for build in update:
             if build[2]==1002:
                 ext = build[6]
-                oldExt = queryOne("SELECT `extend` FROM nozomi_build WHERE id=%s AND bid=1002", (uid))
+                util.restoreBuilds(uid)
+                oldExt = queryOne("SELECT `extend` FROM nozomi_build WHERE id=%s AND bid=1002", (uid), util.getDBID(uid))
                 if oldExt!=None:
                     oldExt = oldExt[0]
                     if oldExt!="" and 'research' not in request.form:
