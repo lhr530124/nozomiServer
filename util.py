@@ -54,9 +54,11 @@ def restoreBuilds(uid):
     #检查从服务器上是否有这个用户的建筑物
     num = queryAll('select id from nozomi_build where id = %s limit 1', (uid), did)
     #从主拷贝到nozomi2 数据库中
+    print "restoreBuilds", num, uid, did
     if num == None:
+        print "move data"
         res = queryAll('select id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend from nozomi_build where id = %s', (uid), 0)
-        executemany("INSERT ignore INTO nozomi_build (id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend) VALUES(%s,%s,%s,0,%s,%s,%s,%s,%s)", res, did)
+        executemany("INSERT ignore INTO nozomi_build (id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)", res, did)
     return
 
 
