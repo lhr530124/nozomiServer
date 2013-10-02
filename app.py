@@ -28,10 +28,11 @@ import IpSocketHandler
 from MySQLdb import cursors, connections
 from werkzeug.contrib.fixers import ProxyFix
 
-rootLogger = logging.getLogger('')
-rootLogger.setLevel(logging.INFO)
-socketHandler = IpSocketHandler.IpSocketHandler(config.LOG_HOST, config.LOG_PORT)
-rootLogger.addHandler(socketHandler)
+if not config.DEBUG:
+    rootLogger = logging.getLogger('')
+    rootLogger.setLevel(logging.INFO)
+    socketHandler = IpSocketHandler.IpSocketHandler(config.LOG_HOST, config.LOG_PORT)
+    rootLogger.addHandler(socketHandler)
 
 
 
@@ -253,6 +254,7 @@ def getJsonObj(string):
         return json.loads(string)
     
 def getUserBuilds(uid):
+    util.restoreBuilds(uid)
     builds = queryAll("SELECT buildIndex, grid, bid, level, time, hitpoints, extend FROM nozomi_build WHERE id=%s AND state=0", (uid), util.getDBID(uid))
     return builds
 
@@ -260,12 +262,14 @@ def deleteUserBuilds(uid, buildIndexes):
     params = []
     for bindex in buildIndexes:
         params.append([uid, bindex])
+    util.restoreBuilds(uid)
     executemany("UPDATE nozomi_build SET state=1 WHERE id=%s AND buildIndex=%s", params, dbID=util.getDBID(uid))
 
 def updateUserBuilds(uid, datas):
     params = []
     for data in datas:
         params.append([uid, data[0], data[1], data[2], data[3], data[4], data[5], data[6]])
+    util.restoreBuilds(uid)
     executemany("INSERT INTO nozomi_build (id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend) VALUES(%s,%s,%s,0,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE grid=VALUES(grid),state=0,bid=VALUES(bid),level=VALUES(level),`time`=VALUES(time),hitpoints=VALUES(hitpoints),extend=VALUES(extend);", params, util.getDBID(uid))
 
 def getUserResearch(uid):
@@ -279,12 +283,14 @@ def updateUserBuildHitpoints(uid, datas):
     params = []
     for data in datas:
         params.append([data[1], uid, data[0]])
+    util.restoreBuilds(uid)
     executemany("UPDATE nozomi_build SET hitpoints=%s WHERE id=%s AND buildIndex=%s", params, util.getDBID(uid))
 
 def updateUserBuildExtends(uid, datas):
     params = []
     for data in datas:
         params.append([data[1], uid, data[0]])
+    util.restoreBuilds(uid)
     executemany("UPDATE nozomi_build SET extend=%s WHERE id=%s AND buildIndex=%s", params, util.getDBID(uid))
 
 def getUidByName(account):
@@ -565,7 +571,7 @@ def verifyIAP():
 
 @app.route("/synData", methods=['POST'])
 def synData():
-    #print 'synData', request.form
+    print 'synData', request.form
     uid = int(request.form.get("uid", 0))
     if uid==0:
         return json.dumps({'code':401})
@@ -625,7 +631,8 @@ def synData():
         for build in update:
             if build[2]==1002:
                 ext = build[6]
-                oldExt = queryOne("SELECT `extend` FROM nozomi_build WHERE id=%s AND bid=1002", (uid))
+                util.restoreBuilds(uid)
+                oldExt = queryOne("SELECT `extend` FROM nozomi_build WHERE id=%s AND bid=1002", (uid), util.getDBID(uid))
                 if oldExt!=None:
                     oldExt = oldExt[0]
                     if oldExt!="" and 'research' not in request.form:
@@ -636,6 +643,8 @@ def synData():
     updateUserState(uid, int(request.form.get("eid", 0)))
     if 'stat' in request.form:
         statlogger.info("%s\t%d\t%s" % (platform, uid, request.form['stat']))
+    if 'bcl' in request.form:
+        testlogger.info("[BuyCrystalList]%d\t%s" % (uid, request.form['bcl']))
 
     loginlogger.info("%s\t%d\tsynData" % (platform,uid))
     return json.dumps({'code':0})
