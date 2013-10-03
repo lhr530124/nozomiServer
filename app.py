@@ -16,6 +16,9 @@ from calendar import monthrange
 import config
 import module
 
+from base64 import b64decode
+from M2Crypto import RSA
+
 #from requestlogger import WSGILogger, ApacheFormatter
 from logging.handlers import TimedRotatingFileHandler
 import time
@@ -313,7 +316,7 @@ def updatePurchaseCrystal(uid, crystal, ctype):
         update("UPDATE `nozomi_user` SET totalCrystal=totalCrystal+%s WHERE id=%s", (crystal, uid))
 
 def initUser(username, nickname, platform):
-    print "initUser", username, nickname
+    #print "initUser", username, nickname
     regTime = int(time.mktime(time.localtime()))
     platformId = platformIds.get(platform, 0)
     initScore = 500
@@ -920,6 +923,43 @@ def synLuaError():
     error = request.form.get("error","")
     testlogger.info("userId:%d\n%s" % (uid,error))
     return "success"
+
+@app.route("/ppLogin", methods=['POST'])
+def ppLogin():
+    token = request.form.get('token', '')
+    print("ppLoginToken %s" % token)
+    req = urllib2.Request("http://passport_i.25pp.com:8080/index?tunnel-command=2852126756",token)
+    rep = urllib2.urlopen(req)
+    page = rep.read()
+    try:
+        result = json.loads("{%s}" % page)
+        if int(result.get(u'status',1))==0:
+            return "success"
+    except:
+        return "false"
+    return "false"
+
+g_rsa_foo = RSA.load_pub_key("ppPublic.pem")
+
+@app.route("/ppVerify", methods=['POST'])
+def ppVerify():
+    sign = request.form.get('sign')
+    if sign!=None:
+        b64string = b64decode(sign)
+        ctxt = g_rsa_foo.public_decrypt(b64string, RSA.pkcs1_padding)
+        content = json.loads(ctxt)
+        for k, v in content.items():
+            if request.form.get(k)!=str(v):
+                print("not equal %s %s %s" % (k, v, request.form.get(k)))
+                return "fail"
+        print("verify success at:%s" % request.form.get('billno'))
+        uid = request.form.get("roleid", 0, type=int)
+        if uid>0:
+            crystal = [500,1200,2500,6500,14000,200][int(request.form["billno"][-1:])]
+            updateCrystal(uid, crystal)
+        return "success"
+    return "fail"
+
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
 app.wsgi_app = ProxyFix(app.wsgi_app)
