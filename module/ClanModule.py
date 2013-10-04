@@ -135,7 +135,7 @@ def checkFindLeagueAuth(uid, cid):
 def findLeagueEnemy(cid, score):
     curTime = int(time.mktime(time.localtime()))
     scoreOff = 500
-    while scoreOff<1000:
+    while scoreOff<=1000:
         minScore = score-scoreOff
         maxScore = score+scoreOff
 
