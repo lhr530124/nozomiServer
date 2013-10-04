@@ -2,6 +2,7 @@
 import time
 import config
 from flaskext import *
+import redis
 beginTime = (2013, 1, 1, 0, 0, 0, 0, 0, 0)
 beginTime = int(time.mktime(beginTime))
 def getTime():
@@ -54,9 +55,9 @@ def restoreBuilds(uid):
     #检查从服务器上是否有这个用户的建筑物
     num = queryAll('select id from nozomi_build where id = %s limit 1', (uid), did)
     #从主拷贝到nozomi2 数据库中
-    print "restoreBuilds", num, uid, did
+    #print "restoreBuilds", num, uid, did
     if num == None:
-        print "move data"
+        #print "move data"
         res = queryAll('select id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend from nozomi_build where id = %s', (uid), 0)
         executemany("INSERT ignore INTO nozomi_build (id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)", res, did)
     return
@@ -64,4 +65,22 @@ def restoreBuilds(uid):
 
 
     
+def getServer():
+    rserver = redis.Redis(host=config.REDIS_HOST)
+    return rserver
+    
+
+def cacheBuilding(uid):
+    rserver = getServer()
+    st = rserver.get("user:%d"%(uid))
+    did = getDBID(uid)
+    if st == None:
+        restoreBuilds(uid)
+        res = queryAll('select buildIndex, grid, state, bid, level, `time`, hitpoints, extend from nozomi_build where id = %s', (uid), did)
+        for i in res:
+            rserver.hmset("build:%d:%d"%(uid, i[0]), {"grid":i[1], "state":i[2], "bid":i[3], "level":i[4], })
+        rserver.set("user:%d"%(uid), 1)
+
+
+
     
