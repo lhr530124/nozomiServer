@@ -56,7 +56,7 @@ def getClanInfo(cid):
                 winner = 2
             update("UPDATE `nozomi_clan_battle` SET winner=%s WHERE id=%s", (winner, binfo[0]))
             update("UPDATE `nozomi_clan` SET state=0, statetime=0 WHERE id=%s", (binfo[3-winner]))
-            update("UPDATE `nozomi_clan` SET state=0, statetime=0, score=score+30 WHERE id=%s", (binfo[winner]))
+            update("UPDATE `nozomi_clan` SET state=0, statetime=0, score=score+30, score2=score2+30 WHERE id=%s", (binfo[winner]))
             params = []
             m1 = sorted(getClanMembers(binfo[1]), key=lambda x:x[2], reverse=True)
             m2 = sorted(getClanMembers(binfo[2]), key=lambda x:x[2], reverse=True)
@@ -94,6 +94,10 @@ def getTopClans():
     ret = queryAll("SELECT `id`, icon, score, `type`, name, `desc`, members, `min` FROM `nozomi_clan` WHERE members>0 ORDER BY score DESC LIMIT 50")
     return ret
 
+def getTopClans2():
+    ret = queryAll("SELECT `id`, icon, score2, `type`, name, `desc`, members, `min` FROM `nozomi_clan` WHERE members>0 ORDER BY score2 DESC LIMIT 50")
+    return ret
+
 def joinClan(uid, cid):
     clan = list(getClanInfo(cid))
     if clan[6]<50 and clan[9]<2:
@@ -118,7 +122,7 @@ def leaveClan(uid, cid):
         state = clan[9]
         if clan[6]==1:
             state = 0
-        update("UPDATE `nozomi_clan` SET members=members-1, score=score-%s, state=%s WHERE id=%s", (lscore, state, cid))
+        update("UPDATE `nozomi_clan` SET members=members-1, score=score-%s, score2=score2-%s, state=%s WHERE id=%s", (lscore, lscore, state, cid))
         return clan
     return None
 
@@ -260,7 +264,7 @@ def changeBattleState(uid, eid, cid, ecid, bid, vid, lscore):
                 update("UPDATE `nozomi_clan_battle` SET left1=left1-1, winner=%s WHERE id=%s", (winner, bid))
             else:
                 update("UPDATE `nozomi_clan_battle` SET left2=left2-1, winner=%s WHERE id=%s", (winner, bid))
-        update("UPDATE `nozomi_clan` SET score=score+%s WHERE id=%s", (lscore, cid))
+        update("UPDATE `nozomi_clan` SET score=score+%s, score2=score2+%s WHERE id=%s", (lscore, lscore, cid))
         name = queryOne("SELECT name FROM `nozomi_user` WHERE id=%s", (uid))[0]
         update("UPDATE `nozomi_clan_battle_member` SET inbattle=0, battler=%s, video=%s WHERE uid=%s", (name, vid, eid))
     else:
