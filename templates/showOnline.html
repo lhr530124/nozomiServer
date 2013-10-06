@@ -6,7 +6,7 @@
         function autoUpdate(){
             $.getJSON($SCRIPT_ROOT+'/getNum', {}, function(data){
                 document.getElementById("num").innerHTML = "在线用户 "+data.result;
-                setTimeout(autoUpdate, 30000);
+                setTimeout(autoUpdate, 3000);
             });
 
             //console.log(val);
@@ -19,9 +19,10 @@
         function autoUpdateReg(){
             $.getJSON($SCRIPT_ROOT+"/getRegister", {}, function(data){
                 document.getElementById("reg").innerHTML = "当前注册用户"+data.result;
-                setTimeout(autoUpdateReg, 30000);
+                setTimeout(autoUpdateReg, 3000);
             });
         }
+        autoUpdateReg();
     });
 
     

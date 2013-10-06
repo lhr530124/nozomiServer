@@ -87,7 +87,7 @@ def getOnline():
     res = myCon.store_result().fetch_row(0, 0)
 
     #10-6-3:00  ---- 10-5-19:00
-    startTime = 1380970838
+    startTime = 1380970838-util.beginTime
     sql = 'select count(id) from nozomi_user where registerTime > %d ' % (startTime)
     myCon.query(sql)
     res2 = myCon.store_result().fetch_row(0, 0)
