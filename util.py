@@ -4,6 +4,17 @@ import config
 from flaskext import *
 beginTime = (2013, 1, 1, 0, 0, 0, 0, 0, 0)
 beginTime = int(time.mktime(beginTime))
+
+leagueWarStartTime = int(time.mktime((2013,10,14,0,0,0,0,0,0)))
+leagueWarEndTime = int(time.mktime((2013,10,7,0,0,0,0,0,0)))
+
+def isInWar():
+    t = int(time.mktime(time.localtime()))
+    if t<leagueWarEndTime and (leagueWarEndTime<leagueWarStartTime or leagueWarStartTime<t):
+        return True
+    else:
+        return False
+
 def getTime():
     return int(time.time()-beginTime)
 

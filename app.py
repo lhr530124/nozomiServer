@@ -406,7 +406,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [3,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,10,14,0,0,0,0,0,0))), int(time.mktime((2013,10,5,0,0,0,0,0,0)))]
+settings = [3,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -461,13 +461,14 @@ def getData():
         data = getUserAllInfos(uid)
         if ret!=None:
             data.update(ret)
-        data['serverTime'] = int(time.mktime(time.localtime()))
-        while data['serverTime']>settings[3]:
-            settings[3] = settings[3]+86400*14
-        data['leagueWarTime'] = settings[3]
-        while data['serverTime']>settings[4]:
-            settings[4] = settings[4]+86400*14
-        data['nextLeagueWarTime'] = settings[4]
+        t = int(time.mktime(time.localtime()))
+        data['serverTime'] = t
+        #while t>util.leagueWarStartTime:
+        #    util.leagueWarStartTime = util.leagueWarStartTime+86400*14
+        #while t>util.leagueWarEndTime:
+        #    util.leagueWarEndTime = util.leagueWarEndTime+86400*14
+        data['leagueWarTime'] = util.leagueWarEndTime
+        data['nextLeagueWarTime'] = util.leagueWarStartTime
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
         #if data['registerTime']>newbieCup[0]:
