@@ -4,6 +4,7 @@ from flask import Flask, request, g, render_template, _app_ctx_stack, jsonify
 import time
 import json
 import datetime
+import util
 
 import config
 app = Flask(__name__)
@@ -24,6 +25,7 @@ def closeConn(excep):
     if hasattr(top, 'db'):
         top.db.close()
     
+"""
 @app.route('/getRegister')
 def getRegister():
     myCon = getConn()
@@ -39,6 +41,7 @@ def getRegister():
     #myCon.close()
     return render_template("showData.html", data=allData, title=u"注册")
     #return json.dumps(res)
+"""
 
 @app.route('/getDAU')
 def getDAU():
@@ -82,7 +85,14 @@ def getOnline():
     sql = 'select count(*) from nozomi_user where lastSynTime >= %d' % (now-300)
     myCon.query(sql)
     res = myCon.store_result().fetch_row(0, 0)
-    return render_template('showOnline.html', data=int(res[0][0]))
+
+    #10-6-3:00  ---- 10-5-19:00
+    startTime = 1380970838
+    sql = 'select count(id) from nozomi_user where registerTime > %d ' % (startTime)
+    myCon.query(sql)
+    res2 = myCon.store_result().fetch_row(0, 0)
+
+    return render_template('showOnline.html', data=int(res[0][0]), reg=int(res2[0][0]))
 
 @app.route('/getNum')
 def getNum():
@@ -93,6 +103,15 @@ def getNum():
     res = myCon.store_result().fetch_row(0, 0)
     return jsonify(result=res[0][0])
 
-
+@app.route("/getRegister")
+def getRegister():
+    myCon = getConn()
+    now = util.getTime()
+    startTime = 1380970838
+    sql = 'select count(id) from nozomi_user where registerTime > %d ' % (startTime)
+    myCon.query(sql)
+    res = myCon.store_result().fetch_row(0, 0)
+    return jsonify(result=res[0][0])
+    
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=config.STATISTIC_PORT)

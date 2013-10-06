@@ -6,12 +6,22 @@
         function autoUpdate(){
             $.getJSON($SCRIPT_ROOT+'/getNum', {}, function(data){
                 document.getElementById("num").innerHTML = "在线用户 "+data.result;
-                setTimeout(autoUpdate, 3000);
+                setTimeout(autoUpdate, 30000);
             });
 
             //console.log(val);
         }
         autoUpdate();
+    });
+
+    $(function(){
+        var regVal = 0;
+        function autoUpdateReg(){
+            $.getJSON($SCRIPT_ROOT+"/getRegister", {}, function(data){
+                document.getElementById("reg").innerHTML = "当前注册用户"+data.result;
+                setTimeout(autoUpdateReg, 30000);
+            });
+        }
     });
 
     
@@ -30,5 +40,6 @@
   {% endif %}
   <ul class=entries>
 <li><h2 id=num> 在线用户 {{data}}  </h2>
+<li><h2 id=reg> 当前注册用户 {{reg}} </h2>
   </ul>
 {% endblock %}

@@ -8,6 +8,9 @@ beginTime = int(time.mktime(beginTime))
 def getTime():
     return int(time.time()-beginTime)
 
+def getOneDay(p):
+    return time.mktime(p)-beginTime
+
 def getToday():
     nt = time.localtime()
     today = time.mktime((nt.tm_year, nt.tm_mon, nt.tm_mday, 0, 0, 0, 0, 0, 0 ))
