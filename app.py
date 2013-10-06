@@ -961,6 +961,13 @@ def synLuaError():
     error = request.form.get("error","")
     testlogger.info("userId:%d\n%s" % (uid,error))
     return "success"
+@app.route('/updateTime')
+def updateTime():
+    start = queryOne('select value from activity where `key` = "startTime"')[0]
+    end = queryOne('select value from activity where `key` = "endTime"')[0]
+    util.leagueWarStartTime =  int(time.mktime(json.loads(start)))
+    util.leagueWarEndTime = int(time.mktime(json.loads(end))) 
+    return jsonify(dict(code=1))
 
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
