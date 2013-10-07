@@ -6,7 +6,7 @@ data = {
 'cid':0,
 'text':'Hackers are forbidden! We will kick all hackers out when found.'
 }
-r = urllib.urlopen('http://localhost:8009/send?'+urllib.urlencode(data))
+r = urllib.urlopen('http://localhost:8005/send?'+urllib.urlencode(data))
 l = r.read()
 print l
 

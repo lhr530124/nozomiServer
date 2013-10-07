@@ -394,6 +394,10 @@ def login():
             loginlogger.info("%s\t%d\treg" % (platform,uid))
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
+        else:
+            ban = queryOne('select ban from nozomi_user where id = %s', (uid))[0]
+            if ban != 0:
+                abort(401)
 
         return json.dumps(ret)
     else:
