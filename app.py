@@ -23,6 +23,7 @@ import time
 from logging import Formatter
 import BufferMailHandler
 import util
+import IpSocketHandler
 
 
 from MySQLdb import cursors, connections
@@ -30,7 +31,7 @@ from werkzeug.contrib.fixers import ProxyFix
 
 rootLogger = logging.getLogger('')
 rootLogger.setLevel(logging.INFO)
-socketHandler = logging.handlers.SocketHandler(config.LOG_HOST, config.LOG_PORT)
+socketHandler = IpSocketHandler.IpSocketHandler(config.LOG_HOST, config.LOG_PORT)
 rootLogger.addHandler(socketHandler)
 
 #mysqlLogHandler = TimedRotatingFileHandler('mysqlLog.log', 'd', 1)
@@ -614,6 +615,15 @@ def synData():
         updateUserResearch(uid, researches)
     if 'update' in request.form:
         update = json.loads(request.form['update'])
+        for build in update:
+            if build[2]==1002:
+                ext = build[6]
+                oldExt = queryOne("SELECT `extend` FROM nozomi_build WHERE id=%s AND bid=1002", (uid))
+                if oldExt!=None:
+                    oldExt = oldExt[0]
+                    if oldExt!="" and 'research' not in request.form:
+                        build[6]=oldExt
+                break
         updateUserBuilds(uid, update)
     updateUserInfoById(userInfoUpdate, uid)
     updateUserState(uid, int(request.form.get("eid", 0)))

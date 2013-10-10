@@ -62,7 +62,7 @@ def myInsort(a, x):
         else: lo = mid+1
     a.insert(lo, x)
 
-def updateScore(myCon, uid, newScore):
+def updateScore(myCon, uid, newScore, force=False):
     #don't care about oldScore
     """
     oldScore = -1
@@ -81,8 +81,9 @@ def updateScore(myCon, uid, newScore):
         oldScore = res[0]['score']
     #积分变动太大了
     print oldScore, newScore
-    if abs(newScore-oldScore) > 200:
-        return
+    if not force:
+        if abs(newScore-oldScore) > 200:
+            return
 
     #更新用户的得分
     #更新搜索对手表格
