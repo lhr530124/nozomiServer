@@ -84,6 +84,10 @@ def cacheBuilding(uid):
             rserver.hmset("build:%d:%d"%(uid, i[0]), {"grid":i[1], "state":i[2], "bid":i[3], "level":i[4], })
         rserver.set("user:%d"%(uid), 1)
 
-
+import re
+def filter4utf8(s):
+    print "filter string"
+    highpoints = re.compile(u'[\U00010000-\U0010ffff]')
+    return highpoints.sub(u'', s)
 
     
