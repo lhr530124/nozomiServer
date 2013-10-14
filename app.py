@@ -303,8 +303,11 @@ def getUidByName(account):
 def updateCrystal(uid, crystal):
     update("UPDATE `nozomi_user` SET crystal=crystal+%s WHERE id=%s", (crystal, uid))
 
-def checkUserReward(uid):
-    allRewards = queryAll("SELECT reward, remark FROM `nozomi_reward` WHERE uid=%s", (uid))
+def checkUserReward(uid, ln=0):
+    remark = "remark"
+    if ln==1:
+        remark = "remark_cn"
+    allRewards = queryAll("SELECT reward, "+remark+" FROM `nozomi_reward` WHERE uid=%s", (uid))
     if allRewards!=None and len(allRewards)>0:
         sumReward = 0
         for rewardItem in allRewards:
@@ -321,12 +324,12 @@ def updatePurchaseCrystal(uid, crystal, ctype):
     else:
         update("UPDATE `nozomi_user` SET totalCrystal=totalCrystal+%s WHERE id=%s", (crystal, uid))
 
+platformIds = dict(ios=0, android=1, android_our=2, android_german=3, ios_cn=4)
+
 def initUser(username, nickname, platform):
     print "initUser", username, nickname
     regTime = int(time.mktime(time.localtime()))
-    platformId = 0
-    if platform=="android":
-        platformId=1
+    platformId = platformIds.get(platform, 0)
     initScore = 500
     #uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
     uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime) VALUES(%s, %s, %s, %s, 500, 497, 0, %s, %s)", (username, regTime, nickname, util.getTime(), platformId, regTime))
@@ -409,7 +412,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [2,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, False]
+settings = [3,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -418,12 +421,30 @@ def getData():
     data = None
     if "login" in request.args:
         version = request.args.get("version", 0, type=int)
+        platform = "ios"
+        if 'platform' in request.args:
+            platform = request.args['platform']
+        language = 0
+        if platform=="ios_cn":
+            language=1
+        if 'language' in request.args:
+            language = request.args['language']
         ret = None
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
             if checkVersion<settings[0]:
                 country = request.args.get('country',"us").lower()
-                ret = dict(serverUpdate=1,title="New Version",content="Please update your version, the updates is:\n1.test the line break;\n2. fix some bug\n3.more than 4 lines?\nnot the first char.4\nover.", button1="Update Now", button2="Later")
+                ret = dict(serverUpdate=1)
+                if language==0:
+                    ret['title'] = "Version 3.0"
+                    ret['content']="Leagues War is Coming now!"
+                    ret['button1']="Update Now"
+                    ret['button2']="Later"
+                else:
+                    ret['title'] = "3.0版本"
+                    ret['content'] = "联盟战上线啦！"
+                    ret['button1']="立即更新"
+                    ret['button2']="稍后更新"
                 if country in updateUrls:
                     ret['url'] = updateUrls[country]
                 else:
@@ -446,12 +467,16 @@ def getData():
         data = getUserAllInfos(uid)
         if ret!=None:
             data.update(ret)
-        data['serverTime'] = int(time.mktime(time.localtime()))
+        t = int(time.mktime(time.localtime()))
+        data['serverTime'] = t
+        #while t>util.leagueWarStartTime:
+        #    util.leagueWarStartTime = util.leagueWarStartTime+86400*14
+        #while t>util.leagueWarEndTime:
+        #    util.leagueWarEndTime = util.leagueWarEndTime+86400*14
+        data['leagueWarTime'] = util.leagueWarEndTime
+        data['nextLeagueWarTime'] = util.leagueWarStartTime
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
-        platform = "ios"
-        if 'platform' in request.args:
-            platform = request.args['platform']
         #if data['registerTime']>newbieCup[0]:
         #    data['newbieTime'] = newbieCup[1]
         #data.pop('registerTime')
@@ -471,7 +496,7 @@ def getData():
                         dailyModule.loginWithDays(uid, days)
                     data['crystal'] = data['crystal']+reward
                 data['reward'] = reward
-            ret = checkUserReward(uid)
+            ret = checkUserReward(uid, language)
             if ret!=None:
                 data['crystal'] = data['crystal']+ret[0]
                 data['rewards'] = ret[1]
@@ -889,6 +914,10 @@ def clearBattleState():
 def getLeagueRank():
     return json.dumps(ClanModule.getTopClans())
 
+@app.route("/getCaesarsCupRank", methods=['GET'])
+def getCaesarsCupRank():
+    return json.dumps(ClanModule.getTopClans2())
+
 @app.route("/getNewbieRank", methods=['GET'])
 def getNewbieRank():
     return json.dumps(getTopNewbies())
@@ -939,6 +968,13 @@ def synLuaError():
     error = request.form.get("error","")
     testlogger.info("userId:%d\n%s" % (uid,error))
     return "success"
+@app.route('/updateTime')
+def updateTime():
+    start = queryOne('select value from activity where `key` = "startTime"')[0]
+    end = queryOne('select value from activity where `key` = "endTime"')[0]
+    util.leagueWarStartTime =  int(time.mktime(json.loads(start)))
+    util.leagueWarEndTime = int(time.mktime(json.loads(end))) 
+    return jsonify(dict(code=1))
 
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
