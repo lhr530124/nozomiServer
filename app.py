@@ -397,6 +397,10 @@ def login():
             loginlogger.info("%s\t%d\treg" % (platform,uid))
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
+        else:
+            ban = queryOne('select ban from nozomi_user where id = %s', (uid))[0]
+            if ban != 0:
+                abort(401)
 
         return json.dumps(ret)
     else:
@@ -723,8 +727,10 @@ def synBattleData():
             ecid = int(request.form.get('ecid', 0))
             ClanModule.changeBattleState(uid, eid, cid, ecid, bid, videoId, lscore)
         if 'history' in request.form:
-            update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s)", (eid, uid, videoId, int(time.mktime(time.localtime())), request.form['history'], reverged))
+            print "insert history filter"
+            update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s)", (eid, uid, videoId, int(time.mktime(time.localtime())), util.filter4utf8(request.form['history']), reverged))
     return json.dumps({'code':0})
+
 
 @app.route("/findEnemy", methods=['GET'])
 def findEnemy():
