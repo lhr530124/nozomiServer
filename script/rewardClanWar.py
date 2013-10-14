@@ -20,12 +20,19 @@ total = 0
 totalc = 0
 for i in res:
     cid = i["id"]
-    sql = 'select id from nozomi_user where clan = %d' % (cid)
+    sql = 'select id, lscore from nozomi_user where clan = %d' % (cid)
     myCon.query(sql)
     allUser = myCon.store_result().fetch_row(0, 1)
     rc = reward[min(len(reward)-1, num)]
+
+    sql = 'select score2 from nozomi_clan where id = %d' % (cid)
+    myCon.query(sql)
+    res = myCon.store_result().fetch_row(0, 1)
+    score2 = res[0]["score2"]
+    nu = len(allUser)
+
     for u in allUser:
-        sql = 'insert into nozomi_reward (uid, reward, remark, remark_cn) values(%d, %d, "%s", "%s")' % (u["id"], rc, "Clan War NO.%d reward %d" % (num+1, rc), "联盟战 排名%d 奖励%d" % (num+1, rc))
+        sql = 'insert into nozomi_reward (uid, reward, remark, remark_cn) values(%d, %d, "%s", "%s")' % (u["id"], rc, "Your League get %d points, ranked %d, received %d crystals as total rewards\nYour Exploit is %d, get %d crystal as rewards" % (score2, num+1, rc*nu, u['lscore'], rc), "你的联盟获得了k1积分， 排名%d， 奖励%d水晶\n你的联盟功勋为k4,奖励水晶k5" % (num+1, rc))
         myCon.query(sql)
         total = total+1
         totalc = totalc+rc
