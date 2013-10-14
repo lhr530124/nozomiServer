@@ -937,6 +937,7 @@ def synLuaError():
 def checkAds():
     uid = request.args.get('uid', 0, type=int)
     res = queryOne('select ads from ads where uid = %s', (uid))
+    print "checkAds", uid, res
     if res == None:
         return jsonify(dict(ads=0))
     return jsonify(dict(ads=res[0]))
