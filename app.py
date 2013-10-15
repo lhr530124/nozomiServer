@@ -458,6 +458,8 @@ def getData():
                         url = queryOne("SELECT url FROM nozomi_ios_update_url WHERE country='us'")[0]
                         updateUrls['us'] = url
                         ret['url'] = url
+                if platform=="ios_cn":
+                    ret['url'] = ret['url'].replace("608847384","666289981")
                 if settings[2]==True:
                     ret['forceUpdate']=1
                     return json.dumps(ret)
