@@ -125,10 +125,7 @@ def leaveClan(uid, cid):
         state = clan[9]
         if clan[6]==1:
             state = 0
-        s2 = lscore
-        if not util.isInWar():
-            s2=0
-        update("UPDATE `nozomi_clan` SET members=members-1, score=score-%s, score2=score2-%s, state=%s WHERE id=%s", (lscore, s2, state, cid))
+        update("UPDATE `nozomi_clan` SET members=members-1, score=score-%s, state=%s WHERE id=%s", (lscore, state, cid))
         return clan
     return None
 
