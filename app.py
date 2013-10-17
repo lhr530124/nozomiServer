@@ -158,7 +158,7 @@ def user_not_login(error):
 
 platformIds = dict(ios=0,android=1,android_mm=2,android_dx=3,android_daqin=4, android_wiipay=5, android_astep=6)
 
-newbieCup = [int(time.mktime((2013,6,31,0,0,0,0,0,0)))-util.beginTime, int(time.mktime((2013,9,10,0,0,0,0,0,0)))]
+newbieCup = [int(time.mktime((2013,10,17,10,0,0,0,0,0)))-util.beginTime, int(time.mktime((2013,10,18,0,0,0,0,0,0)))]
 
 dataBuilds = [
               [1, 170018, 1, 1, 0, 1500, "{\"oil\":1000,\"food\":1000}"],
@@ -425,16 +425,15 @@ def getData():
         platform = "ios"
         if 'platform' in request.args:
             platform = request.args['platform']
-        language = 0
-        if platform=="ios_cn":
-            language=1
-        if 'language' in request.args:
-            language = request.args['language']
+        language = 1
+        #if 'language' in request.args:
+        #    language = request.args['language']
         ret = None
-        if 'check' in request.args:
+        if False:
+        #if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
             if checkVersion<settings[0]:
-                country = request.args.get('country',"us").lower()
+                country = request.args.get('country',"cn").lower()
                 ret = dict(serverUpdate=1)
                 if language==0:
                     ret['title'] = "Version 3.0"
@@ -480,10 +479,6 @@ def getData():
         data['nextLeagueWarTime'] = util.leagueWarStartTime
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
-
-        platform = "ios"
-        if 'platform' in request.args:
-            platform = request.args['platform']
         #ios new user cup
         if data['registerTime']>newbieCup[0]:
             data['newbieTime'] = newbieCup[1]
@@ -494,7 +489,6 @@ def getData():
             if days>0:
                 data['days']=days
                 reward = int((50+30*days)**0.5+0.5)
-                version = request.args.get("version", 0, type=int)
                 if version==0 or (days!=7 and days!=14 and days!=30):
                     updateCrystal(uid, reward)
                     if version==0 and (days==7 or days==14 or days==30):

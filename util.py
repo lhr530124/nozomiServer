@@ -44,6 +44,9 @@ def getAbsYesterday():
 
 #奇数偶数
 def getDBID(uid):
+    #only one database in chinese
+    return 0
+
     return (uid+1)%2
 
     """
@@ -73,8 +76,6 @@ def restoreBuilds(uid):
         res = queryAll('select id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend from nozomi_build where id = %s', (uid), 0)
         executemany("INSERT ignore INTO nozomi_build (id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)", res, did)
     return
-
-
 
     
 
