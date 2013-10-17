@@ -1,5 +1,3 @@
-//user register for system push notification 
-//listen to  channel uid
 var createServer = require("http").createServer;
 var sys = require("sys");
 var url = require("url");
@@ -68,7 +66,7 @@ ser.listen=function(port, host){
 };
 
 HOST = null;
-port = 9100;
+port = 8005;
 
 var channels = {};//cid channel
 function createChannel(cid)
@@ -78,7 +76,6 @@ function createChannel(cid)
         return channel;
 
     function deleteMsg(msg) {
-        /*
         pool.getConnection(function(err, connection) {
             console.log("connection Error", err);
             connection.query(
@@ -89,7 +86,6 @@ function createChannel(cid)
             });
 
         });
-        */
     }
 
     var channel = new function() {
@@ -99,7 +95,6 @@ function createChannel(cid)
         var lastTime = 0;
         //异步的初始化channel 所以要等 channel 初始化结束了 才能返回数据
         function initMessage() {
-            /*
             pool.getConnection(function(err, connection) {
                 console.log("connection Error", err);
                 connection.query(
@@ -136,9 +131,10 @@ function createChannel(cid)
                 });
 
             });
-            */
         }
-    
+
+
+
         //多种类型消息 appendMessage
         this.appendMessage = function(uid, name, type, text){
             uid = parseInt(uid, 10)
@@ -192,7 +188,6 @@ function createChannel(cid)
                 lastTime = cur;
             m = [0, type, info, cur-beginTime, "sys"];
 
-            /*
             pool.getConnection(function(err, connection) {
                 console.log("connection Error", err);
                 connection.query(
@@ -203,7 +198,6 @@ function createChannel(cid)
                 });
 
             });
-            */
 
             messages.push(m);
             while(messages.length>100) {
@@ -303,9 +297,7 @@ function createChannel(cid)
             //}
         };
         this.query=function(since, callback){
-            var matching = messages;
-            
-            /*
+            var matching = [];
             for(var i = 0; i < messages.length; i++){
                 var message = messages[i];
                 if(message[3] > since) {
@@ -318,17 +310,14 @@ function createChannel(cid)
                     matching.push(donate);
                 }
             }
-            */
+
             if(matching.length > 0)//have message to send callback
                 callback(matching);
             else
                 callbacks.push({timestamp:new Date(), callback: callback});//no message just hold on 
-            //clear User tapjoy reward crystal infomation
-            messages = [];
         };
-
         //从数据库初始化 消息 
-        //initMessage();
+        initMessage();
         console.log("msg Length", messages.length);
 
         setInterval(function(){//remove long callbacks
