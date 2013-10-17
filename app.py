@@ -17,6 +17,7 @@ import config
 import module
 
 from base64 import b64decode
+import md5
 from M2Crypto import RSA
 
 #from requestlogger import WSGILogger, ApacheFormatter
@@ -321,7 +322,7 @@ def initUser(username, nickname, platform):
     platformId = platformIds.get(platform, 0)
     initScore = 500
     #uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
-    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime) VALUES(%s, %s, %s, %s, 500, 497, 0, %s, %s)", (username, regTime, nickname, util.getTime(), platformId, regTime))
+    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime) VALUES(%s, %s, %s, %s, 500, 497, 0, %s, %s)", (username, regTime, nickname, util.getTime(), platformId, 0))
 
     myCon = getConn()
     module.UserRankModule.initUserScore(myCon, uid, initScore)
@@ -940,7 +941,7 @@ def ppLogin():
     return "false"
 
 g_rsa_foo = RSA.load_pub_key("ppPublic.pem")
-
+        
 @app.route("/ppVerify", methods=['POST'])
 def ppVerify():
     sign = request.form.get('sign')
@@ -959,6 +960,22 @@ def ppVerify():
             updateCrystal(uid, crystal)
         return "success"
     return "fail"
+
+
+@app.route('/tapjoy')
+def tapjoy():
+    snuid = request.args.get("snuid", None, type=str)
+    currency = request.args.get("currency", None, type=str)
+    mac_address = request.args.get("mac_address", None, type=str)
+    print "tapjoy", str(request.args)
+    update('update nozomi_user set crystal = crystal+%s where id = %s', (currency, snuid))
+    update('insert into tapjoy (uid, currency, mac_address) value(%s, %s, %s)', (snuid, currency, mac_address))
+
+     
+    req = urllib2.Request("http://localhost:9100/sys?cid=%s&type=%s&info=%s" % (snuid, "tapjoy", currency))
+    rep = urllib2.urlopen(req)
+    return jsonify(dict(code=1))
+
 
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
