@@ -9,6 +9,15 @@ data = {'username':'liyongtestlog', 'nickname':'liyong'}
 #'nickname': 'TEST%d' % (i),
 #}
 req2(r, data)
+#没有这个建筑 有 科研建筑
+
+r = base2+'synData'
+data = {
+'uid':2, 
+'update':json.dumps([[100, 100, 1002, 5, 5, 10, '']]), 
+'research':json.dumps([1, 2, 2, 2, 2, 2, 2, 2, 2, 2]),
+}
+req2(r, data)
 
 """
 r = base2+'getData?uid=3'

@@ -68,8 +68,8 @@ def executemany(sql, params, dbID=0):
     cur.close()
     con.close()
 
-def queryOne(sql, params=None):
-    con = getConn()
+def queryOne(sql, params=None, dbID=0):
+    con = getConn(dbID=dbID)
     cur = con.cursor()
     rowcount = 0
     if params == None:

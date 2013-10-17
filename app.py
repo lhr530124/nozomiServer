@@ -33,10 +33,11 @@ import IpSocketHandler
 from MySQLdb import cursors, connections
 from werkzeug.contrib.fixers import ProxyFix
 
-rootLogger = logging.getLogger('')
-rootLogger.setLevel(logging.INFO)
-socketHandler = IpSocketHandler.IpSocketHandler(config.LOG_HOST, config.LOG_PORT)
-rootLogger.addHandler(socketHandler)
+if not config.DEBUG:
+    rootLogger = logging.getLogger('')
+    rootLogger.setLevel(logging.INFO)
+    socketHandler = IpSocketHandler.IpSocketHandler(config.LOG_HOST, config.LOG_PORT)
+    rootLogger.addHandler(socketHandler)
 
 #mysqlLogHandler = TimedRotatingFileHandler('mysqlLog.log', 'd', 1)
 mysqllogger = logging.getLogger("mysqlLogger")
@@ -254,6 +255,7 @@ def getJsonObj(string):
         return json.loads(string)
     
 def getUserBuilds(uid):
+    util.restoreBuilds(uid)
     builds = queryAll("SELECT buildIndex, grid, bid, level, time, hitpoints, extend FROM nozomi_build WHERE id=%s AND state=0", (uid), util.getDBID(uid))
     return builds
 
@@ -261,12 +263,14 @@ def deleteUserBuilds(uid, buildIndexes):
     params = []
     for bindex in buildIndexes:
         params.append([uid, bindex])
+    util.restoreBuilds(uid)
     executemany("UPDATE nozomi_build SET state=1 WHERE id=%s AND buildIndex=%s", params, dbID=util.getDBID(uid))
 
 def updateUserBuilds(uid, datas):
     params = []
     for data in datas:
         params.append([uid, data[0], data[1], data[2], data[3], data[4], data[5], data[6]])
+    util.restoreBuilds(uid)
     executemany("INSERT INTO nozomi_build (id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend) VALUES(%s,%s,%s,0,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE grid=VALUES(grid),state=0,bid=VALUES(bid),level=VALUES(level),`time`=VALUES(time),hitpoints=VALUES(hitpoints),extend=VALUES(extend);", params, util.getDBID(uid))
 
 def getUserResearch(uid):
@@ -280,12 +284,14 @@ def updateUserBuildHitpoints(uid, datas):
     params = []
     for data in datas:
         params.append([data[1], uid, data[0]])
+    util.restoreBuilds(uid)
     executemany("UPDATE nozomi_build SET hitpoints=%s WHERE id=%s AND buildIndex=%s", params, util.getDBID(uid))
 
 def updateUserBuildExtends(uid, datas):
     params = []
     for data in datas:
         params.append([data[1], uid, data[0]])
+    util.restoreBuilds(uid)
     executemany("UPDATE nozomi_build SET extend=%s WHERE id=%s AND buildIndex=%s", params, util.getDBID(uid))
 
 def getUidByName(account):
@@ -298,8 +304,11 @@ def getUidByName(account):
 def updateCrystal(uid, crystal):
     update("UPDATE `nozomi_user` SET crystal=crystal+%s WHERE id=%s", (crystal, uid))
 
-def checkUserReward(uid):
-    allRewards = queryAll("SELECT reward, remark FROM `nozomi_reward` WHERE uid=%s", (uid))
+def checkUserReward(uid, ln=0):
+    remark = "remark"
+    if ln==1:
+        remark = "remark_cn"
+    allRewards = queryAll("SELECT reward, "+remark+" FROM `nozomi_reward` WHERE uid=%s", (uid))
     if allRewards!=None and len(allRewards)>0:
         sumReward = 0
         for rewardItem in allRewards:
@@ -315,6 +324,8 @@ def updatePurchaseCrystal(uid, crystal, ctype):
         update("UPDATE `nozomi_user` SET totalCrystal=totalCrystal+%s, lastOffTime=%s WHERE id=%s", (crystal, time.mktime(time.localtime()), uid))
     else:
         update("UPDATE `nozomi_user` SET totalCrystal=totalCrystal+%s WHERE id=%s", (crystal, uid))
+
+platformIds = dict(ios=0, android=1, android_our=2, android_german=3, ios_cn=4)
 
 def initUser(username, nickname, platform):
     #print "initUser", username, nickname
@@ -389,6 +400,11 @@ def login():
             loginlogger.info("%s\t%d\treg" % (platform,uid))
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
+        else:
+            ban = queryOne('select ban from nozomi_user where id = %s', (uid))[0]
+            if ban != 0:
+                abort(401)
+
         return json.dumps(ret)
     else:
         #time.sleep(209) 
@@ -397,7 +413,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [2,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, False]
+settings = [3,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -406,12 +422,30 @@ def getData():
     data = None
     if "login" in request.args:
         version = request.args.get("version", 0, type=int)
+        platform = "ios"
+        if 'platform' in request.args:
+            platform = request.args['platform']
+        language = 0
+        if platform=="ios_cn":
+            language=1
+        if 'language' in request.args:
+            language = request.args['language']
         ret = None
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
             if checkVersion<settings[0]:
                 country = request.args.get('country',"us").lower()
-                ret = dict(serverUpdate=1,title="New Version",content="Please update your version, the updates is:\n1.test the line break;\n2. fix some bug\n3.more than 4 lines?\nnot the first char.4\nover.", button1="Update Now", button2="Later")
+                ret = dict(serverUpdate=1)
+                if language==0:
+                    ret['title'] = "Version 3.0"
+                    ret['content']="Leagues War is Coming now!"
+                    ret['button1']="Update Now"
+                    ret['button2']="Later"
+                else:
+                    ret['title'] = "3.0版本"
+                    ret['content'] = "联盟战上线啦！"
+                    ret['button1']="立即更新"
+                    ret['button2']="稍后更新"
                 if country in updateUrls:
                     ret['url'] = updateUrls[country]
                 else:
@@ -425,6 +459,8 @@ def getData():
                         url = queryOne("SELECT url FROM nozomi_ios_update_url WHERE country='us'")[0]
                         updateUrls['us'] = url
                         ret['url'] = url
+                if platform=="ios_cn":
+                    ret['url'] = ret['url'].replace("608847384","666289981")
                 if settings[2]==True:
                     ret['forceUpdate']=1
                     return json.dumps(ret)
@@ -434,9 +470,17 @@ def getData():
         data = getUserAllInfos(uid)
         if ret!=None:
             data.update(ret)
-        data['serverTime'] = int(time.mktime(time.localtime()))
+        t = int(time.mktime(time.localtime()))
+        data['serverTime'] = t
+        #while t>util.leagueWarStartTime:
+        #    util.leagueWarStartTime = util.leagueWarStartTime+86400*14
+        #while t>util.leagueWarEndTime:
+        #    util.leagueWarEndTime = util.leagueWarEndTime+86400*14
+        data['leagueWarTime'] = util.leagueWarEndTime
+        data['nextLeagueWarTime'] = util.leagueWarStartTime
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
+
         platform = "ios"
         if 'platform' in request.args:
             platform = request.args['platform']
@@ -457,7 +501,7 @@ def getData():
                         dailyModule.loginWithDays(uid, days)
                     data['crystal'] = data['crystal']+reward
                 data['reward'] = reward
-            ret = checkUserReward(uid)
+            ret = checkUserReward(uid, language)
             if ret!=None:
                 data['crystal'] = data['crystal']+ret[0]
                 data['rewards'] = ret[1]
@@ -562,7 +606,7 @@ def verifyIAP():
 
 @app.route("/synData", methods=['POST'])
 def synData():
-    #print 'synData', request.form
+    print 'synData', request.form
     uid = int(request.form.get("uid", 0))
     if uid==0:
         return json.dumps({'code':401})
@@ -622,7 +666,8 @@ def synData():
         for build in update:
             if build[2]==1002:
                 ext = build[6]
-                oldExt = queryOne("SELECT `extend` FROM nozomi_build WHERE id=%s AND bid=1002", (uid))
+                util.restoreBuilds(uid)
+                oldExt = queryOne("SELECT `extend` FROM nozomi_build WHERE id=%s AND bid=1002", (uid), util.getDBID(uid))
                 if oldExt!=None:
                     oldExt = oldExt[0]
                     if oldExt!="" and 'research' not in request.form:
@@ -633,6 +678,10 @@ def synData():
     updateUserState(uid, int(request.form.get("eid", 0)))
     if 'stat' in request.form:
         statlogger.info("%s\t%d\t%s" % (platform, uid, request.form['stat']))
+
+    if 'bcl' in request.form:
+        testlogger.info("[BuyCrystalList]%d\t%s" % (uid, request.form['bcl']))
+
     loginlogger.info("%s\t%d\tsynData" % (platform,uid))
     return json.dumps({'code':0})
 
@@ -686,8 +735,10 @@ def synBattleData():
             ecid = int(request.form.get('ecid', 0))
             ClanModule.changeBattleState(uid, eid, cid, ecid, bid, videoId, lscore)
         if 'history' in request.form:
-            update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s)", (eid, uid, videoId, int(time.mktime(time.localtime())), request.form['history'], reverged))
+            print "insert history filter"
+            update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s)", (eid, uid, videoId, int(time.mktime(time.localtime())), util.filter4utf8(request.form['history']), reverged))
     return json.dumps({'code':0})
+
 
 @app.route("/findEnemy", methods=['GET'])
 def findEnemy():
@@ -870,6 +921,10 @@ def clearBattleState():
 def getLeagueRank():
     return json.dumps(ClanModule.getTopClans())
 
+@app.route("/getCaesarsCupRank", methods=['GET'])
+def getCaesarsCupRank():
+    return json.dumps(ClanModule.getTopClans2())
+
 @app.route("/getNewbieRank", methods=['GET'])
 def getNewbieRank():
     return json.dumps(getTopNewbies())
@@ -924,6 +979,13 @@ def synLuaError():
     error = request.form.get("error","")
     testlogger.info("userId:%d\n%s" % (uid,error))
     return "success"
+@app.route('/updateTime')
+def updateTime():
+    start = queryOne('select value from activity where `key` = "startTime"')[0]
+    end = queryOne('select value from activity where `key` = "endTime"')[0]
+    util.leagueWarStartTime =  int(time.mktime(json.loads(start)))
+    util.leagueWarEndTime = int(time.mktime(json.loads(end))) 
+    return jsonify(dict(code=1))
 
 @app.route("/ppLogin", methods=['POST'])
 def ppLogin():
