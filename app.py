@@ -428,39 +428,6 @@ def getData():
         if 'language' in request.args:
             language = request.args['language']
         ret = None
-        if 'check' in request.args:
-            checkVersion = request.args.get("checkVersion", 0, type=int)
-            if checkVersion<settings[0]:
-                country = request.args.get('country',"us").lower()
-                ret = dict(serverUpdate=1)
-                if language==0:
-                    ret['title'] = "Version 3.0"
-                    ret['content']="Leagues War is Coming now!"
-                    ret['button1']="Update Now"
-                    ret['button2']="Later"
-                else:
-                    ret['title'] = "3.0版本"
-                    ret['content'] = "联盟战上线啦！"
-                    ret['button1']="立即更新"
-                    ret['button2']="稍后更新"
-                if country in updateUrls:
-                    ret['url'] = updateUrls[country]
-                else:
-                    url = queryOne("SELECT url FROM nozomi_ios_update_url WHERE country=%s",(country))
-                    if url!=None:
-                        updateUrls[country] = url[0]
-                        ret['url'] = url[0]
-                    elif 'us' in updateUrls:
-                        ret['url'] = updateUrls['us']
-                    else:
-                        url = queryOne("SELECT url FROM nozomi_ios_update_url WHERE country='us'")[0]
-                        updateUrls['us'] = url
-                        ret['url'] = url
-                if platform=="ios_cn":
-                    ret['url'] = ret['url'].replace("608847384","666289981")
-                if settings[2]==True:
-                    ret['forceUpdate']=1
-                    return json.dumps(ret)
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
@@ -469,38 +436,11 @@ def getData():
             data.update(ret)
         t = int(time.mktime(time.localtime()))
         data['serverTime'] = t
-        #while t>util.leagueWarStartTime:
-        #    util.leagueWarStartTime = util.leagueWarStartTime+86400*14
-        #while t>util.leagueWarEndTime:
-        #    util.leagueWarEndTime = util.leagueWarEndTime+86400*14
         data['leagueWarTime'] = util.leagueWarEndTime
         data['nextLeagueWarTime'] = util.leagueWarStartTime
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
-        #if data['registerTime']>newbieCup[0]:
-        #    data['newbieTime'] = newbieCup[1]
-        #data.pop('registerTime')
         data['achieves'] = achieveModule.getAchieves(uid)
-        print 'guide', data['guide']
-        if data['guide']>=1400:
-            days = 0
-            if data['registerTime'] < settings[1]:
-                days = dailyModule.dailyLogin(uid)
-            print 'days', days
-            if days>0:
-                data['days']=days
-                reward = int((50+30*days)**0.5+0.5)
-                if version==0 or (days!=7 and days!=14 and days!=30):
-                    updateCrystal(uid, reward)
-                    if version==0 and (days==7 or days==14 or days==30):
-                        dailyModule.loginWithDays(uid, days)
-                    data['crystal'] = data['crystal']+reward
-                data['reward'] = reward
-            ret = checkUserReward(uid, language)
-            if ret!=None:
-                data['crystal'] = data['crystal']+ret[0]
-                data['rewards'] = ret[1]
-        loginlogger.info("%s\t%d\tlogin" % (platform,uid))
     else:
         data = getUserInfos(uid)
     if data['clan']>0:
@@ -523,6 +463,7 @@ def getData():
         elif build[2]==2004:
             try:
                 check = json.loads(build[6])
+                print(build)
                 if check['resource'] == 0:
                     errorBuilderNum = errorBuilderNum+1
                     builders.append(build)
@@ -532,15 +473,16 @@ def getData():
             #if build[6]=='{"resource":0}':
         if build[4]>0:
             errorBuilderNum = errorBuilderNum-1
+            print(build)
+    print(errorBuilderNum)
     while errorBuilderNum>0:
         errorBuilderNum = errorBuilderNum-1
         builders[errorBuilderNum][6]='{"resource":1}'
         repairDatas.append([builders[errorBuilderNum][0],'{"resource":1}'])
 
-    if len(repairDatas)>0:
-        testlogger.info("repair data %d:%s" % (uid, json.dumps(repairDatas)))
-        if 'login' in request.args:
-            updateUserBuildExtends(uid, repairDatas)
+    #if len(repairDatas)>0:
+    #    #if 'login' in request.args:
+    #    #    updateUserBuildExtends(uid, repairDatas)
     data['builds']=builds
     return json.dumps(data)
 
