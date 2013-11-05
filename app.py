@@ -410,7 +410,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [3,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True]
+settings = [4,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -434,13 +434,13 @@ def getData():
                 country = request.args.get('country',"us").lower()
                 ret = dict(serverUpdate=1)
                 if language==0:
-                    ret['title'] = "Version 3.0"
-                    ret['content']="Leagues War is Coming now!"
+                    ret['title'] = "Version 3.1"
+                    ret['content']="1. Released Missile Factory;\n2. Released Kick-out Function;\n3. Released Share Rewards;\n4. Fixed some bugs."
                     ret['button1']="Update Now"
                     ret['button2']="Later"
                 else:
-                    ret['title'] = "3.0版本"
-                    ret['content'] = "联盟战上线啦！"
+                    ret['title'] = "3.1版本"
+                    ret['content'] = "1. 上线导弹工厂，可以建造超级武器啦！\n2. 上线了踢出功能，盟主可以踢出成员啦！\n3. 上线了分享奖励免费水晶功能！\n4. 修复了若干bug。"
                     ret['button1']="立即更新"
                     ret['button2']="稍后更新"
                 if country in updateUrls:
@@ -456,8 +456,8 @@ def getData():
                         url = queryOne("SELECT url FROM nozomi_ios_update_url WHERE country='us'")[0]
                         updateUrls['us'] = url
                         ret['url'] = url
-                if platform=="ios_cn":
-                    ret['url'] = ret['url'].replace("608847384","666289981")
+                #if platform=="ios_cn":
+                #    ret['url'] = ret['url'].replace("608847384","666289981")
                 if settings[2]==True:
                     ret['forceUpdate']=1
                     return json.dumps(ret)
@@ -967,7 +967,8 @@ def checkBuyRecord():
 def synLuaError():
     uid = request.form.get('uid', 0, type=int)
     error = request.form.get("error","")
-    testlogger.info("userId:%d\n%s" % (uid,error))
+    platform = request.form.get("error","")
+    testlogger.info("userId:%d,platform:%s\n%s" % (uid,platform,error))
     return "success"
 @app.route('/updateTime')
 def updateTime():
