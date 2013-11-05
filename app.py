@@ -516,10 +516,13 @@ def getData():
     for build in builds:
         if build[2]==1002:
             if build[6]!="":
-                rid = json.loads(build[6])['rid']
-                if data['researches'][rid-1]==5:
-                    build[6]=""
-                    repairDatas.append([build[0],""])
+                try:
+                    rid = json.loads(build[6])['rid']
+                    if data['researches'][rid-1]==5:
+                        build[6]=""
+                        repairDatas.append([build[0],""])
+                except:
+                    print "research data error"
         elif build[2]==2004:
             try:
                 check = json.loads(build[6])
