@@ -142,7 +142,7 @@ def checkFindLeagueAuth(uid, cid):
 def findLeagueEnemy(cid, score):
     curTime = int(time.mktime(time.localtime()))
     scoreOff = 500
-    scoreMax = 1000
+    scoreMax = 2000
     inWar = util.isInWar()
     sql1 = "SELECT MIN(id), MAX(id) FROM `nozomi_clan` WHERE score>%s AND score<%s AND state=1 AND members>0"
     sql2 = "SELECT id,icon,score,`type`,name,`desc`,members FROM `nozomi_clan` WHERE id>=%s AND id!=%s AND state=1 AND statetime<%s AND score>%s AND score<%s AND members>0 LIMIT 1"
@@ -150,9 +150,9 @@ def findLeagueEnemy(cid, score):
         score = queryOne("SELECT score2 FROM `nozomi_clan` WHERE id=%s", (cid))[0]
         sql1 = "SELECT MIN(id), MAX(id) FROM `nozomi_clan` WHERE score2>%s AND score2<%s AND state=1 AND members>0"
         sql2 = "SELECT id,icon,score,`type`,name,`desc`,members FROM `nozomi_clan` WHERE id>=%s AND id!=%s AND state=1 AND statetime<%s AND score2>%s AND score2<%s AND members>0 LIMIT 1"
-    elif score>2000:
-        scoreOff=1000
-        scoreMax=4000
+    elif score>4000:
+        scoreMax=score
+        scoreOff=scoreMax/4
     while scoreOff<=scoreMax:
         minScore = score-scoreOff
         maxScore = score+scoreOff
