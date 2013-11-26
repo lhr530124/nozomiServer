@@ -318,6 +318,47 @@ def checkUserReward(uid, ln=0):
     else:
         return None
 
+def newUserLogin(uid):
+    today = datetime.date.today()
+    ret = queryOne("SELECT regDate,loginDate,loginDays,maxLDays,curLDays FROM `nozomi_login_new` WHERE `id`=%s", (uid))
+    leftDay = 10
+    newGift = 0
+    if ret!=None:
+        timedelta = (today-ret[0]).days
+        if timedelta>10:
+            leftDay = 0
+        else:
+            leftDay = 10-timedelta
+        timedelta = (today-ret[1]).days
+        if timedelta>0:
+            loginDays = ret[2]+1
+            if loginDays<7:
+                newGift = loginDays
+            curLDays = 1
+            maxLDays = ret[3]
+            if timedelta==1:
+                curLDays = ret[4]+1
+                if curLDays>maxLDays:
+                    maxLDays = curLDays
+            update("UPDATE `nozomi_login_new` SET loginDate=%s,loginDays=%s,maxLDays=%s,curLDays=%s WHERE `id`=%s",(today,loginDays,maxLDays,curLDays,uid))
+    else:
+        newGift = 1
+        update("INSERT INTO `nozomi_login_new` (`id`,regDate,loginDate,loginDays,maxLDays,curLDays) VALUES(%s,%s,%s,1,1,1)", (uid, today, today))
+    if newGift>0:
+        reward = [[1,800],[1,1500],[0,50],[1,3000],[1,5000],[0,100]][newGift-1]
+        update("INSERT INTO `nozomi_reward_new` (uid,`type`,`rtype`,`rvalue`,`info`) VALUES(%s,%s,%s,%s,%s)", (uid,1,reward[0],reward[1],json.dumps(dict(day=newGift))))
+    return leftDay
+
+def getUserRewardsNew(uid):
+    allRewards = queryAll("SELECT `id`,`type`,`rtype`,`rvalue`,`info` FROM `nozomi_reward_new` WHERE uid=%s", (uid))
+    if allRewards!=None and len(allRewards)>0:
+        return allRewards
+    else:
+        return []
+
+def deleteUserRewards(rwList):
+    executemany("DELETE FROM `nozomi_reward_new` WHERE id=%s", rwList)
+
 def updatePurchaseCrystal(uid, crystal, ctype):
     if ctype>4:
         update("UPDATE `nozomi_user` SET totalCrystal=totalCrystal+%s, lastOffTime=%s WHERE id=%s", (crystal, time.mktime(time.localtime()), uid))
@@ -412,7 +453,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [4,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True]
+settings = [5,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, False, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -432,12 +473,12 @@ def getData():
         ret = None
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
-            if checkVersion<settings[0]:
+            if checkVersion<settings[0] and language==0:
                 country = request.args.get('country',"us").lower()
                 ret = dict(serverUpdate=1)
                 if language==0:
-                    ret['title'] = "Version 3.1"
-                    ret['content']="1. Released Missile Factory;\n2. Released Kick-out Function;\n3. Released Share Rewards;\n4. Fixed some bugs."
+                    ret['title'] = "Version 3.2"
+                    ret['content']="1. Some Bugs fixed\n- Fix connection error bug;\n- Fix chat room related bug;\n\n2. Functions Optimized\n- Add First Recharge Rewards;\n- Add New Users Gift;\n- Perfect Zombie Attack Function;\n- Perfect New user guide;\n- Add share rewards;\n\n3. Coming soon in the next version\n- Hero system;\n- You can also give us your ideas by email"
                     ret['button1']="Update Now"
                     ret['button2']="Later"
                 else:
@@ -484,6 +525,9 @@ def getData():
         #data.pop('registerTime')
         data['achieves'] = achieveModule.getAchieves(uid)
         print 'guide', data['guide']
+        if data['registerTime'] > settings[3]:
+            data['leftDay'] = newUserLogin(uid)
+        data['newRewards'] = getUserRewardsNew(uid)
         if data['guide']>=1400:
             days = 0
             if data['registerTime'] < settings[1]:
@@ -628,7 +672,7 @@ def synData():
     if 'cc' in request.form:
         baseCrystal = request.form.get('bs',0,type=int)
         changeCrystal = request.form.get('cc',0,type=int)
-        if baseCrystal>oldCrystal+100:
+        if baseCrystal>oldCrystal+100 or changeCrystal>100000:
             return '{"code":1}'
         newCrystal = baseCrystal+changeCrystal
         userInfoUpdate['crystal'] = newCrystal
@@ -651,6 +695,9 @@ def synData():
     if 'days' in request.form:
         days = int(request.form['days'])
         dailyModule.loginWithDays(uid, days)
+    if 'grl' in request.form:
+        getRewardList = json.loads(request.form['grl'])
+        deleteUserRewards(getRewardList)
     if 'delete' in request.form:
         delete = json.loads(request.form['delete'])
         deleteUserBuilds(uid, delete)
