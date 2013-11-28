@@ -11,6 +11,7 @@ from module import *
 import MySQLdb
 import os, sys, time, datetime
 import json, urllib2
+from hashlib import md5
 import logging
 from calendar import monthrange
 import config
@@ -316,6 +317,47 @@ def checkUserReward(uid, ln=0):
     else:
         return None
 
+def newUserLogin(uid):
+    today = datetime.date.today()
+    ret = queryOne("SELECT regDate,loginDate,loginDays,maxLDays,curLDays FROM `nozomi_login_new` WHERE `id`=%s", (uid))
+    leftDay = 10
+    newGift = 0
+    if ret!=None:
+        timedelta = (today-ret[0]).days
+        if timedelta>10:
+            leftDay = 0
+        else:
+            leftDay = 10-timedelta
+        timedelta = (today-ret[1]).days
+        if timedelta>0:
+            loginDays = ret[2]+1
+            if loginDays<7:
+                newGift = loginDays
+            curLDays = 1
+            maxLDays = ret[3]
+            if timedelta==1:
+                curLDays = ret[4]+1
+                if curLDays>maxLDays:
+                    maxLDays = curLDays
+            update("UPDATE `nozomi_login_new` SET loginDate=%s,loginDays=%s,maxLDays=%s,curLDays=%s WHERE `id`=%s",(today,loginDays,maxLDays,curLDays,uid))
+    else:
+        newGift = 1
+        update("INSERT INTO `nozomi_login_new` (`id`,regDate,loginDate,loginDays,maxLDays,curLDays) VALUES(%s,%s,%s,1,1,1)", (uid, today, today))
+    if newGift>0:
+        reward = [[1,800],[1,1500],[0,50],[1,3000],[1,5000],[0,100]][newGift-1]
+        update("INSERT INTO `nozomi_reward_new` (uid,`type`,`rtype`,`rvalue`,`info`) VALUES(%s,%s,%s,%s,%s)", (uid,1,reward[0],reward[1],json.dumps(dict(day=newGift))))
+    return leftDay
+
+def getUserRewardsNew(uid):
+    allRewards = queryAll("SELECT `id`,`type`,`rtype`,`rvalue`,`info` FROM `nozomi_reward_new` WHERE uid=%s", (uid))
+    if allRewards!=None and len(allRewards)>0:
+        return allRewards
+    else:
+        return []
+
+def deleteUserRewards(rwList):
+    executemany("DELETE FROM `nozomi_reward_new` WHERE id=%s", rwList)
+
 def updatePurchaseCrystal(uid, crystal, ctype):
     if ctype>4:
         update("UPDATE `nozomi_user` SET totalCrystal=totalCrystal+%s, lastOffTime=%s WHERE id=%s", (crystal, time.mktime(time.localtime()), uid))
@@ -410,7 +452,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [4,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True]
+settings = [4,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,22,0,0,0,0,0,0)))-util.beginTime]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -482,6 +524,9 @@ def getData():
         #data.pop('registerTime')
         data['achieves'] = achieveModule.getAchieves(uid)
         print 'guide', data['guide']
+        if data['registerTime'] > settings[3]:
+            data['leftDay'] = newUserLogin(uid)
+        data['newRewards'] = getUserRewardsNew(uid)
         if data['guide']>=1400:
             days = 0
             if data['registerTime'] < settings[1]:
@@ -569,6 +614,84 @@ def getReplay():
     vid = int(request.args.get("vid"))
     return queryOne("SELECT replay FROM nozomi_replay WHERE id=%s", (vid))[0]
 
+@app.route("/kxlogin", methods=['POST'])
+def loginKaiXin():
+    key=request.form.get("k")
+    secret=request.form.get("s")
+    platform = request.form.get("plat","ios")
+    t = int(time.mktime(time.localtime()))
+    params="client_id=10008&command=getbinduid&key=%s&secret=%s&time=%d&version=1.0" % (key, secret, t)
+    sign = md5(params + "&7ca082479115b5653816c87eb75a3054").hexdigest()
+    rurl = "http://api.loftygame.com/api.php?%s&sign=%s" % (params, sign)
+    print "loginUrl", rurl
+    req = urllib2.Request(rurl)
+    page = urllib2.urlopen(req)
+    rawdata = page.read()
+    print "raw", rawdata
+    data = json.loads(rawdata)
+    print data
+    if data['ret']==1:
+        ret = dict(code=0, kxid=data['data']['uid'])
+        if platform!="android":
+            ret['products'] = dict("com.loftygame.500crystals"=500,"com.loftygame.1200crystals"=1200,"com.loftygame.2500crystals"=2500,"com.loftygame.6500crystals"=6500,"com.loftygame.14000crystals"=14000)))
+        else:
+            ret['products'] = dict()
+        return json.dumps(ret)
+    else:
+        return json.dumps(dict(code=data['code'],error=data['error']))
+
+@app.route("/getRewards", methods=['GET'])
+def getRewards():
+    uid = request.args.get('uid', 0, type=int)
+    if uid==0:
+        return json.dumps(dict(code=1))
+    else:
+        return json.dumps(dict(code=0, rewards=getUserRewardsNew(uid)))
+
+@app.route("/kxverify", methods=['GET'])
+def verifyKaiXin():
+    code = 0
+    reason = ""
+    uid = request.args.get('uid', 0, type=int)
+    tid = request.args.get('transactionId','')
+    amount = request.args.get('amount', 0, type=int)
+    roleId = request.args.get('roleId', 0, type=int)
+    serverId = request.args.get('serverId', 0, type=int)
+    hash = request.args.get('hash', '')
+    sign = md5("%d%s%d%d%d100087ca082479115b5653816c87eb75a3054" % (uid,tid,amount,roleId,serverId)).hexdigest()
+    print request.args
+    print ("%d%s%d%d%d100087ca082479115b5653816c87eb75a3054" % (uid,tid,amount,roleId,serverId))
+    print sign
+    if uid==0 or amount==0 or roleId==0:
+        code = 1
+        reason = "Invalid param"
+    elif hash!=sign:
+        code = 2
+        reason = "Check hash error"
+    else:
+        uinfo = queryOne("SELECT totalCrystal FROM `nozomi_user` WHERE id=%s",(roleId))
+        if uinfo==None:
+            code = 1
+            reason = "Invalid param"
+        else:
+            ret = queryOne("SELECT * FROM `nozomi_purchase_record` WHERE transactionId=%s", (tid))
+            if ret==None:
+                update("INSERT INTO `nozomi_purchase_record` (transactionId,userId,amount) VALUES (%s,%s,%s)", (tid,roleId,amount))
+                rewards = [[roleId,0,amount]]
+                crystallogger.info("kaixin\t%d\t%s" % (roleId, json.dumps([-1,int(time.mktime(time.localtime())),amount,uinfo[0]+amount])))
+                if uinfo[0]==0:
+                    rewards.append([roleId,2,amount])
+                executemany("INSERT INTO `nozomi_reward_new` (uid,type,rtype,rvalue,info) VALUES (%s,%s,0,%s,'')", rewards)
+                update("UPDATE `nozomi_user` SET totalCrystal=%s WHERE id=%s", (uinfo[0]+amount,roleId))
+        else:
+            code = 3
+            reason = "Duplicate purchase"
+    print code, reason
+    if code==0:
+        return json.dumps(dict(ret=1))
+    else:
+        return json.dumps(dict(ret=0, code=code,error=reason))
+
 @app.route("/verify", methods=['POST'])
 def verifyIAP():
     receipt = request.form.get("receipt")
@@ -627,7 +750,7 @@ def synData():
     if 'cc' in request.form:
         baseCrystal = request.form.get('bs',0,type=int)
         changeCrystal = request.form.get('cc',0,type=int)
-        if baseCrystal>oldCrystal+100:
+        if baseCrystal>oldCrystal+100 or changeCrystal>100000:
             return '{"code":1}'
         newCrystal = baseCrystal+changeCrystal
         userInfoUpdate['crystal'] = newCrystal
@@ -641,15 +764,18 @@ def synData():
                 allAdd = allAdd-l[2]
         if (changeCrystal>0 and allAdd+200<changeCrystal) or (oldCrystal+allAdd-newCrystal<=-200):
             testlogger.info("[crystal]BadSynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
-        for l in ls:
-            crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
-            if l[0] == -1:
-                updatePurchaseCrystal(uid, l[2], l[3])
+        #for l in ls:
+        #    crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
+        #    if l[0] == -1:
+        #        updatePurchaseCrystal(uid, l[2], l[3])
     elif changeCrystal==0 and newCrystal-oldCrystal>=200:
         testlogger.info("[crystal]BadSynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
     if 'days' in request.form:
         days = int(request.form['days'])
         dailyModule.loginWithDays(uid, days)
+    if 'grl' in request.form:
+        getRewardList = json.loads(request.form['grl'])
+        deleteUserRewards(getRewardList)
     if 'delete' in request.form:
         delete = json.loads(request.form['delete'])
         deleteUserBuilds(uid, delete)
