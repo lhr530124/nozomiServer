@@ -118,7 +118,7 @@ def internalError(exception):
 def getConn():
     top = _app_ctx_stack.top
     if not hasattr(top, 'db'):
-        top.db = MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
+        top.db = MySQLdb.connect(host=app.config['HOST'], user=app.config['USER'], passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
     return top.db
 @app.teardown_appcontext
 def closeCon(excp):
