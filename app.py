@@ -104,13 +104,13 @@ def internalError(exception):
     
 #可能没有web 上下文环境
 def getConn():
-    return MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
+    return MySQLdb.connect(host=app.config['HOST'], user=app.config['USER'], passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
 
 
 def getMyConn():
     top = _app_ctx_stack.top
     if not hasattr(top, 'db'):
-        top.db = MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
+        top.db = MySQLdb.connect(host=app.config['HOST'], user=app.config['USER'], passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
     return top.db
 
 @app.teardown_appcontext
@@ -452,7 +452,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [4,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,22,0,0,0,0,0,0)))-util.beginTime]
+settings = [5,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, False, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -473,12 +473,12 @@ def getData():
         """
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
-            if checkVersion<settings[0]:
+            if checkVersion<settings[0] and language==0:
                 country = request.args.get('country',"us").lower()
                 ret = dict(serverUpdate=1)
                 if language==0:
-                    ret['title'] = "Version 3.1"
-                    ret['content']="1. Released Missile Factory;\n2. Released Kick-out Function;\n3. Released Share Rewards;\n4. Fixed some bugs."
+                    ret['title'] = "Version 3.2"
+                    ret['content']="1. Some Bugs fixed\n- Fix connection error bug;\n- Fix chat room related bug;\n\n2. Functions Optimized\n- Add First Recharge Rewards;\n- Add New Users Gift;\n- Perfect Zombie Attack Function;\n- Perfect New user guide;\n- Add share rewards;\n\n3. Coming soon in the next version\n- Hero system;\n- You can also give us your ideas by email"
                     ret['button1']="Update Now"
                     ret['button2']="Later"
                 else:
