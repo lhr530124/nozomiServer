@@ -470,6 +470,7 @@ def getData():
         if 'language' in request.args:
             language = request.args['language']
         ret = None
+        """
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
             if checkVersion<settings[0]:
@@ -503,6 +504,7 @@ def getData():
                 if settings[2]==True:
                     ret['forceUpdate']=1
                     return json.dumps(ret)
+        """
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
@@ -633,9 +635,9 @@ def loginKaiXin():
     if data['ret']==1:
         ret = dict(code=0, kxid=data['data']['uid'])
         if platform!="android":
-            ret['products'] = dict("com.loftygame.500crystals"=500,"com.loftygame.1200crystals"=1200,"com.loftygame.2500crystals"=2500,"com.loftygame.6500crystals"=6500,"com.loftygame.14000crystals"=14000)))
+            ret['products'] = {"com.loftygame.500crystals":500,"com.loftygame.1200crystals":1200,"com.loftygame.2500crystals":2500,"com.loftygame.6500crystals":6500,"com.loftygame.14000crystals":14000}
         else:
-            ret['products'] = dict()
+            ret['products'] = {"com.loftygame.500crystals":"HK$39.00,500","com.loftygame.1200crystals":"HK$77.00,1200","com.loftygame.2500crystals":"HK$155.00,2500","com.loftygame.6500crystals":"HK$387.00,6500","com.loftygame.14000crystals":"HK$775.00,14000"}
         return json.dumps(ret)
     else:
         return json.dumps(dict(code=data['code'],error=data['error']))
@@ -683,9 +685,9 @@ def verifyKaiXin():
                     rewards.append([roleId,2,amount])
                 executemany("INSERT INTO `nozomi_reward_new` (uid,type,rtype,rvalue,info) VALUES (%s,%s,0,%s,'')", rewards)
                 update("UPDATE `nozomi_user` SET totalCrystal=%s WHERE id=%s", (uinfo[0]+amount,roleId))
-        else:
-            code = 3
-            reason = "Duplicate purchase"
+            else:
+                code = 3
+                reason = "Duplicate purchase"
     print code, reason
     if code==0:
         return json.dumps(dict(ret=1))
