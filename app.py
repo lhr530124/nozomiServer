@@ -470,6 +470,7 @@ def getData():
         if 'language' in request.args:
             language = request.args['language']
         ret = None
+        """
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
             if checkVersion<settings[0] and language==0:
@@ -503,6 +504,7 @@ def getData():
                 if settings[2]==True:
                     ret['forceUpdate']=1
                     return json.dumps(ret)
+        """
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
@@ -635,7 +637,7 @@ def loginKaiXin():
         if platform!="android":
             ret['products'] = {"com.loftygame.500crystals":500,"com.loftygame.1200crystals":1200,"com.loftygame.2500crystals":2500,"com.loftygame.6500crystals":6500,"com.loftygame.14000crystals":14000}
         else:
-            ret['products'] = dict()
+            ret['products'] = {"com.loftygame.500crystals":"HK$39.00,500","com.loftygame.1200crystals":"HK$77.00,1200","com.loftygame.2500crystals":"HK$155.00,2500","com.loftygame.6500crystals":"HK$387.00,6500","com.loftygame.14000crystals":"HK$775.00,14000"}
         return json.dumps(ret)
     else:
         return json.dumps(dict(code=data['code'],error=data['error']))
