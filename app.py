@@ -650,17 +650,17 @@ def getRewards():
     else:
         return json.dumps(dict(code=0, rewards=getUserRewardsNew(uid)))
 
-buttetins = ["1. Welcome to Clash of Zombies!"]
+bulletins = ["1. Welcome to Clash of Zombies!"]
 
-@app.route("/reloadButtetins", methods=['GET'])
-def reloadButtetns():
-    tmp = queryAll("SELECT text FROM nozomi_buttetin WHERE state=0 ORDER BY index")
-    buttetins = [r[0] for r in tmp]
+@app.route("/reloadBulletins", methods=['GET'])
+def reloadBulletins():
+    tmp = queryAll("SELECT text FROM nozomi_bulletin WHERE state=0 ORDER BY index")
+    bulletins = [r[0] for r in tmp]
     return "success"
 
-@app.route("/getButtetins", methods=['GET'])
+@app.route("/getBulletins", methods=['GET'])
 def getButtetins():
-    return json.dumps(["1. Welcome to Clash of Zombies!"])
+    return json.dumps(bulletins)
 
 @app.route("/kxverify", methods=['GET'])
 def verifyKaiXin():
