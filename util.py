@@ -2,8 +2,23 @@
 import time
 import config
 from flaskext import *
+import json
 beginTime = (2013, 1, 1, 0, 0, 0, 0, 0, 0)
 beginTime = int(time.mktime(beginTime))
+
+start = json.loads(queryOne('select value from activity where  `key` = "startTime"')[0])
+end = json.loads(queryOne('select value from activity where `key` = "endTime"')[0])
+
+leagueWarStartTime = int(time.mktime(start))
+leagueWarEndTime = int(time.mktime(end))
+
+def isInWar():
+    t = int(time.mktime(time.localtime()))
+    if t<leagueWarEndTime and (leagueWarEndTime<leagueWarStartTime or leagueWarStartTime<t):
+        return True
+    else:
+        return False
+
 def getTime():
     return int(time.time()-beginTime)
 
@@ -62,4 +77,11 @@ def restoreBuilds(uid):
 
 
     
+
+import re
+def filter4utf8(s):
+    print "filter string"
+    highpoints = re.compile(u'[\U00010000-\U0010ffff]')
+    return highpoints.sub(u'', s)
+
     

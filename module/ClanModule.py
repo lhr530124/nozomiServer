@@ -5,7 +5,7 @@ from flaskext import *
 import sys
 sys.path.append('..')
 import config
-
+import util
 
 #clan's state 0 means free, 1 means wait to battle, 2 means in battle.
 
@@ -56,7 +56,10 @@ def getClanInfo(cid):
                 winner = 2
             update("UPDATE `nozomi_clan_battle` SET winner=%s WHERE id=%s", (winner, binfo[0]))
             update("UPDATE `nozomi_clan` SET state=0, statetime=0 WHERE id=%s", (binfo[3-winner]))
-            update("UPDATE `nozomi_clan` SET state=0, statetime=0, score=score+30 WHERE id=%s", (binfo[winner]))
+            if util.isInWar():
+                update("UPDATE `nozomi_clan` SET state=0, statetime=0, score=score+30, score2=score2+30 WHERE id=%s", (binfo[winner]))
+            else:
+                update("UPDATE `nozomi_clan` SET state=0, statetime=0, score=score+30 WHERE id=%s", (binfo[winner]))
             params = []
             m1 = sorted(getClanMembers(binfo[1]), key=lambda x:x[2], reverse=True)
             m2 = sorted(getClanMembers(binfo[2]), key=lambda x:x[2], reverse=True)
@@ -92,6 +95,10 @@ def getClanInfo(cid):
 
 def getTopClans():
     ret = queryAll("SELECT `id`, icon, score, `type`, name, `desc`, members, `min` FROM `nozomi_clan` WHERE members>0 ORDER BY score DESC LIMIT 50")
+    return ret
+
+def getTopClans2():
+    ret = queryAll("SELECT `id`, icon, score2, `type`, name, `desc`, members, `min` FROM `nozomi_clan` WHERE members>0 ORDER BY score2 DESC LIMIT 50")
     return ret
 
 def joinClan(uid, cid):
@@ -135,17 +142,28 @@ def checkFindLeagueAuth(uid, cid):
 def findLeagueEnemy(cid, score):
     curTime = int(time.mktime(time.localtime()))
     scoreOff = 500
-    while scoreOff<=1000:
+    scoreMax = 2000
+    inWar = util.isInWar()
+    sql1 = "SELECT MIN(id), MAX(id) FROM `nozomi_clan` WHERE score>%s AND score<%s AND state=1 AND members>0"
+    sql2 = "SELECT id,icon,score,`type`,name,`desc`,members FROM `nozomi_clan` WHERE id>=%s AND id!=%s AND state=1 AND statetime<%s AND score>%s AND score<%s AND members>0 LIMIT 1"
+    if inWar:
+        score = queryOne("SELECT score2 FROM `nozomi_clan` WHERE id=%s", (cid))[0]
+        sql1 = "SELECT MIN(id), MAX(id) FROM `nozomi_clan` WHERE score2>%s AND score2<%s AND state=1 AND members>0"
+        sql2 = "SELECT id,icon,score,`type`,name,`desc`,members FROM `nozomi_clan` WHERE id>=%s AND id!=%s AND state=1 AND statetime<%s AND score2>%s AND score2<%s AND members>0 LIMIT 1"
+    elif score>4000:
+        scoreMax=score
+        scoreOff=scoreMax/4
+    while scoreOff<=scoreMax:
         minScore = score-scoreOff
         maxScore = score+scoreOff
 
-        ids = queryOne("SELECT MIN(id), MAX(id) FROM `nozomi_clan` WHERE score>%s AND score<%s AND state=1 AND members>0", (minScore, maxScore))
+        ids = queryOne(sql1, (minScore, maxScore))
         if ids!=None:
             minId = ids[0]
             maxId = ids[1]
             if maxId != None and minId!=None:
                 cut = random.randint(minId, maxId)
-                ret = queryOne("SELECT id,icon,score,`type`,name,`desc`,members FROM `nozomi_clan` WHERE id>=%s AND id!=%s AND state=1 AND statetime<%s AND score>%s AND score<%s AND members>0 LIMIT 1", (cut, cid, curTime, minScore, maxScore))
+                ret = queryOne(sql2, (cut, cid, curTime, minScore, maxScore))
                 if ret!=None:
                     print("find league enemy %d" % ret[0])
                     update("UPDATE `nozomi_clan` SET statetime=%s WHERE id=%s", (curTime+180, ret[0]))
@@ -260,7 +278,10 @@ def changeBattleState(uid, eid, cid, ecid, bid, vid, lscore):
                 update("UPDATE `nozomi_clan_battle` SET left1=left1-1, winner=%s WHERE id=%s", (winner, bid))
             else:
                 update("UPDATE `nozomi_clan_battle` SET left2=left2-1, winner=%s WHERE id=%s", (winner, bid))
-        update("UPDATE `nozomi_clan` SET score=score+%s WHERE id=%s", (lscore, cid))
+        s2 = lscore
+        if not util.isInWar():
+            s2=0
+        update("UPDATE `nozomi_clan` SET score=score+%s, score2=score2+%s WHERE id=%s", (lscore, s2, cid))
         name = queryOne("SELECT name FROM `nozomi_user` WHERE id=%s", (uid))[0]
         update("UPDATE `nozomi_clan_battle_member` SET inbattle=0, battler=%s, video=%s WHERE uid=%s", (name, vid, eid))
     else:

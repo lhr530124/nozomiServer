@@ -301,8 +301,11 @@ def getUidByName(account):
 def updateCrystal(uid, crystal):
     update("UPDATE `nozomi_user` SET crystal=crystal+%s WHERE id=%s", (crystal, uid))
 
-def checkUserReward(uid):
-    allRewards = queryAll("SELECT reward, remark FROM `nozomi_reward` WHERE uid=%s", (uid))
+def checkUserReward(uid, ln=0):
+    remark = "remark"
+    if ln==1:
+        remark = "remark_cn"
+    allRewards = queryAll("SELECT reward, "+remark+" FROM `nozomi_reward` WHERE uid=%s", (uid))
     if allRewards!=None and len(allRewards)>0:
         sumReward = 0
         for rewardItem in allRewards:
@@ -313,18 +316,59 @@ def checkUserReward(uid):
     else:
         return None
 
+def newUserLogin(uid):
+    today = datetime.date.today()
+    ret = queryOne("SELECT regDate,loginDate,loginDays,maxLDays,curLDays FROM `nozomi_login_new` WHERE `id`=%s", (uid))
+    leftDay = 10
+    newGift = 0
+    if ret!=None:
+        timedelta = (today-ret[0]).days
+        if timedelta>10:
+            leftDay = 0
+        else:
+            leftDay = 10-timedelta
+        timedelta = (today-ret[1]).days
+        if timedelta>0:
+            loginDays = ret[2]+1
+            if loginDays<7:
+                newGift = loginDays
+            curLDays = 1
+            maxLDays = ret[3]
+            if timedelta==1:
+                curLDays = ret[4]+1
+                if curLDays>maxLDays:
+                    maxLDays = curLDays
+            update("UPDATE `nozomi_login_new` SET loginDate=%s,loginDays=%s,maxLDays=%s,curLDays=%s WHERE `id`=%s",(today,loginDays,maxLDays,curLDays,uid))
+    else:
+        newGift = 1
+        update("INSERT INTO `nozomi_login_new` (`id`,regDate,loginDate,loginDays,maxLDays,curLDays) VALUES(%s,%s,%s,1,1,1)", (uid, today, today))
+    if newGift>0:
+        reward = [[1,800],[1,1500],[0,50],[1,3000],[1,5000],[0,100]][newGift-1]
+        update("INSERT INTO `nozomi_reward_new` (uid,`type`,`rtype`,`rvalue`,`info`) VALUES(%s,%s,%s,%s,%s)", (uid,1,reward[0],reward[1],json.dumps(dict(day=newGift))))
+    return leftDay
+
+def getUserRewardsNew(uid):
+    allRewards = queryAll("SELECT `id`,`type`,`rtype`,`rvalue`,`info` FROM `nozomi_reward_new` WHERE uid=%s", (uid))
+    if allRewards!=None and len(allRewards)>0:
+        return allRewards
+    else:
+        return []
+
+def deleteUserRewards(rwList):
+    executemany("DELETE FROM `nozomi_reward_new` WHERE id=%s", rwList)
+
 def updatePurchaseCrystal(uid, crystal, ctype):
     if ctype>4:
         update("UPDATE `nozomi_user` SET totalCrystal=totalCrystal+%s, lastOffTime=%s WHERE id=%s", (crystal, time.mktime(time.localtime()), uid))
     else:
         update("UPDATE `nozomi_user` SET totalCrystal=totalCrystal+%s WHERE id=%s", (crystal, uid))
 
+platformIds = dict(ios=0, android=1, android_our=2, android_german=3, ios_cn=4)
+
 def initUser(username, nickname, platform):
     print "initUser", username, nickname
     regTime = int(time.mktime(time.localtime()))
-    platformId = 0
-    if platform=="android":
-        platformId=1
+    platformId = platformIds.get(platform, 0)
     initScore = 500
     #uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
     uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime) VALUES(%s, %s, %s, %s, 500, 497, 0, %s, %s)", (username, regTime, nickname, util.getTime(), platformId, regTime))
@@ -394,6 +438,10 @@ def login():
             loginlogger.info("%s\t%d\treg" % (platform,uid))
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
+        else:
+            ban = queryOne('select ban from nozomi_user where id = %s', (uid))[0]
+            if ban != 0:
+                abort(401)
 
         return json.dumps(ret)
     else:
@@ -403,7 +451,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [2,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, False]
+settings = [5,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, False, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -412,12 +460,30 @@ def getData():
     data = None
     if "login" in request.args:
         version = request.args.get("version", 0, type=int)
+        platform = "ios"
+        if 'platform' in request.args:
+            platform = request.args['platform']
+        language = 0
+        if platform=="ios_cn":
+            language=1
+        if 'language' in request.args:
+            language = request.args['language']
         ret = None
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
-            if checkVersion<settings[0]:
+            if checkVersion<settings[0] and language==0:
                 country = request.args.get('country',"us").lower()
-                ret = dict(serverUpdate=1,title="New Version",content="Please update your version, the updates is:\n1.test the line break;\n2. fix some bug\n3.more than 4 lines?\nnot the first char.4\nover.", button1="Update Now", button2="Later")
+                ret = dict(serverUpdate=1)
+                if language==0:
+                    ret['title'] = "Version 3.2"
+                    ret['content']="1. Some Bugs fixed\n- Fix connection error bug;\n- Fix chat room related bug;\n\n2. Functions Optimized\n- Add First Recharge Rewards;\n- Add New Users Gift;\n- Perfect Zombie Attack Function;\n- Perfect New user guide;\n- Add share rewards;\n\n3. Coming soon in the next version\n- Hero system;\n- You can also give us your ideas by email"
+                    ret['button1']="Update Now"
+                    ret['button2']="Later"
+                else:
+                    ret['title'] = "3.1版本"
+                    ret['content'] = "1. 上线导弹工厂，可以建造超级武器啦！\n2. 上线了踢出功能，盟主可以踢出成员啦！\n3. 上线了分享奖励免费水晶功能！\n4. 修复了若干bug。"
+                    ret['button1']="立即更新"
+                    ret['button2']="稍后更新"
                 if country in updateUrls:
                     ret['url'] = updateUrls[country]
                 else:
@@ -431,6 +497,8 @@ def getData():
                         url = queryOne("SELECT url FROM nozomi_ios_update_url WHERE country='us'")[0]
                         updateUrls['us'] = url
                         ret['url'] = url
+                #if platform=="ios_cn":
+                #    ret['url'] = ret['url'].replace("608847384","666289981")
                 if settings[2]==True:
                     ret['forceUpdate']=1
                     return json.dumps(ret)
@@ -440,17 +508,24 @@ def getData():
         data = getUserAllInfos(uid)
         if ret!=None:
             data.update(ret)
-        data['serverTime'] = int(time.mktime(time.localtime()))
+        t = int(time.mktime(time.localtime()))
+        data['serverTime'] = t
+        #while t>util.leagueWarStartTime:
+        #    util.leagueWarStartTime = util.leagueWarStartTime+86400*14
+        #while t>util.leagueWarEndTime:
+        #    util.leagueWarEndTime = util.leagueWarEndTime+86400*14
+        data['leagueWarTime'] = util.leagueWarEndTime
+        data['nextLeagueWarTime'] = util.leagueWarStartTime
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
-        platform = "ios"
-        if 'platform' in request.args:
-            platform = request.args['platform']
         #if data['registerTime']>newbieCup[0]:
         #    data['newbieTime'] = newbieCup[1]
         #data.pop('registerTime')
         data['achieves'] = achieveModule.getAchieves(uid)
         print 'guide', data['guide']
+        if data['registerTime'] > settings[3]:
+            data['leftDay'] = newUserLogin(uid)
+        data['newRewards'] = getUserRewardsNew(uid)
         if data['guide']>=1400:
             days = 0
             if data['registerTime'] < settings[1]:
@@ -465,7 +540,7 @@ def getData():
                         dailyModule.loginWithDays(uid, days)
                     data['crystal'] = data['crystal']+reward
                 data['reward'] = reward
-            ret = checkUserReward(uid)
+            ret = checkUserReward(uid, language)
             if ret!=None:
                 data['crystal'] = data['crystal']+ret[0]
                 data['rewards'] = ret[1]
@@ -485,10 +560,13 @@ def getData():
     for build in builds:
         if build[2]==1002:
             if build[6]!="":
-                rid = json.loads(build[6])['rid']
-                if data['researches'][rid-1]==5:
-                    build[6]=""
-                    repairDatas.append([build[0],""])
+                try:
+                    rid = json.loads(build[6])['rid']
+                    if data['researches'][rid-1]==5:
+                        build[6]=""
+                        repairDatas.append([build[0],""])
+                except:
+                    print "research data error"
         elif build[2]==2004:
             try:
                 check = json.loads(build[6])
@@ -593,7 +671,7 @@ def synData():
     if 'cc' in request.form:
         baseCrystal = request.form.get('bs',0,type=int)
         changeCrystal = request.form.get('cc',0,type=int)
-        if baseCrystal>oldCrystal+100:
+        if baseCrystal>oldCrystal+100 or changeCrystal>100000:
             return '{"code":1}'
         newCrystal = baseCrystal+changeCrystal
         userInfoUpdate['crystal'] = newCrystal
@@ -616,6 +694,9 @@ def synData():
     if 'days' in request.form:
         days = int(request.form['days'])
         dailyModule.loginWithDays(uid, days)
+    if 'grl' in request.form:
+        getRewardList = json.loads(request.form['grl'])
+        deleteUserRewards(getRewardList)
     if 'delete' in request.form:
         delete = json.loads(request.form['delete'])
         deleteUserBuilds(uid, delete)
@@ -698,8 +779,10 @@ def synBattleData():
             ecid = int(request.form.get('ecid', 0))
             ClanModule.changeBattleState(uid, eid, cid, ecid, bid, videoId, lscore)
         if 'history' in request.form:
-            update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s)", (eid, uid, videoId, int(time.mktime(time.localtime())), request.form['history'], reverged))
+            print "insert history filter"
+            update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s)", (eid, uid, videoId, int(time.mktime(time.localtime())), util.filter4utf8(request.form['history']), reverged))
     return json.dumps({'code':0})
+
 
 @app.route("/findEnemy", methods=['GET'])
 def findEnemy():
@@ -882,6 +965,10 @@ def clearBattleState():
 def getLeagueRank():
     return json.dumps(ClanModule.getTopClans())
 
+@app.route("/getCaesarsCupRank", methods=['GET'])
+def getCaesarsCupRank():
+    return json.dumps(ClanModule.getTopClans2())
+
 @app.route("/getNewbieRank", methods=['GET'])
 def getNewbieRank():
     return json.dumps(getTopNewbies())
@@ -930,8 +1017,16 @@ def checkBuyRecord():
 def synLuaError():
     uid = request.form.get('uid', 0, type=int)
     error = request.form.get("error","")
-    testlogger.info("userId:%d\n%s" % (uid,error))
+    platform = request.form.get("error","")
+    testlogger.info("userId:%d,platform:%s\n%s" % (uid,platform,error))
     return "success"
+@app.route('/updateTime')
+def updateTime():
+    start = queryOne('select value from activity where `key` = "startTime"')[0]
+    end = queryOne('select value from activity where `key` = "endTime"')[0]
+    util.leagueWarStartTime =  int(time.mktime(json.loads(start)))
+    util.leagueWarEndTime = int(time.mktime(json.loads(end))) 
+    return jsonify(dict(code=1))
 
 @app.route('/checkAds', methods=['GET'])
 def checkAds():

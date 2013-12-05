@@ -1,3 +1,4 @@
+require ('newrelic');
 var createServer = require("http").createServer;
 var sys = require("sys");
 var url = require("url");
@@ -67,7 +68,7 @@ ser.listen=function(port, host){
 };
 
 HOST = null;
-port = 8009;
+port = 8010;
 
 var channels = {};//cid channel
 function createChannel(cid)
