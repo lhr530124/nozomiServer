@@ -1029,6 +1029,21 @@ def updateTime():
     util.leagueWarEndTime = int(time.mktime(json.loads(end))) 
     return jsonify(dict(code=1))
 
+@app.route('/checkAds', methods=['GET'])
+def checkAds():
+    uid = request.args.get('uid', 0, type=int)
+    res = queryOne('select ads from ads where uid = %s', (uid))
+    print "checkAds", uid, res
+    if res == None:
+        return jsonify(dict(ads=0))
+    return jsonify(dict(ads=res[0]))
+    
+@app.route("/buyAds", methods=['GET'])
+def buyAds():
+    uid = request.args.get('uid', 0, type=int)
+    update('insert into ads (uid, ads) values(%s, 1) on duplicate key update ads=1 ', (uid))
+    return jsonify(dict(code=1))
+
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
 app.wsgi_app = ProxyFix(app.wsgi_app)
