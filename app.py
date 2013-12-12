@@ -653,7 +653,7 @@ def getRewards():
     else:
         return json.dumps(dict(code=0, rewards=getUserRewardsNew(uid)))
 
-bulletins = ["1. Welcome to Clash of Zombies!"]
+bulletins = ["Welcome to Clash of Zombies!\nMost addicting zombie tower defense game! Upgrade the buildings and technology to save more people!\n\n***Please note***\nNew players please check the gift box to get your surprise!\nThe first recharge will give you double crystals! Make good use of it!\n*******************\nEnjoy game and wish you merry Christmas"]
 
 @app.route("/reloadBulletins", methods=['GET'])
 def reloadBulletins():
