@@ -16,7 +16,7 @@ numLog.setLevel(logging.INFO)
 
 while True:
     now = int(time.time())
-    myCon = MySQLdb.connect(host=config.HOST, user='root', passwd=config.PASSWORD, db=config.DATABASE, charset='utf8')
+    myCon = MySQLdb.connect(host=config.HOST, user=config.USER, passwd=config.PASSWORD, db=config.DATABASE, charset='utf8')
     sql = 'select count(*) from nozomi_user where lastSynTime >= %d' % (now-300)
     myCon.query(sql)
     res = myCon.store_result().fetch_row(0, 0)

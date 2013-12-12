@@ -326,8 +326,10 @@ def newUserLogin(uid):
         timedelta = (today-ret[0]).days
         if timedelta>10:
             leftDay = 0
+        elif ret[2]<7:
+            leftDay = 7-ret[2]
         else:
-            leftDay = 10-timedelta
+            leftDay = 1
         timedelta = (today-ret[1]).days
         if timedelta>0:
             loginDays = ret[2]+1
@@ -636,6 +638,7 @@ def loginKaiXin():
         ret = dict(code=0, kxid=data['data']['uid'])
         if platform!="android":
             ret['products'] = {"com.loftygame.500crystals":500,"com.loftygame.1200crystals":1200,"com.loftygame.2500crystals":2500,"com.loftygame.6500crystals":6500,"com.loftygame.14000crystals":14000}
+            #ret['otherpay'] = 1
         else:
             ret['products'] = {"com.loftygame.500crystals":"HK$39.00,500","com.loftygame.1200crystals":"HK$77.00,1200","com.loftygame.2500crystals":"HK$155.00,2500","com.loftygame.6500crystals":"HK$387.00,6500","com.loftygame.14000crystals":"HK$775.00,14000"}
         return json.dumps(ret)
@@ -692,7 +695,10 @@ def verifyKaiXin():
             if ret==None:
                 update("INSERT INTO `nozomi_purchase_record` (transactionId,userId,amount) VALUES (%s,%s,%s)", (tid,roleId,amount))
                 rewards = [[roleId,0,amount]]
-                crystallogger.info("kaixin\t%d\t%s" % (roleId, json.dumps([-1,int(time.mktime(time.localtime())),amount,uinfo[0]+amount])))
+                platform="ios"
+                if serverId==1:
+                    platform="android_kaixin"
+                crystallogger.info("%s\t%d\t%s" % (platform, roleId, json.dumps([-1,int(time.mktime(time.localtime())),amount,uinfo[0]+amount])))
                 if uinfo[0]==0:
                     rewards.append([roleId,2,amount])
                 executemany("INSERT INTO `nozomi_reward_new` (uid,type,rtype,rvalue,info) VALUES (%s,%s,0,%s,'')", rewards)
@@ -778,10 +784,9 @@ def synData():
                 allAdd = allAdd-l[2]
         if (changeCrystal>0 and allAdd+200<changeCrystal) or (oldCrystal+allAdd-newCrystal<=-200):
             testlogger.info("[crystal]BadSynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
-        #for l in ls:
-        #    crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
-        #    if l[0] == -1:
-        #        updatePurchaseCrystal(uid, l[2], l[3])
+        for l in ls:
+            if l[0]>0:
+                crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
     elif changeCrystal==0 and newCrystal-oldCrystal>=200:
         testlogger.info("[crystal]BadSynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
     if 'days' in request.form:
