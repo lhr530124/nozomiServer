@@ -82,8 +82,7 @@ def restoreBuilds(uid):
 import re
 def filter4utf8(s):
     print "filter string"
-    highpoints = re.compile(u'[\U10000-\U10ffff]')
+    highpoints = re.compile(u'[\u10000-\u10ffff]')
     return highpoints.sub(u'', s)
-    #return s
 
     
