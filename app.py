@@ -486,19 +486,7 @@ def getData():
                     ret['content'] = "1. 上线导弹工厂，可以建造超级武器啦！\n2. 上线了踢出功能，盟主可以踢出成员啦！\n3. 上线了分享奖励免费水晶功能！\n4. 修复了若干bug。"
                     ret['button1']="立即更新"
                     ret['button2']="稍后更新"
-                if country in updateUrls:
-                    ret['url'] = updateUrls[country]
-                else:
-                    url = queryOne("SELECT url FROM nozomi_ios_update_url WHERE country=%s",(country))
-                    if url!=None:
-                        updateUrls[country] = url[0]
-                        ret['url'] = url[0]
-                    elif 'us' in updateUrls:
-                        ret['url'] = updateUrls['us']
-                    else:
-                        url = queryOne("SELECT url FROM nozomi_ios_update_url WHERE country='us'")[0]
-                        updateUrls['us'] = url
-                        ret['url'] = url
+                ret['url'] = "https://itunes.apple.com/app/id608847384?mt=8&uo=4"
                 #if platform=="ios_cn":
                 #    ret['url'] = ret['url'].replace("608847384","666289981")
                 if settings[2]==True:
@@ -686,10 +674,15 @@ def synData():
                 allAdd = allAdd-l[2]
         if (changeCrystal>0 and allAdd+200<changeCrystal) or (oldCrystal+allAdd-newCrystal<=-200):
             testlogger.info("[crystal]BadSynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
-        for l in ls:
-            crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
-            if l[0] == -1:
-                updatePurchaseCrystal(uid, l[2], l[3])
+        if "serverPay" in request.form:
+            for l in ls:
+                if l[0]>0:
+                    crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
+        else:
+            for l in ls:
+                crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
+                if l[0] == -1:
+                    updatePurchaseCrystal(uid, l[2], l[3])
     elif changeCrystal==0 and newCrystal-oldCrystal>=200:
         testlogger.info("[crystal]BadSynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
     if 'days' in request.form:
@@ -1044,6 +1037,66 @@ def buyAds():
     update('insert into ads (uid, ads) values(%s, 1) on duplicate key update ads=1 ', (uid))
     return jsonify(dict(code=1))
 
+@app.route("/getRewards", methods=['GET'])
+def getRewards():
+    uid = request.args.get('uid', 0, type=int)
+    if uid==0:
+        return json.dumps(dict(code=1))
+    else:
+        return json.dumps(dict(code=0, rewards=getUserRewardsNew(uid)))
+
+bulletins = ["1. Get free rewards by sharing news with your friends!","2. Download your own particular Battle Video!","3. Get double crystals by first Recharge!", "4. Continuously login to get more New User Gift!"]
+
+@app.route("/getBulletins", methods=['GET'])
+def getButtetins():
+    return json.dumps(bulletins)
+
+@app.route("/ggverify", methods=['POST'])
+def verifyGooglePay():
+    sign = request.form.get("signature","")
+    response = request.form.get("response","")
+    if sign=="" or response=="":
+        return json.dumps(dict(ret=-1))
+    data = json.loads(response)
+    orderId = data['orderId']
+    packageName = data['packageName']
+    developerPayload = data['developerPayload']
+    paytime = data['purchaseTime']
+    testlogger.info("googleVerify:sign:%s,response:%s" % (sign,response))
+    if paytime<long(time.mktime(time.localtime())-3600)*1000 or orderId.find(".")==-1:
+        return json.dumps(dict(ret=-1))
+    info = json.loads(developerPayload)
+    roleId = info['roleId']
+    serverId = info['sid']
+    if roleId==0:
+        return json.dumps(dict(ret=-1))
+    else:
+        uinfo = queryOne("SELECT totalCrystal FROM `nozomi_user` WHERE id=%s",(roleId))
+        if uinfo==None:
+            return json.dumps(dict(ret=-1))
+        else:
+            ret = queryOne("SELECT * FROM `nozomi_purchase_record` WHERE transactionId=%s", (orderId))
+            if ret==None:
+                amount = 0
+                if 'amount' in info:
+                    amount = info['amount']
+                update("INSERT INTO `nozomi_purchase_record` (transactionId,userId,amount) VALUES (%s,%s,%s)", (orderId,roleId,amount))
+                if 'noads' in info:
+                    update('insert into ads (uid, ads) values(%s, 1) on duplicate key update ads=1 ', (roleId))
+                else:
+                    platform = info['plat']
+                    rewards = [[roleId,0,amount]]
+                    crystallogger.info("%s\t%d\t%s" % (platform, roleId, json.dumps([-1,int(time.mktime(time.localtime())),amount,info['type']])))
+                    if uinfo[0]==0:
+                        rewards.append([roleId,2,amount])
+                    executemany("INSERT INTO `nozomi_reward_new` (uid,type,rtype,rvalue,info) VALUES (%s,%s,0,%s,'')", rewards)
+                    if info['type']>4:
+                        update("UPDATE `nozomi_user` SET lastOffTime=%s,totalCrystal=%s WHERE id=%s", (int(time.mktime(time.localtime())),uinfo[0]+amount,roleId))
+                    else:
+                        update("UPDATE `nozomi_user` SET totalCrystal=%s WHERE id=%s", (uinfo[0]+amount,roleId))
+            else:
+                return json.dumps(dict(ret=-1))
+    return json.dumps(dict(ret=1))
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
 app.wsgi_app = ProxyFix(app.wsgi_app)
