@@ -653,16 +653,10 @@ def getRewards():
     else:
         return json.dumps(dict(code=0, rewards=getUserRewardsNew(uid)))
 
-bulletins = ["Welcome to Clash of Zombies!\nMost addicting zombie tower defense game! Upgrade the buildings and technology to save more people!\n\n***Please note***\nNew players please check the gift box to get your surprise!\nThe first recharge will give you double crystals! Make good use of it!\n*******************\nEnjoy game and wish you merry Christmas"]
-
-@app.route("/reloadBulletins", methods=['GET'])
-def reloadBulletins():
-    tmp = queryAll("SELECT text FROM nozomi_bulletin WHERE state=0 ORDER BY index")
-    bulletins = [r[0] for r in tmp]
-    return "success"
-
 @app.route("/getBulletins", methods=['GET'])
 def getButtetins():
+    tmp = queryAll("SELECT text FROM nozomi_bulletin WHERE state=0 ORDER BY `index`")
+    bulletins = [r[0] for r in tmp]
     return json.dumps(bulletins)
 
 @app.route("/kxverify", methods=['GET'])
