@@ -25,6 +25,7 @@ def initScoreCount(myCon):
     #no need to init sortedScore
     #uid score ---> redis
     #sql = 'select * from nozomi_rank'
+    pass
 
 
 def initUserScore(myCon, uid, score):
