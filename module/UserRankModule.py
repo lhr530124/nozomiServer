@@ -14,6 +14,7 @@ import sys
 sys.path.append('..')
 import config
 import redis
+from flaskext import *
 def getServer():
     rserver = redis.Redis(host=config.REDIS_HOST)
     return rserver
@@ -25,16 +26,6 @@ def initScoreCount(myCon):
     #uid score ---> redis
     #sql = 'select * from nozomi_rank'
 
-
-    """
-    sql = 'select * from nozomi_score_count order by score desc'
-    myCon.query(sql)
-    res = myCon.store_result().fetch_row(0, 1)
-    for i in res:
-        scoreCount[i['score']] = i['count']
-        sortedScore.append(i['score'])
-    sortedScore.sort(reverse=True)
-    """
 
 def initUserScore(myCon, uid, score):
     sql = 'insert into  nozomi_rank (uid, score) values(%d, %d)' % (uid, score)
@@ -63,6 +54,22 @@ def myInsort(a, x):
         if x > a[mid]: hi = mid
         else: lo = mid+1
     a.insert(lo, x)
+
+def newUpdateScore(uid, eid, uscore, escore):
+    scores = [[uscore, uid]]
+    rserver = getServer()
+    rserver.zadd('userRank', uid, uscore)
+    if eid>1:
+        scores.append([escore, eid])
+        rserver.zadd('userRank', eid, escore)
+    con = getConn()
+    cur = con.cursor()
+    cur.executemany("update nozomi_rank set score=%s where uid=%s", scores)
+    cur.executemany("update nozomi_user_state set score=%s where uid=%s", scores)
+    cur.executemany("update nozomi_user set score=%s where id=%s", scores)
+    con.commit()
+    cur.close()
+
 
 def updateScore(myCon, uid, newScore, force=False):
     #don't care about oldScore
@@ -137,33 +144,6 @@ def getUser(myCon, rank):
         return None
     return int(ret[0])
 
-    """
-    total = 0
-    #sql = 'select * from nozomi_score_count order by score desc'
-    #myCon.query(sql)
-    #res = myCon.store_result().fetch_row(0, 1)
-    
-    lastScore = -1
-    lastTotal = 0
-    for i in sortedScore:
-        lastScore = i
-        total += scoreCount[i]
-        if total > rank:
-            break
-        lastTotal = total
-    
-
-    #lastScore 该排名 的得分
-    #lastTotal 该排名 得分之前 用户数量
-    #根据数据库返回的排名人数
-    #数据库可能返回失败？ 
-    leftNum = rank - lastTotal
-    sql = 'select * from nozomi_rank where score = %d limit %d , 1' % (lastScore, leftNum)
-    myCon.query(sql)
-    res = myCon.store_result().fetch_row(0, 1)
-    r = res[0]['uid']
-    return r
-    """
 
 #得到某个阶段排名所有用户[start, end) [0, 1) = 0
 #允许并列排名的学生 0  1 1 3 

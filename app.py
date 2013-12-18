@@ -826,10 +826,18 @@ def synBattleData():
     #print 'synBattleData', request.form
     uid = int(request.form.get("uid", 0))
     eid = int(request.form.get("eid", 0))
-    print("test uid and eid %d,%d" % (uid, eid))
-    if uid==0 or eid==0:
-        return json.dumps({'code':401})
     incScore = int(request.form.get("score", 0))
+    print("test uid and eid %d,%d; score=%d" % (uid, eid, -incScore))
+    if uid==0 or eid==0 or incScore>60 or incScore<-60:
+        return json.dumps({'code':401})
+    baseScore = request.form.get("bscore", 0, type=int)
+    ebaseScore = request.form.get("ebscore", 0, type=int)
+    if baseScore>0 and ebaseScore>0:
+        curScore = getUserInfos(uid)['score']
+        if curScore!=baseScore:
+            return json.dumps(dict(code=1, reason="duplicate request"))
+        else:
+            UserRankModule.newUpdateScore(uid, eid, baseScore-incScore, ebaseScore+incScore)
     if eid>1 and 'isLeague' not in request.form:
         if 'delete' in request.form:
             delete = json.loads(request.form['delete'])
