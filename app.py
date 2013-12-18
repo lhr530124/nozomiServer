@@ -638,7 +638,8 @@ def loginKaiXin():
         ret = dict(code=0, kxid=data['data']['uid'])
         if platform!="android":
             ret['products'] = {"com.loftygame.500crystals":500,"com.loftygame.1200crystals":1200,"com.loftygame.2500crystals":2500,"com.loftygame.6500crystals":6500,"com.loftygame.14000crystals":14000}
-            #ret['otherpay'] = 1
+            ret['otherpay'] = 1
+            ret['released'] = 1
         else:
             ret['products'] = {"com.loftygame.500crystals":"HK$39.00,500","com.loftygame.1200crystals":"HK$77.00,1200","com.loftygame.2500crystals":"HK$155.00,2500","com.loftygame.6500crystals":"HK$387.00,6500","com.loftygame.14000crystals":"HK$775.00,14000"}
         return json.dumps(ret)
