@@ -696,6 +696,9 @@ def verifyKaiXin():
                 crystallogger.info("%s\t%d\t%s" % (platform, roleId, json.dumps([-1,int(time.mktime(time.localtime())),amount,uinfo[0]+amount])))
                 if uinfo[0]==0:
                     rewards.append([roleId,2,amount])
+                t = int(time.mktime(time.localtime()))
+                if t>=1387872000 and t<1387958400:
+                    rewards.append([roleId,3,amount/2])
                 executemany("INSERT INTO `nozomi_reward_new` (uid,type,rtype,rvalue,info) VALUES (%s,%s,0,%s,'')", rewards)
                 update("UPDATE `nozomi_user` SET totalCrystal=%s WHERE id=%s", (uinfo[0]+amount,roleId))
             else:
