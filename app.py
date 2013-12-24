@@ -325,8 +325,10 @@ def newUserLogin(uid):
         timedelta = (today-ret[0]).days
         if timedelta>10:
             leftDay = 0
+        elif ret[2]<7:
+            leftDay = 7-ret[2]
         else:
-            leftDay = 10-timedelta
+            leftDay = 1
         timedelta = (today-ret[1]).days
         if timedelta>0:
             loginDays = ret[2]+1
@@ -1062,7 +1064,8 @@ def verifyGooglePay():
     developerPayload = data['developerPayload']
     paytime = data['purchaseTime']
     testlogger.info("googleVerify:sign:%s,response:%s" % (sign,response))
-    if paytime<long(time.mktime(time.localtime())-3600)*1000 or orderId.find(".")==-1:
+    t = long(time.mktime(time.localtime()))*1000
+    if paytime<t-3600000 or paytime>t+3600000 or orderId.find(".")==-1:
         return json.dumps(dict(ret=-1))
     info = json.loads(developerPayload)
     roleId = info['roleId']
@@ -1088,6 +1091,9 @@ def verifyGooglePay():
                     crystallogger.info("%s\t%d\t%s" % (platform, roleId, json.dumps([-1,int(time.mktime(time.localtime())),amount,info['type']])))
                     if uinfo[0]==0:
                         rewards.append([roleId,2,amount])
+                    t = int(time.mktime(time.localtime()))
+                    if t>=1387872000 and t<1387958400:
+                        rewards.append([roleId,3,amount/2])
                     executemany("INSERT INTO `nozomi_reward_new` (uid,type,rtype,rvalue,info) VALUES (%s,%s,0,%s,'')", rewards)
                     if info['type']>4:
                         update("UPDATE `nozomi_user` SET lastOffTime=%s,totalCrystal=%s WHERE id=%s", (int(time.mktime(time.localtime())),uinfo[0]+amount,roleId))
