@@ -840,9 +840,14 @@ def findLeagueEnemy():
     if clan[9]!=0:
         return json.dumps(dict(code=3,state=clan[9],statetime=clan[10]))
     enemy=ClanModule.findLeagueEnemy(cid, score)
+    if enemy==0:
+        testlogger.info("ClanReady:cid:%d;uid:%d,%d" % (cid,uid,cid))
     if 'eid' in request.form:
         eid = int(request.form.get('eid', 0))
-        ClanModule.resetClanState(eid, 1)
+        clan = ClanModule.getClanInfo(eid)
+        if clan!=None and clan[9]==1:
+            ClanModule.resetClanState(eid, 1)
+            testlogger.info("ClanReady2:cid:%d;uid:%d,%d" % (eid,uid,cid))
     return json.dumps(dict(code=0, enemy=enemy))
 
 @app.route("/cancelFindLeagueEnemy", methods=['POST'])
@@ -872,6 +877,11 @@ def beginLeagueBattle():
     clan = ClanModule.getClanInfo(cid)
     if clan[9]!=0:
         return json.dumps(dict(code=3, state=clan[9], statetime=clan[10]))
+    if eid==0:
+        return json.dumps(dict(code=1))
+    clan = ClanModule.getClanInfo(eid)
+    if clan[9]!=1:
+        return json.dumps(dict(code=1))
     return json.dumps(dict(code=ClanModule.beginLeagueBattle(cid, eid)))
 
 @app.route("/createClan", methods=['POST'])
