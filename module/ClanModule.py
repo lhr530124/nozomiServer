@@ -275,9 +275,9 @@ def changeBattleState(uid, eid, cid, ecid, bid, vid, lscore):
                 requestGet(config.CHATSERVER, dict(cid=cid, type="lbe", info=cid))
                 requestGet(config.CHATSERVER, dict(cid=ecid, type="lbe", info=cid))
             if isE1:
-                update("UPDATE `nozomi_clan_battle` SET left1=left1-1, winner=%s WHERE id=%s", (winner, bid))
+                update("UPDATE `nozomi_clan_battle` SET left1=left1-1, winner=%s WHERE id=%s and left1 > 0", (winner, bid))
             else:
-                update("UPDATE `nozomi_clan_battle` SET left2=left2-1, winner=%s WHERE id=%s", (winner, bid))
+                update("UPDATE `nozomi_clan_battle` SET left2=left2-1, winner=%s WHERE id=%s and left2 > 0", (winner, bid))
         s2 = lscore
         if not util.isInWar():
             s2=0
