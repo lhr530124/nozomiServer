@@ -473,7 +473,7 @@ def getData():
         ret = None
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
-            if checkVersion<settings[0] and language==0:
+            if checkVersion<settings[0]:
                 country = request.args.get('country',"us").lower()
                 if country=="":
                     country = "us"
@@ -489,8 +489,8 @@ def getData():
                     ret['button1']="立即更新"
                     ret['button2']="稍后更新"
                 ret['url'] = "https://itunes.apple.com/app/id608847384?mt=8&uo=4"
-                if platform=="ios_cn":
-                    ret['url'] = ret['url'].replace("608847384","666289981")
+                #if platform=="ios_cn":
+                #    ret['url'] = ret['url'].replace("608847384","666289981")
                 if settings[2]==True:
                     ret['forceUpdate']=1
                     return json.dumps(ret)
