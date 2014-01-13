@@ -43,7 +43,6 @@ def insertAndGetId(sql, params=None):
     con.commit()
     id = cur.lastrowid
     cur.close()
-    con.close()
     return id
 
 def update(sql, params=None):
@@ -56,7 +55,6 @@ def update(sql, params=None):
         rowcount = cur.execute(sql, params)
     con.commit()
     cur.close()
-    con.close()
     return rowcount
 
 def executemany(sql, params, dbID=0):
@@ -66,7 +64,6 @@ def executemany(sql, params, dbID=0):
     cur.executemany(sql, params)
     con.commit()
     cur.close()
-    con.close()
 
 def queryOne(sql, params=None, dbID=0):
     con = getConn(dbID=dbID)
@@ -80,7 +77,6 @@ def queryOne(sql, params=None, dbID=0):
     if rowcount>0:
         ret = cur.fetchone()
     cur.close()
-    con.close()
     return ret
 
 def queryAll(sql, params=None, dbID=0):
@@ -96,5 +92,4 @@ def queryAll(sql, params=None, dbID=0):
     if rowcount>0:
         ret = cur.fetchall()
     cur.close()
-    con.close()
     return ret
