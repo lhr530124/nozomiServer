@@ -453,7 +453,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [5,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, False, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime]
+settings = [6,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -475,20 +475,22 @@ def getData():
             checkVersion = request.args.get("checkVersion", 0, type=int)
             if checkVersion<settings[0] and language==0:
                 country = request.args.get('country',"us").lower()
+                if country=="":
+                    country = "us"
                 ret = dict(serverUpdate=1)
                 if language==0:
-                    ret['title'] = "Version 3.2"
-                    ret['content']="1. Some Bugs fixed\n- Fix connection error bug;\n- Fix chat room related bug;\n\n2. Functions Optimized\n- Add First Recharge Rewards;\n- Add New Users Gift;\n- Perfect Zombie Attack Function;\n- Perfect New user guide;\n- Add share rewards;\n\n3. Coming soon in the next version\n- Hero system;\n- You can also give us your ideas by email"
+                    ret['title'] = "New Version!"
+                    ret['content']="1. Update heroes system!\n2. Update statues system!\n3. Update population related values!\n4. Update the rules of League Wars, Zombie attack!"
                     ret['button1']="Update Now"
                     ret['button2']="Later"
                 else:
-                    ret['title'] = "3.1版本"
-                    ret['content'] = "1. 上线导弹工厂，可以建造超级武器啦！\n2. 上线了踢出功能，盟主可以踢出成员啦！\n3. 上线了分享奖励免费水晶功能！\n4. 修复了若干bug。"
+                    ret['title'] = "新版本来啦！"
+                    ret['content'] = "1. 上线了英雄系统；\n2. 上线了神像系统；\n3. 调整了人口相关数值；\n4. 优化了联盟战斗、僵尸攻打机制。"
                     ret['button1']="立即更新"
                     ret['button2']="稍后更新"
                 ret['url'] = "https://itunes.apple.com/app/id608847384?mt=8&uo=4"
-                #if platform=="ios_cn":
-                #    ret['url'] = ret['url'].replace("608847384","666289981")
+                if platform=="ios_cn":
+                    ret['url'] = ret['url'].replace("608847384","666289981")
                 if settings[2]==True:
                     ret['forceUpdate']=1
                     return json.dumps(ret)
@@ -729,10 +731,18 @@ def synBattleData():
     #print 'synBattleData', request.form
     uid = int(request.form.get("uid", 0))
     eid = int(request.form.get("eid", 0))
-    print("test uid and eid %d,%d" % (uid, eid))
-    if uid==0 or eid==0:
-        return json.dumps({'code':401})
     incScore = int(request.form.get("score", 0))
+    print("test uid and eid %d,%d; score=%d" % (uid, eid, -incScore))
+    if uid==0 or eid==0 or incScore>60 or incScore<-60:
+        return json.dumps({'code':401})
+    baseScore = request.form.get("bscore", 0, type=int)
+    ebaseScore = request.form.get("ebscore", 0, type=int)
+    if baseScore>0 and ebaseScore>0:
+        curScore = getUserInfos(uid)['score']
+        if curScore!=baseScore:
+            return json.dumps(dict(code=1, reason="duplicate request"))
+        else:
+            UserRankModule.newUpdateScore(uid, eid, baseScore-incScore, ebaseScore+incScore)
     if eid>1 and 'isLeague' not in request.form:
         if 'delete' in request.form:
             delete = json.loads(request.form['delete'])
@@ -839,6 +849,8 @@ def findLeagueEnemy():
     clan = ClanModule.getClanInfo(cid)
     if clan[9]!=0:
         return json.dumps(dict(code=3,state=clan[9],statetime=clan[10]))
+    elif clan[6]<5:
+        return json.dumps(dict(code=4,member=clan[6]))
     enemy=ClanModule.findLeagueEnemy(cid, score)
     if enemy==0:
         testlogger.info("ClanReady:cid:%d;uid:%d,%d" % (cid,uid,cid))
@@ -1058,9 +1070,65 @@ def getRewards():
 
 bulletins = ["1. Get free rewards by sharing news with your friends!","2. Download your own particular Battle Video!","3. Get double crystals by first Recharge!", "4. Continuously login to get more New User Gift!"]
 
+productDict = {"crystal0":500,"crystal1":1200,"crystal2":2500,"crystal3":6500,"crystal4":14000,"crystal5":200,"Xicrystal0":500,"Xicrystal1":1200,"Xicrystal2":2500,"Xicrystal3":6500,"Xicrystal4":14000,"Xicrystal5":200}
+
 @app.route("/getBulletins", methods=['GET'])
 def getButtetins():
     return json.dumps(bulletins)
+
+def addPurchaseCrystal(orderId, roleId, amount, platform, curTime):
+    uinfo = queryOne("SELECT totalCrystal FROM `nozomi_user` WHERE id=%s",(roleId))
+    if uinfo==None:
+        return False
+    ret = queryOne("SELECT * FROM `nozomi_purchase_record` WHERE transactionId=%s", (orderId))
+    if ret!=None:
+        return False
+    update("INSERT INTO `nozomi_purchase_record` (transactionId,userId,amount) VALUES (%s,%s,%s)", (orderId,roleId,amount))
+    if amount>0:
+        curCrystal = uinfo[0]
+        rewards = [[roleId,0,amount]]
+        crystallogger.info("%s\t%d\t%s" % ("platform", roleId, json.dumps([-1,curTime,amount,curCrystal])))
+        if curCrystal==0:
+            rewards.append([roleId,2,amount])
+        executemany("INSERT INTO `nozomi_reward_new` (uid,type,rtype,rvalue,info) VALUES (%s,%s,0,%s,'')", rewards)
+        if amount==200:
+            update("UPDATE `nozomi_user` SET lastOffTime=%s,totalCrystal=%s WHERE id=%s", (curTime,curCrystal+amount,roleId))
+        else:
+            update("UPDATE `nozomi_user` SET totalCrystal=%s WHERE id=%s", (curCrystal+amount,roleId))
+        return True
+
+@app.route("/iapverify", methods=['POST'])
+def verifyInappPurchase():
+    receipt = request.form.get("receipt")
+    uid = request.form.get('uid', 0, type=int)
+    if uid==0:
+        return "fail"
+    if receipt!=None:
+        postData = json.dumps({'receipt-data':receipt})
+        url = "https://buy.itunes.apple.com/verifyReceipt"
+        #url = "https://sandbox.itunes.apple.com/verifyReceipt"
+        req = urllib2.Request(url,postData)
+        rep = urllib2.urlopen(req)
+        page = rep.read()
+        #update("INSERT INTO `buyCrystalVerify` (verify_code,verify_result) VALUES(%s,%s)", (receipt,page))
+        result = json.loads(page)
+        if result['status']==21007:
+            url = "https://sandbox.itunes.apple.com/verifyReceipt"
+            req = urllib2.Request(url,postData)
+            rep = urllib2.urlopen(req)
+            page = rep.read()
+            result = json.loads(page) 
+        if result['status']==0:
+            receipt = result['receipt']
+            curTime = int(time.mktime(time.localtime()))
+            if int(receipt['original_purchase_date_ms'][:-3])>curTime-86400:
+                productId = receipt['product_id']
+                amount = productDict.get(productId, 0)
+                if amount==0:
+                    return "fail"
+                elif addPurchaseCrystal(receipt['original_transaction_id'], uid, amount, "ios", curTime):
+                    return "success"
+    return "fail"
 
 @app.route("/ggverify", methods=['POST'])
 def verifyGooglePay():
@@ -1083,35 +1151,43 @@ def verifyGooglePay():
     if roleId==0:
         return json.dumps(dict(ret=-1))
     else:
-        uinfo = queryOne("SELECT totalCrystal FROM `nozomi_user` WHERE id=%s",(roleId))
-        if uinfo==None:
-            return json.dumps(dict(ret=-1))
+        amount = 0
+        if 'amount' in info:
+            amount = info['amount']
+        platform = info['plat']
+        if addPurchaseCrystal(orderId, roleId, amount, platform, t/1000):
+            if 'noads' in info:
+                update('insert into ads (uid, ads) values(%s, 1) on duplicate key update ads=1 ', (roleId))
         else:
-            ret = queryOne("SELECT * FROM `nozomi_purchase_record` WHERE transactionId=%s", (orderId))
-            if ret==None:
-                amount = 0
-                if 'amount' in info:
-                    amount = info['amount']
-                update("INSERT INTO `nozomi_purchase_record` (transactionId,userId,amount) VALUES (%s,%s,%s)", (orderId,roleId,amount))
-                if 'noads' in info:
-                    update('insert into ads (uid, ads) values(%s, 1) on duplicate key update ads=1 ', (roleId))
-                else:
-                    platform = info['plat']
-                    rewards = [[roleId,0,amount]]
-                    crystallogger.info("%s\t%d\t%s" % (platform, roleId, json.dumps([-1,int(time.mktime(time.localtime())),amount,info['type']])))
-                    if uinfo[0]==0:
-                        rewards.append([roleId,2,amount])
-                    t = int(time.mktime(time.localtime()))
-                    if t>=1387872000 and t<1387958400:
-                        rewards.append([roleId,3,amount/2])
-                    executemany("INSERT INTO `nozomi_reward_new` (uid,type,rtype,rvalue,info) VALUES (%s,%s,0,%s,'')", rewards)
-                    if info['type']>4:
-                        update("UPDATE `nozomi_user` SET lastOffTime=%s,totalCrystal=%s WHERE id=%s", (int(time.mktime(time.localtime())),uinfo[0]+amount,roleId))
-                    else:
-                        update("UPDATE `nozomi_user` SET totalCrystal=%s WHERE id=%s", (uinfo[0]+amount,roleId))
-            else:
-                return json.dumps(dict(ret=-1))
+            return json.dumps(dict(ret=-1))
     return json.dumps(dict(ret=1))
+
+@app.route("/paypalverify", methods=['POST'])
+def verifyPaypal():
+    invoice = request.form.get("invoice",0,type=int)
+    email = request.form.get("email")
+    tid = request.form.get("tid")
+    print("Request verify:%d,%s,%s" % (invoice,email,tid))
+    paypalPurchase = queryOne("SELECT uid,amount FROM nozomi_paypal_purchase WHERE id=%s", (invoice))
+    if paypalPurchase!=None:
+        if addPurchaseCrystal(tid, paypalPurchase[0], paypalPurchase[1], "android_our", int(time.mktime(time.localtime()))):
+            update("UPDATE nozomi_paypal_purchase SET email=%s,state=1 WHERE id=%s", (email, invoice))
+
+    return "test success!"
+
+paypalItems = {"crystal0":{"amount":500,"price":4.99,"name":"500 Crystal"},"crystal1":{"amount":1200,"price":9.99, "name":"1200 Crystal"},"crystal2":{"amount":2500,"price":19.99, "name":"2500 Crystal"},"crystal3":{"amount":6500,"price":49.99, "name":"6500 Crystal"},"crystal4":{"amount":14000,"price":99.99, "name":"14000 Crystal"},"crystal5":{"amount":200,"price":0.99, "name":"200 Crystal"}}
+
+@app.route("/genPaypalInvoice", methods=['POST'])
+def genPaypalInvoice():
+    uid = request.form.get('uid',0,type=int)
+    productId = request.form.get("product")
+    product = paypalItems.get(productId)
+    if uid==0 or product==None:
+        return json.dumps(dict(ret=-1))
+    else:
+        invoice = insertAndGetId("INSERT INTO nozomi_paypal_purchase (uid,email,amount,state) values(%s,'',%s,%s)", (uid, product['amount'], 0))
+        return json.dumps(dict(invoice=invoice, amount=product['price'], item=product['name'],currency_code="USD", ret=1)) 
+
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
 app.wsgi_app = ProxyFix(app.wsgi_app)
