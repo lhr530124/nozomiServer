@@ -41,7 +41,7 @@ def getUserState(uid):
 #uid = 0 user not exist ! so don't return any user info
 def findAMatch(uid, score, scoreOff):
     curTime = getTime()
-    while scoreOff<1000:
+    while scoreOff<20000:
         minScore = score-scoreOff
         maxScore = score+scoreOff
         print("scores %d,%d" % (minScore, maxScore))
