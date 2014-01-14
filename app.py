@@ -453,7 +453,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [6,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime]
+settings = [6,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,2]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -470,6 +470,9 @@ def getData():
             language=1
         if 'language' in request.args:
             language = request.args['language']
+        sversion = request.args.get("scriptVersion",1,type=int)
+        if sversion<settings[4]:
+            return json.dumps(dict(serverError=1, title="Game Error!", content="There's an error found when you login, please close your game and restart it again!", button="Close"))
         ret = None
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
