@@ -1088,7 +1088,7 @@ def addPurchaseCrystal(orderId, roleId, amount, platform, curTime):
     if amount>0:
         curCrystal = uinfo[0]
         rewards = [[roleId,0,amount]]
-        crystallogger.info("%s\t%d\t%s" % ("platform", roleId, json.dumps([-1,curTime,amount,curCrystal])))
+        crystallogger.info("%s\t%d\t%s" % (platform, roleId, json.dumps([-1,curTime,amount,curCrystal])))
         if curCrystal==0:
             rewards.append([roleId,2,amount])
         executemany("INSERT INTO `nozomi_reward_new` (uid,type,rtype,rvalue,info) VALUES (%s,%s,0,%s,'')", rewards)
