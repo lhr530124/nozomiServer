@@ -455,7 +455,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [6,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,2]
+settings = [6,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,3]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -474,7 +474,7 @@ def getData():
             language = request.args['language']
         sversion = request.args.get("scriptVersion",1,type=int)
         if sversion<settings[4]:
-            return json.dumps(dict(serverError=1, title="Game Error!", content="There's an error found when you login, please close your game and restart it again!", button="Close"))
+            return json.dumps(dict(serverError=1, title="Please Update!", content="There's a new change found when you login, please close your game and restart it again to update your game!", button="Close"))
         ret = None
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
@@ -600,6 +600,8 @@ def revergeGetData():
         return json.dumps(dict(code=3))
     else:
         data = getUserInfos(eid)
+        if data['clan']>0:
+            data['clanInfo'] = ClanModule.getClanInfo(data['clan'])
         data['builds'] = getUserBuilds(eid)
         data['code'] = 0
         return json.dumps(data)
@@ -651,6 +653,12 @@ def synData():
     platform = "ios"
     if 'platform' in request.form:
         platform = request.form['platform']
+    #TODO deleted in the next version
+    if 'servertime' in request.form:
+        stime = request.form.get('servertime', 0, type=int)
+        ctime = int(time.mktime(time.localtime()))
+        if stime<ctime-600 or stime>ctime+600:
+            return '{"code":1}'
     oldCrystal = getUserAllInfos(uid)['crystal']
     newCrystal = oldCrystal
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
@@ -807,6 +815,8 @@ def findEnemy():
 
     if uid != 0:
         data = getUserInfos(uid)
+        if data['clan']>0:
+            data['clanInfo'] = ClanModule.getClanInfo(data['clan'])
         data['builds'] = getUserBuilds(uid)
         data['userId'] = uid
         updateUserState(selfUid, int(request.args.get("eid", 0)))

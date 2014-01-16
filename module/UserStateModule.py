@@ -41,9 +41,13 @@ def getUserState(uid):
 #uid = 0 user not exist ! so don't return any user info
 def findAMatch(uid, score, scoreOff):
     curTime = getTime()
-    while scoreOff<20000:
+    while scoreOff<1000:
         minScore = score-scoreOff
         maxScore = score+scoreOff
+        if minScore>1500:
+            minScore = 1500
+        if maxScore>1600 and maxScore<10000:
+            maxScore=10000
         print("scores %d,%d" % (minScore, maxScore))
         ids = queryOne("SELECT MIN(uid), MAX(uid) FROM nozomi_user_state WHERE score>%s AND score<%s", (minScore, maxScore))
         if ids!=None:
