@@ -454,7 +454,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [5,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, False, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime]
+settings = [1,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime, 1]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -472,41 +472,23 @@ def getData():
         if 'language' in request.args:
             language = request.args['language']
         ret = None
-        """
-        if 'check' in request.args:
-            checkVersion = request.args.get("checkVersion", 0, type=int)
-            if checkVersion<settings[0] and language==0:
-                country = request.args.get('country',"us").lower()
-                ret = dict(serverUpdate=1)
-                if language==0:
-                    ret['title'] = "Version 3.2"
-                    ret['content']="1. Some Bugs fixed\n- Fix connection error bug;\n- Fix chat room related bug;\n\n2. Functions Optimized\n- Add First Recharge Rewards;\n- Add New Users Gift;\n- Perfect Zombie Attack Function;\n- Perfect New user guide;\n- Add share rewards;\n\n3. Coming soon in the next version\n- Hero system;\n- You can also give us your ideas by email"
-                    ret['button1']="Update Now"
-                    ret['button2']="Later"
-                else:
-                    ret['title'] = "3.1版本"
-                    ret['content'] = "1. 上线导弹工厂，可以建造超级武器啦！\n2. 上线了踢出功能，盟主可以踢出成员啦！\n3. 上线了分享奖励免费水晶功能！\n4. 修复了若干bug。"
-                    ret['button1']="立即更新"
-                    ret['button2']="稍后更新"
-                if country in updateUrls:
-                    ret['url'] = updateUrls[country]
-                else:
-                    url = queryOne("SELECT url FROM nozomi_ios_update_url WHERE country=%s",(country))
-                    if url!=None:
-                        updateUrls[country] = url[0]
-                        ret['url'] = url[0]
-                    elif 'us' in updateUrls:
-                        ret['url'] = updateUrls['us']
-                    else:
-                        url = queryOne("SELECT url FROM nozomi_ios_update_url WHERE country='us'")[0]
-                        updateUrls['us'] = url
-                        ret['url'] = url
-                #if platform=="ios_cn":
-                #    ret['url'] = ret['url'].replace("608847384","666289981")
-                if settings[2]==True:
-                    ret['forceUpdate']=1
-                    return json.dumps(ret)
-        """
+        if version<settings[0]:
+            country = request.args.get('country',"us").lower()
+
+            ret = dict(serverUpdate=1)
+            ret['title'] = "New Version"
+            ret['content']="1. Update heroes system!\n2. Update statues system!\n3. Update population related values!\n4. Update the rules of League Wars, Zombie attack!"
+            ret['button1']="Update Now"
+            if platform=="ios":
+                ret['url'] = "https://itunes.apple.com/app/id750915921"
+            else:
+                ret['url'] = "https://play.google.com/store/apps/details?id=com.loftygame.cozseane"
+            if settings[2]==True:
+                ret['forceUpdate']=1
+                return json.dumps(ret)
+        sversion = request.args.get("scriptVersion",1,type=int)
+        if sversion<settings[4]:
+            return json.dumps(dict(serverError=1, title="Please Update!", content="There's a new change found when you login, please close your game and restart it again to update your game!", button="Close"))
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
@@ -532,19 +514,6 @@ def getData():
             data['leftDay'] = newUserLogin(uid)
         data['newRewards'] = getUserRewardsNew(uid)
         if data['guide']>=1400:
-            days = 0
-            if data['registerTime'] < settings[1]:
-                days = dailyModule.dailyLogin(uid)
-            print 'days', days
-            if days>0:
-                data['days']=days
-                reward = int((50+30*days)**0.5+0.5)
-                if version==0 or (days!=7 and days!=14 and days!=30):
-                    updateCrystal(uid, reward)
-                    if version==0 and (days==7 or days==14 or days==30):
-                        dailyModule.loginWithDays(uid, days)
-                    data['crystal'] = data['crystal']+reward
-                data['reward'] = reward
             ret = checkUserReward(uid, language)
             if ret!=None:
                 data['crystal'] = data['crystal']+ret[0]
@@ -609,6 +578,8 @@ def revergeGetData():
         return json.dumps(dict(code=3))
     else:
         data = getUserInfos(eid)
+        if data['clan']>0:
+            data['clanInfo'] = ClanModule.getClanInfo(data['clan'])
         data['builds'] = getUserBuilds(eid)
         data['code'] = 0
         return json.dumps(data)
@@ -697,8 +668,6 @@ def verifyKaiXin():
                 if uinfo[0]==0:
                     rewards.append([roleId,2,amount])
                 t = int(time.mktime(time.localtime()))
-                if t>=1387872000 and t<1387958400:
-                    rewards.append([roleId,3,amount/2])
                 executemany("INSERT INTO `nozomi_reward_new` (uid,type,rtype,rvalue,info) VALUES (%s,%s,0,%s,'')", rewards)
                 update("UPDATE `nozomi_user` SET totalCrystal=%s WHERE id=%s", (uinfo[0]+amount,roleId))
             else:
@@ -752,6 +721,12 @@ def synData():
     platform = "ios"
     if 'platform' in request.form:
         platform = request.form['platform']
+    #TODO deleted in the next version
+    if 'servertime' in request.form:
+        stime = request.form.get('servertime', 0, type=int)
+        ctime = int(time.mktime(time.localtime()))
+        if stime<ctime-600 or stime>ctime+600:
+            return '{"code":1}'
     oldCrystal = getUserAllInfos(uid)['crystal']
     newCrystal = oldCrystal
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
@@ -902,6 +877,8 @@ def findEnemy():
 
     if uid != 0:
         data = getUserInfos(uid)
+        if data['clan']>0:
+            data['clanInfo'] = ClanModule.getClanInfo(data['clan'])
         data['builds'] = getUserBuilds(uid)
         data['userId'] = uid
         updateUserState(selfUid, int(request.args.get("eid", 0)))
@@ -948,10 +925,17 @@ def findLeagueEnemy():
     clan = ClanModule.getClanInfo(cid)
     if clan[9]!=0:
         return json.dumps(dict(code=3,state=clan[9],statetime=clan[10]))
+    elif clan[6]<5:
+        return json.dumps(dict(code=4,member=clan[6]))
     enemy=ClanModule.findLeagueEnemy(cid, score)
+    if enemy==0:
+        testlogger.info("ClanReady:cid:%d;uid:%d,%d" % (cid,uid,cid))
     if 'eid' in request.form:
         eid = int(request.form.get('eid', 0))
-        ClanModule.resetClanState(eid, 1)
+        clan = ClanModule.getClanInfo(eid)
+        if clan!=None and clan[9]==1:
+            ClanModule.resetClanState(eid, 1)
+            testlogger.info("ClanReady2:cid:%d;uid:%d,%d" % (eid,uid,cid))
     return json.dumps(dict(code=0, enemy=enemy))
 
 @app.route("/cancelFindLeagueEnemy", methods=['POST'])
@@ -981,6 +965,11 @@ def beginLeagueBattle():
     clan = ClanModule.getClanInfo(cid)
     if clan[9]!=0:
         return json.dumps(dict(code=3, state=clan[9], statetime=clan[10]))
+    if eid==0:
+        return json.dumps(dict(code=1))
+    clan = ClanModule.getClanInfo(eid)
+    if clan[9]!=1:
+        return json.dumps(dict(code=1))
     return json.dumps(dict(code=ClanModule.beginLeagueBattle(cid, eid)))
 
 @app.route("/createClan", methods=['POST'])
