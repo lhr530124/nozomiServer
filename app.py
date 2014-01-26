@@ -158,7 +158,7 @@ def user_not_login(error):
 
 platformIds = dict(ios=0,android=1,android_mm=2,android_dx=3,android_daqin=4, android_wiipay=5, android_astep=6)
 
-newbieCup = [int(time.mktime((2013,10,17,10,0,0,0,0,0)))-util.beginTime, int(time.mktime((2013,10,18,0,0,0,0,0,0)))]
+newbieCup = [int(time.mktime((2013,10,18,10,0,0,0,0,0)))-util.beginTime, int(time.mktime((2013,10,25,10,0,0,0,0,0)))]
 
 dataBuilds = [
               [1, 170018, 1, 1, 0, 1500, "{\"oil\":1000,\"food\":1000}"],
@@ -480,7 +480,7 @@ def getData():
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
         #ios new user cup
-        if data['registerTime']>newbieCup[0]:
+        if data['registerTime']>newbieCup[0] and data['serverTime']<newbieCup[1]:
             data['newbieTime'] = newbieCup[1]
         #data['registerTime'] = None
         data['achieves'] = achieveModule.getAchieves(uid)
