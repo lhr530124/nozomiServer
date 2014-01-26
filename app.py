@@ -454,7 +454,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [1,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime, 1]
+settings = [2,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime, 3]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -488,7 +488,7 @@ def getData():
                 return json.dumps(ret)
         sversion = request.args.get("scriptVersion",1,type=int)
         if sversion<settings[4]:
-            return json.dumps(dict(serverError=1, title="Please Update!", content="There's a new change found when you login, please close your game and restart it again to update your game!", button="Close"))
+            return json.dumps(dict(serverError=1, title="Please Update!", content="There is a bug fix found when you login! Please close your game and restart it again to update your game!", button="Close"))
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
@@ -514,6 +514,8 @@ def getData():
             data['leftDay'] = newUserLogin(uid)
         data['newRewards'] = getUserRewardsNew(uid)
         if data['guide']>=1400:
+            if data.get('leftDay',0)==0:
+                data['nzstat'] = UserRankModule.getNozomiZombieStat(uid)
             ret = checkUserReward(uid, language)
             if ret!=None:
                 data['crystal'] = data['crystal']+ret[0]
@@ -727,6 +729,12 @@ def synData():
         ctime = int(time.mktime(time.localtime()))
         if stime<ctime-600 or stime>ctime+600:
             return '{"code":1}'
+    if 'cstatue' in request.form:
+        if UserRankModule.checkBattleReward(uid)==False:
+            return '{"code":1}'
+    if 'zinc' in request.form:
+        newKill = request.form.get('zinc',0,type=int)
+        UserRankModule.updateZombieCount(uid, newKill)
     oldCrystal = getUserAllInfos(uid)['crystal']
     newCrystal = oldCrystal
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
@@ -816,7 +824,7 @@ def synBattleData():
         if curScore!=baseScore:
             return json.dumps(dict(code=1, reason="duplicate request"))
         else:
-            UserRankModule.newUpdateScore(uid, eid, baseScore-incScore, ebaseScore+incScore)
+            UserRankModule.newUpdateScore(uid, eid, baseScore-incScore, ebaseScore+incScore, incScore<0)
     if eid>1 and 'isLeague' not in request.form:
         if 'delete' in request.form:
             delete = json.loads(request.form['delete'])
@@ -843,9 +851,7 @@ def synBattleData():
     #    userInfoUpdate=dict(score=myScore)
     #    updateUserInfoById(userInfoUpdate, uid)
     updateUserState(uid, eid)
-    reverged = 0
     if 'isReverge' in request.form:
-        reverged = 1
         update("UPDATE nozomi_battle_history SET reverged=1 WHERE uid=%s AND eid=%s", (uid, eid))
     if eid>1:
         videoId = 0
@@ -859,7 +865,7 @@ def synBattleData():
             ClanModule.changeBattleState(uid, eid, cid, ecid, bid, videoId, lscore)
         if 'history' in request.form:
             print "insert history filter"
-            update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s)", (eid, uid, videoId, int(time.mktime(time.localtime())), util.filter4utf8(request.form['history']), reverged))
+            update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,0)", (eid, uid, videoId, int(time.mktime(time.localtime())), util.filter4utf8(request.form['history'])))
     return json.dumps({'code':0})
 
 
@@ -1065,6 +1071,12 @@ def getCaesarsCupRank():
 @app.route("/getNewbieRank", methods=['GET'])
 def getNewbieRank():
     return json.dumps(getTopNewbies())
+
+@app.route("/getZombieRank", methods=['GET'])
+def getZombieRank():
+    uid = request.args.get('uid',0,type=int)
+    return json.dumps(UserRankModule.getZombieRank(uid))
+
 @app.route("/synErrorLog", methods=['POST'])
 def synErrorLog():
     log = request.form.get('log', "")
