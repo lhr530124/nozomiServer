@@ -34,6 +34,7 @@ if not config.DEBUG:
     socketHandler = IpSocketHandler.IpSocketHandler(config.LOG_HOST, config.LOG_PORT)
     rootLogger.addHandler(socketHandler)
 
+print "start server"
 
 
 #mysqlLogHandler = TimedRotatingFileHandler('mysqlLog.log', 'd', 1)
@@ -427,6 +428,7 @@ def login():
         else:
             bindGameCenter(username, tempname)
     if username!=None:
+        print username
         uid = getUidByName(username)
         ret = dict(code=0, uid=uid)
         if uid==0:

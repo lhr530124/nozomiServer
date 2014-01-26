@@ -1,4 +1,4 @@
-require ('newrelic');
+//require ('newrelic');
 var createServer = require("http").createServer;
 var sys = require("sys");
 var url = require("url");

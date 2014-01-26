@@ -69,6 +69,7 @@ def queryOne(sql, params=None, dbID=0):
     con = getConn(dbID=dbID)
     cur = con.cursor()
     rowcount = 0
+    #print "query", sql, params
     if params == None:
         rowcount = cur.execute(sql)
     else:
