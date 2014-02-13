@@ -372,8 +372,12 @@ def initUser(username, nickname, platform):
     regTime = int(time.mktime(time.localtime()))
     platformId = platformIds.get(platform, 0)
     initScore = 500
+    initCrystal = 497
+    if platformId==3 and nickname=="vip":
+        initCrystal = 1497
+        nickname = ""
     #uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
-    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime) VALUES(%s, %s, %s, %s, 500, 497, 0, %s, %s)", (username, regTime, nickname, util.getTime(), platformId, regTime))
+    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime) VALUES(%s, %s, %s, %s, 500, %s, 0, %s, %s)", (username, regTime, nickname, util.getTime(), initCrystal, platformId, regTime))
 
     myCon = getConn()
     module.UserRankModule.initUserScore(myCon, uid, initScore)
@@ -753,7 +757,13 @@ def synBattleData():
     incScore = int(request.form.get("score", 0))
     print("test uid and eid %d,%d; score=%d" % (uid, eid, -incScore))
     if uid==0 or eid==0 or incScore>60 or incScore<-60:
-        return json.dumps({'code':401})
+        abort(401)
+    if 'history' in request.form:
+        history = json.loads(request.form['history'])
+        if history[2]>0 and len(history[7])==0:
+            abort(401)
+    else:
+        abort(401)
     baseScore = request.form.get("bscore", 0, type=int)
     ebaseScore = request.form.get("ebscore", 0, type=int)
     if baseScore>0 and ebaseScore>0:
@@ -800,9 +810,7 @@ def synBattleData():
             cid = int(request.form.get('cid', 0))
             ecid = int(request.form.get('ecid', 0))
             ClanModule.changeBattleState(uid, eid, cid, ecid, bid, videoId, lscore)
-        if 'history' in request.form:
-            print "insert history filter"
-            update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,0)", (eid, uid, videoId, int(time.mktime(time.localtime())), util.filter4utf8(request.form['history'])))
+        update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,0)", (eid, uid, videoId, int(time.mktime(time.localtime())), util.filter4utf8(request.form['history'])))
     return json.dumps({'code':0})
 
 
@@ -1120,7 +1128,7 @@ def addPurchaseCrystal(orderId, roleId, amount, platform, curTime):
             update("UPDATE `nozomi_user` SET lastOffTime=%s,totalCrystal=%s WHERE id=%s", (curTime,curCrystal+amount,roleId))
         else:
             update("UPDATE `nozomi_user` SET totalCrystal=%s WHERE id=%s", (curCrystal+amount,roleId))
-        return True
+    return True
 
 @app.route("/iapverify", methods=['POST'])
 def verifyInappPurchase():
