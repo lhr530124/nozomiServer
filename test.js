@@ -1,4 +1,4 @@
-require ('newrelic');
+//require ('newrelic');
 var createServer = require("http").createServer;
 var sys = require("sys");
 var url = require("url");
@@ -9,7 +9,7 @@ var pool = mysql.createPool({
  user:'root',
  password:'2e4n5k2w2x',
  socketPath:'/var/run/mysqld/mysqld.sock',
- database: 'nozomi',
+ database: 'nozomi2',
     insecureAuth:true,
 });
 
