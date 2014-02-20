@@ -56,13 +56,15 @@ def getClanInfo(cid):
                 winner = 2
             update("UPDATE `nozomi_clan_battle` SET winner=%s WHERE id=%s", (winner, binfo[0]))
             update("UPDATE `nozomi_clan` SET state=0, statetime=0 WHERE id=%s", (binfo[3-winner]))
-            if util.isInWar():
-                update("UPDATE `nozomi_clan` SET state=0, statetime=0, score=score+30, score2=score2+30 WHERE id=%s", (binfo[winner]))
-            else:
-                update("UPDATE `nozomi_clan` SET state=0, statetime=0, score=score+30 WHERE id=%s", (binfo[winner]))
             params = []
             m1 = sorted(getClanMembers(binfo[1]), key=lambda x:x[2], reverse=True)
             m2 = sorted(getClanMembers(binfo[2]), key=lambda x:x[2], reverse=True)
+            enemyNum = len([m1,m2][2-winner])-binfo[5-winner]
+            rewardNum = (enemyNum+4)/5*3
+            if util.isInWar():
+                update("UPDATE `nozomi_clan` SET state=0, statetime=0, score=score+%s, score2=score2+%s WHERE id=%s", (rewardNum, rewardNum, binfo[winner]))
+            else:
+                update("UPDATE `nozomi_clan` SET state=0, statetime=0, score=score+%s WHERE id=%s", (rewardNum, binfo[winner]))
             ednum = 9
             for m in m1:
                 if m[4]==2:
@@ -141,38 +143,22 @@ def checkFindLeagueAuth(uid, cid):
 
 def findLeagueEnemy(cid, score):
     curTime = int(time.mktime(time.localtime()))
-    scoreOff = 500
-    scoreMax = 1000
     inWar = util.isInWar()
-    sql1 = "SELECT MIN(id), MAX(id) FROM `nozomi_clan` WHERE score>%s AND score<%s AND state=1 AND members>0"
-    sql2 = "SELECT id,icon,score,`type`,name,`desc`,members FROM `nozomi_clan` WHERE id>=%s AND id!=%s AND state=1 AND statetime<%s AND score>%s AND score<%s AND members>0 LIMIT 1"
+    ret = None
+    interval=14400
     if inWar:
-        score = queryOne("SELECT score2 FROM `nozomi_clan` WHERE id=%s", (cid))[0]
-        sql1 = "SELECT MIN(id), MAX(id) FROM `nozomi_clan` WHERE score2>%s AND score2<%s AND state=1 AND members>0"
-        sql2 = "SELECT id,icon,score,`type`,name,`desc`,members FROM `nozomi_clan` WHERE id>=%s AND id!=%s AND state=1 AND statetime<%s AND score2>%s AND score2<%s AND members>0 LIMIT 1"
-    elif score>2000:
-        scoreOff=1000
-        scoreMax=4000
-    while scoreOff<=scoreMax:
-        minScore = score-scoreOff
-        maxScore = score+scoreOff
-
-        ids = queryOne(sql1, (minScore, maxScore))
-        if ids!=None:
-            minId = ids[0]
-            maxId = ids[1]
-            if maxId != None and minId!=None:
-                cut = random.randint(minId, maxId)
-                ret = queryOne(sql2, (cut, cid, curTime, minScore, maxScore))
-                if ret!=None:
-                    print("find league enemy %d" % ret[0])
-                    update("UPDATE `nozomi_clan` SET statetime=%s WHERE id=%s", (curTime+180, ret[0]))
-                    members = getClanMembers(ret[0])
-                    ret = list(ret)
-                    ret.append(members)
-                    return ret
-        scoreOff *= 2
-    resetClanState(cid, 1)
+        interval = 43200
+    allCanBattle = queryAll("SELECT id,icon,score,`type`,`name`,`desc`,members FROM `nozomi_clan` AS nc LEFT JOIN `nozomi_clan_check` AS ncc ON ncc.cid1=%s AND ncc.cid2=nc.id WHERE id!=%s AND state=1 and statetime<%s AND members>0 AND (ncc.time IS NULL OR ncc.time<%s)",(cid,cid,curTime,curTime-interval))
+    if allCanBattle!=None:
+        cut = random.randint(0, len(allCanBattle)-1)
+        ret = allCanBattle[cut]
+    if ret!=None:
+        update("UPDATE `nozomi_clan` SET statetime=%s WHERE id=%s", (curTime+180, ret[0]))
+        members = getClanMembers(ret[0])
+        ret = list(ret)
+        ret.append(members)
+        return ret
+    update("UPDATE `nozomi_clan` SET state=1, statetime=%s WHERE id=%s", (curTime+60, cid))
     return [0]
 
 def cancelFindLeagueEnemy(cid):
@@ -188,6 +174,7 @@ def beginLeagueBattle(cid, eid):
     curTime = int(time.mktime(time.localtime()))
     if info[9]==1 and info[10]>curTime and info[6]>0:
         update("UPDATE `nozomi_clan` SET state=2, statetime=%s WHERE id=%s OR id=%s", (curTime+86400, cid, eid))
+        update("INSERT INTO `nozomi_clan_check` (cid1,cid2,time) VALUES (%s,%s,%s) ON DUPLICATE KEY UPDATE time=VALUES(time)", (cid,eid,curTime))
         cinfo = getClanInfo(cid)
         bid = insertAndGetId("INSERT INTO `nozomi_clan_battle` (cid1, cid2, left1, left2, winner) VALUES (%s,%s,%s,%s,0)", (cid, eid, cinfo[6], info[6]))
         members = []
@@ -244,12 +231,13 @@ def changeBattleState(uid, eid, cid, ecid, bid, vid, lscore):
             if isE1:
                 eleftIndex = 3
             if binfo[eleftIndex]==1:
-                lscore = lscore+30
                 winner = 5-eleftIndex
                 update("UPDATE `nozomi_clan` SET state=0, statetime=0 WHERE id=%s or id=%s", (cid, ecid))
                 params = []
                 m1 = sorted(getClanMembers(cid), key=lambda x:x[2], reverse=True)
                 m2 = sorted(getClanMembers(ecid), key=lambda x:x[2], reverse=True)
+                enemyNum = len(m2)
+                lscore = lscore + (enemyNum+4)/5*3
                 ednum = 9
                 for m in m1:
                     if m[4]==2:
@@ -275,9 +263,9 @@ def changeBattleState(uid, eid, cid, ecid, bid, vid, lscore):
                 requestGet(config.CHATSERVER, dict(cid=cid, type="lbe", info=cid))
                 requestGet(config.CHATSERVER, dict(cid=ecid, type="lbe", info=cid))
             if isE1:
-                update("UPDATE `nozomi_clan_battle` SET left1=left1-1, winner=%s WHERE id=%s", (winner, bid))
+                update("UPDATE `nozomi_clan_battle` SET left1=left1-1, winner=%s WHERE id=%s and left1 > 0", (winner, bid))
             else:
-                update("UPDATE `nozomi_clan_battle` SET left2=left2-1, winner=%s WHERE id=%s", (winner, bid))
+                update("UPDATE `nozomi_clan_battle` SET left2=left2-1, winner=%s WHERE id=%s and left2 > 0", (winner, bid))
         s2 = lscore
         if not util.isInWar():
             s2=0
