@@ -454,7 +454,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [2,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime, 3]
+settings = [2,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime, 4]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -509,7 +509,6 @@ def getData():
         #    data['newbieTime'] = newbieCup[1]
         #data.pop('registerTime')
         data['achieves'] = achieveModule.getAchieves(uid)
-        print 'guide', data['guide']
         if data['registerTime'] > settings[3]:
             data['leftDay'] = newUserLogin(uid)
         data['newRewards'] = getUserRewardsNew(uid)
@@ -670,6 +669,8 @@ def verifyKaiXin():
                 if uinfo[0]==0:
                     rewards.append([roleId,2,amount])
                 t = int(time.mktime(time.localtime()))
+                if t>=1393056000 and t<1393228800:
+                    rewards.append([roleId,3,(amount+4)/5])
                 executemany("INSERT INTO `nozomi_reward_new` (uid,type,rtype,rvalue,info) VALUES (%s,%s,0,%s,'')", rewards)
                 update("UPDATE `nozomi_user` SET totalCrystal=%s WHERE id=%s", (uinfo[0]+amount,roleId))
             else:
@@ -732,6 +733,14 @@ def synData():
     if 'cstatue' in request.form:
         if UserRankModule.checkBattleReward(uid)==False:
             return '{"code":1}'
+    update = request.form.get("update")
+    if update!=None:
+        update = json.loads(update)
+        for build in update:
+            x = build[1]/10000
+            y = build[1]%10000
+            if x<1 or x>40 or y>40:
+                return '{"code":1}'
     if 'zinc' in request.form:
         newKill = request.form.get('zinc',0,type=int)
         UserRankModule.updateZombieCount(uid, newKill)
@@ -785,18 +794,7 @@ def synData():
     if 'research' in request.form:
         researches = json.loads(request.form['research'])
         updateUserResearch(uid, researches)
-    if 'update' in request.form:
-        update = json.loads(request.form['update'])
-        for build in update:
-            if build[2]==1002:
-                ext = build[6]
-                util.restoreBuilds(uid)
-                oldExt = queryOne("SELECT `extend` FROM nozomi_build WHERE id=%s AND bid=1002", (uid), util.getDBID(uid))
-                if oldExt!=None:
-                    oldExt = oldExt[0]
-                    if oldExt!="" and 'research' not in request.form:
-                        build[6]=oldExt
-                break
+    if update!=None:
         updateUserBuilds(uid, update)
     updateUserInfoById(userInfoUpdate, uid)
     updateUserState(uid, int(request.form.get("eid", 0)))

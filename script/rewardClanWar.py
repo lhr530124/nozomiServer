@@ -9,7 +9,7 @@ import util
 import os
 
 #选择所有score2 > 0 的用户
-myCon = MySQLdb.connect(host=config.HOST, user='root', passwd=config.PASSWORD, db=config.DATABASE, charset='utf8')
+myCon = MySQLdb.connect(host=config.HOST, user=config.USER, passwd=config.PASSWORD, db=config.DATABASE, charset='utf8')
 sql = 'select id,score2 from nozomi_clan where score2 > 0 order by score2 desc limit 100'
 myCon.query(sql)
 res = myCon.store_result().fetch_row(0, 1)
