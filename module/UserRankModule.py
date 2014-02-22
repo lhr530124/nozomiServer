@@ -76,12 +76,27 @@ def getNozomiZombieStat(uid):
     cur = con.cursor()
     cur.execute("SELECT zombies, endTime, battles, state, zombies2 FROM nozomi_zombie_stat WHERE id=%s",(uid))
     ret = cur.fetchone()
+    ret1 = None
+    curTime = int(time.mktime(time.localtime()))
     if ret==None:
-        endTime = int(time.mktime(time.localtime()))+10*86400
-        cur.execute("INSERT INTO nozomi_zombie_stat (id,zombies,endTime,battles,state) VALUES (%s,0,%s,0,0)", (uid,endTime))
-        ret = [6007,endTime,0,0]
+        endTime = curTime+10*86400
+        cur.execute("INSERT INTO nozomi_zombie_stat (id,zombies,endTime,battles,state,zombies2) VALUES (%s,0,%s,0,0,0)", (uid,endTime))
+        ret1 = [6007,endTime,0,0]
     else:
-        
+        shouldSetZombie = False
+        if ret[1]>curTime:
+            if ret[4]>0:
+                ret1 = [6008, ret[1], ret[0]-ret[4], 0]
+            elif ret[3]==0:
+                ret1 = [6007, ret[1], ret[2], ret[3]]
+            else:
+                shouldSetZombie = True
+        elif ret[3]==1 and ret[4]==0:
+            shouldSetZombie = True
+        if shouldSetZombie and ret[0]>0:
+            endTime = curTime+10*86400
+            cur.execute("UPDATE nozomi_zombie_stat SET zombies2=%s,state=1,endTime=%s WHERE id=%s", (ret[0],endTime,uid))
+            ret1 = [6008, endTime, 0, 0]
     con.commit()
     cur.close()
     return ret
@@ -96,6 +111,7 @@ def updateZombieCount(uid, newKill):
         cur.execute("UPDATE nozomi_zombie_stat SET zombies=%s WHERE id=%s",(oldNum+newKill, uid))
         rserver = getServer()
         rserver.zadd('zombieRank', uid, oldNum+newKill)
+    con.commit()
     cur.close()
 
 def updateBattleNum(uid):
@@ -112,7 +128,7 @@ def checkBattleReward(uid, isRewardMode):
             return False
         cur.execute("UPDATE nozomi_zombie_stat SET state=1 WHERE id=%s", (uid))
     else:
-        cur.execute("INSERT INTO nozomi_zombie_stat (id,zombies,endTime,battles,state,zombies2) VALUES (%s,0,%s,0,0,0) ON DUPLICATE KEY UPDATE state=1", (uid, int(time.mktime(time.localtime()))+10*86400))
+        cur.execute("INSERT INTO nozomi_zombie_stat (id,zombies,endTime,battles,state,zombies2) VALUES (%s,0,%s,0,0,0) ON DUPLICATE KEY UPDATE state=1", (uid, int(time.mktime(time.localtime()))+12*86400))
     con.commit()
     cur.close()
     return True
@@ -128,7 +144,7 @@ def checkZombieReward(uid, isRewardMode):
             return False
         cur.execute("UPDATE nozomi_zombie_stat SET zombies2=-1 WHERE id=%s", (uid))
     else:
-        cur.execute("INSERT INTO nozomi_zombie_stat (id,zombies,endTime,battles,state,zombies2) VALUES (%s,0,%s,0,0,0) ON DUPLICATE KEY UPDATE zombies2=-1", (uid, int(time.mktime(time.localtime()))+10*86400))
+        cur.execute("INSERT INTO nozomi_zombie_stat (id,zombies,endTime,battles,state,zombies2) VALUES (%s,0,%s,0,0,-1) ON DUPLICATE KEY UPDATE zombies2=-1", (uid, int(time.mktime(time.localtime()))+12*86400))
     con.commit()
     cur.close()
     return True

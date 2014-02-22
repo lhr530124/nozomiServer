@@ -220,19 +220,37 @@ def checkBattleWithMember(uid, euid):
 
 def changeBattleState(uid, eid, cid, ecid, bid, vid, lscore):
     print("test change %d,%d,%d,%d,%d,%d,%d" % (uid, eid, cid, ecid, bid, vid, lscore))
-    if lscore>0:
-        update("UPDATE `nozomi_user` SET lscore=lscore+%s WHERE id=%s", (lscore, uid))
-        binfo = queryOne("SELECT id, cid1, cid2, left1, left2, winner FROM `nozomi_clan_battle` WHERE id=%s", (bid))
-        
+    if lscore>0 and vid>0:
+        con = getConn()
+        cur = con.cursor()
+        cur.execute("SELECT id, cid1, cid2, left1, left2, winner FROM `nozomi_clan_battle` WHERE id=%s", (bid))
+        binfo = cur.fetchone()
+        if binfo==None:
+            return
+        cur.execute("SELECT clan, name FROM nozomi_user WHERE id=%s", (uid))
+        ret = cur.fetchone()
+        if ret==None or ret[0]!=cid:
+            return
+        name = ret[1]
+        cur.execute("SELECT cid FROM nozomi_clan_battle_member WHERE bid=%s AND uid=%s AND video=0", (bid, eid))
+        ret = cur.fetchone()
+        if ret==None or ret[0]!=ecid:
+            return
+        isE1 = True
+        eleftIndex = 3
+        if binfo[1]==cid:
+            isE1 = False
+            eleftIndex = 4
+        eleft = 0
         if binfo[5]==0:
             winner = 0
-            isE1 = (binfo[1]==ecid)
-            eleftIndex = 4
-            if isE1:
-                eleftIndex = 3
-            if binfo[eleftIndex]==1:
+            cur.execute("SELECT count(*) FROM nozomi_clan_battle_member WHERE bid=%s AND cid=%s AND video=0", (bid, ecid))
+            winfo = cur.fetchone()
+            eleft = 0
+            if winfo!=None:
+                eleft = winfo[0]-1
+            if eleft==0:
                 winner = 5-eleftIndex
-                update("UPDATE `nozomi_clan` SET state=0, statetime=0 WHERE id=%s or id=%s", (cid, ecid))
                 params = []
                 m1 = sorted(getClanMembers(cid), key=lambda x:x[2], reverse=True)
                 m2 = sorted(getClanMembers(ecid), key=lambda x:x[2], reverse=True)
@@ -258,21 +276,22 @@ def changeBattleState(uid, eid, cid, ecid, bid, vid, lscore):
                         mtype=1
                     if mtype!=m[4]:
                         params.append([mtype, m[0]])
-                executemany("UPDATE `nozomi_user` SET memberType=%s WHERE id=%s", params)
-                
+                cur.executemany("UPDATE `nozomi_user` SET memberType=%s WHERE id=%s", params)
+                cur.execute("UPDATE `nozomi_clan` SET state=0, statetime=0 WHERE id=%s or id=%s", (cid, ecid))
+            cur.execute("UPDATE `nozomi_user` SET lscore=lscore+%s WHERE id=%s", (lscore, uid))
+            if isE1:
+                cur.execute("UPDATE `nozomi_clan_battle` SET left1=%s, winner=%s WHERE id=%s", (eleft, winner, bid))
+            else:
+                cur.execute("UPDATE `nozomi_clan_battle` SET left2=%s, winner=%s WHERE id=%s", (eleft, winner, bid))
+            s2 = lscore
+            if not util.isInWar():
+                s2=0
+            cur.execute("UPDATE `nozomi_clan` SET score=score+%s, score2=score2+%s WHERE id=%s", (lscore, s2, cid))
+            cur.execute("UPDATE `nozomi_clan_battle_member` SET inbattle=0, battler=%s, video=%s WHERE uid=%s", (name, vid, eid))
+            con.commit()
+            cur.close()
+            if winner > 0:
                 requestGet(config.CHATSERVER, dict(cid=cid, type="lbe", info=cid))
                 requestGet(config.CHATSERVER, dict(cid=ecid, type="lbe", info=cid))
-            if isE1:
-                update("UPDATE `nozomi_clan_battle` SET left1=left1-1, winner=%s WHERE id=%s and left1 > 0", (winner, bid))
-            else:
-                update("UPDATE `nozomi_clan_battle` SET left2=left2-1, winner=%s WHERE id=%s and left2 > 0", (winner, bid))
-        s2 = lscore
-        if not util.isInWar():
-            s2=0
-        update("UPDATE `nozomi_clan` SET score=score+%s, score2=score2+%s WHERE id=%s", (lscore, s2, cid))
-        name = queryOne("SELECT name FROM `nozomi_user` WHERE id=%s", (uid))[0]
-        update("UPDATE `nozomi_clan_battle_member` SET inbattle=0, battler=%s, video=%s WHERE uid=%s", (name, vid, eid))
     else:
         clearBattleStateAtOnce(eid)
-    #    update("UPDATE `nozomi_user` SET lscore=lscore+%s WHERE id=%s", (-lscore, eid))
-    #    update("UPDATE `nozomi_clan` SET score=score+%s WHERE id=%s", (-lscore, ecid))

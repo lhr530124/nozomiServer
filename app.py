@@ -475,7 +475,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [6,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,5]
+settings = [7,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,6]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -505,7 +505,7 @@ def getData():
                 ret = dict(serverUpdate=1)
                 if language==0:
                     ret['title'] = "New Version!"
-                    ret['content']="1. Update heroes system!\n2. Update statues system!\n3. Update population related values!\n4. Update the rules of League Wars, Zombie attack!"
+                    ret['content']="1. You can Upgrade Zombie Camp Now!\n2. Add a new zombie soldier!\n3. Features of Statues Updated!\n4. Killing Zombies Contest is Coming!\n5. Bug fixed and some other improvement!"
                     ret['button1']="Update Now"
                     ret['button2']="Later"
                 else:
@@ -527,6 +527,7 @@ def getData():
             data.update(ret)
         t = int(time.mktime(time.localtime()))
         data['serverTime'] = t
+        #data['payDebug'] =1
         #while t>util.leagueWarStartTime:
         #    util.leagueWarStartTime = util.leagueWarStartTime+86400*14
         #while t>util.leagueWarEndTime:
@@ -545,7 +546,9 @@ def getData():
         data['newRewards'] = getUserRewardsNew(uid)
         if data['guide']>=1400:
             if data.get('leftDay',0)==0:
-                data['nzstat'] = UserRankModule.getNozomiZombieStat(uid)
+                nzstat = UserRankModule.getNozomiZombieStat(uid)
+                if nzstat!=None:
+                    data['nzstat'] = nzstat
             days = 0
             if data['registerTime'] < settings[1]:
                 days = dailyModule.dailyLogin(uid)
@@ -563,7 +566,7 @@ def getData():
             if ret!=None:
                 data['crystal'] = data['crystal']+ret[0]
                 data['rewards'] = ret[1]
-            addOurAds(uid, platform, data)
+            #addOurAds(uid, platform, data)
         loginlogger.info("%s\t%d\tlogin" % (platform,uid))
     else:
         data = getUserInfos(uid)
@@ -683,6 +686,17 @@ def synData():
         ctime = int(time.mktime(time.localtime()))
         if stime<ctime-600 or stime>ctime+600:
             return '{"code":1}'
+    update = request.form.get("update")
+    if update!=None:
+        update = json.loads(update)
+        for build in update:
+            x = build[1]/10000
+            y = build[1]%10000
+            if x<1 or x>40 or y>40:
+                return '{"code":1}'
+    if 'cstatue' in request.form:
+        if UserRankModule.checkBattleReward(uid, True)==False:
+            return '{"code":1}'
     if 'cstatue6007' in request.form:
         if UserRankModule.checkBattleReward(uid, request.form.get('cstatue6007',1,type=int))==False:
             return '{"code":1}'
@@ -748,18 +762,7 @@ def synData():
     if 'research' in request.form:
         researches = json.loads(request.form['research'])
         updateUserResearch(uid, researches)
-    if 'update' in request.form:
-        update = json.loads(request.form['update'])
-        for build in update:
-            if build[2]==1002:
-                ext = build[6]
-                util.restoreBuilds(uid)
-                oldExt = queryOne("SELECT `extend` FROM nozomi_build WHERE id=%s AND bid=1002", (uid), util.getDBID(uid))
-                if oldExt!=None:
-                    oldExt = oldExt[0]
-                    if oldExt!="" and 'research' not in request.form:
-                        build[6]=oldExt
-                break
+    if update!=None:
         updateUserBuilds(uid, update)
     updateUserInfoById(userInfoUpdate, uid)
     updateUserState(uid, int(request.form.get("eid", 0)))
