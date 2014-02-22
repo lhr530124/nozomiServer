@@ -91,7 +91,7 @@ def getNozomiZombieStat(uid):
                 ret1 = [6007, ret[1], ret[2], ret[3]]
             else:
                 shouldSetZombie = True
-        elif ret[3]==1 and ret[4]==0:
+        elif ret[4]==0:
             shouldSetZombie = True
         if shouldSetZombie and ret[0]>0:
             endTime = curTime+10*86400
@@ -99,7 +99,7 @@ def getNozomiZombieStat(uid):
             ret1 = [6008, endTime, 0, 0]
     con.commit()
     cur.close()
-    return ret
+    return ret1
 
 def updateZombieCount(uid, newKill):
     con = getConn()
