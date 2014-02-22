@@ -475,7 +475,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [6,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,6]
+settings = [7,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,6]
 
 @app.route("/getData", methods=['GET'])
 def getData():
