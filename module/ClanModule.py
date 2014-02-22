@@ -233,6 +233,7 @@ def changeBattleState(uid, eid, cid, ecid, bid, vid, lscore):
             return
         name = ret[1]
         cur.execute("SELECT cid FROM nozomi_clan_battle_member WHERE bid=%s AND uid=%s AND video=0", (bid, eid))
+        ret = cur.fetchone()
         if ret==None or ret[0]!=ecid:
             return
         isE1 = True
