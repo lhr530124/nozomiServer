@@ -1,11 +1,11 @@
 HOST = 'localhost'
 DATABASE = 'nozomi'
-DEBUG = False
+DEBUG = False 
 PASSWORD = 'wavegame1'
 ADMINS = ['233242872@qq.com', 'caesars321@gmail.com', '21024851@qq.com']
 HOSTPORT = 9995
 SORTPORT = 9958
-CHATPORT = 8005
+CHATPORT = 8111
 CHATSERVER = 'http://localhost:%d/sys' % (CHATPORT)
 REDIS_HOST = 'localhost'
 LOG_HOST= 'localhost'
