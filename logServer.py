@@ -80,6 +80,7 @@ class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
 
     def __init__(self, host='localhost',
                  port=logging.handlers.DEFAULT_TCP_LOGGING_PORT,
+                 #port=9130,
                  handler=LogRecordStreamHandler):
         print host, port
         SocketServer.ThreadingTCPServer.__init__(self, (host, port), handler)
@@ -168,7 +169,7 @@ def main():
     allHandlers['__main__'] = True
 
 
-    tcpserver = LogRecordSocketReceiver(host='0.0.0.0', port=9020)
+    tcpserver = LogRecordSocketReceiver(host='0.0.0.0', port=9120)
     print('About to start TCP server...')
     tcpserver.serve_until_stopped()
 

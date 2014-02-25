@@ -323,7 +323,7 @@ def addOurAds(uid, platform, data):
     curTime = data["serverTime"]
     if platform=="android_our":
         adsCode = 1
-        adsUrl = "https://play.google.com/store/apps/details?id=com.caesars.bird"
+        adsUrl = "https://play.google.com/store/apps/details?id=com.caesars.flyGame"
         if curTime<1392940800:
             needAds = False
             ret = queryOne("SELECT code, lastTime FROM nozomi_ads_check WHERE id=%s", (uid))
@@ -499,8 +499,8 @@ def getData():
         if sversion<settings[4]:
             return json.dumps(dict(serverError=1, title="Please Update!", content="There is a bug fix found when you login! Please close your game and restart it again to update your game!", button="Close"))
         ret = None
-        if False:
-        #if 'check' in request.args:
+        #if False:
+        if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
             if checkVersion<settings[0]:
                 country = request.args.get('country',"us").lower()
@@ -550,7 +550,9 @@ def getData():
         data['newRewards'] = getUserRewardsNew(uid)
         if data['guide']>=1400:
             if data.get('leftDay',0)==0:
-                data['nzstat'] = UserRankModule.getNozomiZombieStat(uid)
+                nzstat = UserRankModule.getNozomiZombieStat(uid)
+                if nzstat!=None:
+                    data['nzstat'] = UserRankModule.getNozomiZombieStat(uid)
             days = 0
             if data['registerTime'] < settings[1]:
                 days = dailyModule.dailyLogin(uid)
@@ -688,12 +690,15 @@ def synData():
         ctime = int(time.mktime(time.localtime()))
         if stime<ctime-600 or stime>ctime+600:
             return '{"code":1}'
-    if 'cstatue' in request.form:
-        if UserRankModule.checkBattleReward(uid)==False:
+    if 'cstatue6007' in request.form:
+        if UserRankModule.checkBattleReward(uid, request.form.get('cstatue6007',1,type=int))==False:
             return '{"code":1}'
     if 'zinc' in request.form:
         newKill = request.form.get('zinc',0,type=int)
         UserRankModule.updateZombieCount(uid, newKill)
+    if 'cstatue6008' in request.form:
+        if UserRankModule.checkZombieReward(uid, request.form.get('cstatue6008',1,type=int))==False:
+            return '{"code":1}'
     oldCrystal = getUserAllInfos(uid)['crystal']
     newCrystal = oldCrystal
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
@@ -1212,6 +1217,8 @@ def addPurchaseCrystal(orderId, roleId, amount, platform, curTime, payFunc):
         rmb = crystalRmbDict.get(amount,0)
         if payFunc!="paypal":
             rmb = rmb*7/10
+        else:
+            rmb = rmb*97/100-2
         crystallogger.info("%s\t%d\t%s" % (platform, roleId, json.dumps([-1,curTime,amount,rmb,payFunc])))
     return True
 
@@ -1279,6 +1286,18 @@ def verifyGooglePay():
         else:
             return json.dumps(dict(ret=-1))
     return json.dumps(dict(ret=1))
+
+@app.route("/normalverify", methods=['POST'])
+def verifyAllPurchase():
+    payFunc = request.form.get('pay')
+    tid = request.form.get("tid")
+    uid = request.form.get("uid", 0, type=int)
+    sid = request.form.get("sid")
+    amount = request.form.get("amount", 0, type=int)
+    platform = request.form.get("platform")
+    if addPurchaseCrystal(tid, uid, amount, platform, int(time.mktime(time.localtime())), payFunc):
+        return json.dumps(dict(code=0))
+    return json.dumps(dict(code=1))
 
 @app.route("/paypalverify", methods=['POST'])
 def verifyPaypal():

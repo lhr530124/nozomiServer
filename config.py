@@ -9,7 +9,7 @@ CHATPORT = 8090
 CHATSERVER = 'http://localhost:%d/sys' % (CHATPORT)
 REDIS_HOST = 'localhost'
 LOG_HOST= 'localhost'
-LOG_PORT = 9020
+LOG_PORT = 9120
 
 
 ERROR_SERVER = "nozomiTestError.log"
