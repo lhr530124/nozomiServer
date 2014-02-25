@@ -17,7 +17,7 @@ def clearUserShield(uid):
     update("UPDATE nozomi_user_state SET shieldTime=0 WHERE uid=%s", (uid))
 
 def updateUserOnline(uid):
-    update("UPDATE nozomi_user_state SET onlineTime=%s WHERE uid=%s", (getTime()+240, uid))
+    update("UPDATE nozomi_user_state SET onlineTime=%s WHERE uid=%s", (getTime()+1800, uid))
 
 #减少通讯频率，因此每次请求仅更新一次进攻时间（随着下次请求而取消）
 def updateUserAttack(uid):
