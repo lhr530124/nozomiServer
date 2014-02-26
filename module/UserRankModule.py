@@ -89,7 +89,7 @@ def getNozomiZombieStat(uid):
                 ret1 = [6008, ret[1], ret[0]-ret[4], 0]
             elif ret[3]==0:
                 ret1 = [6007, ret[1], ret[2], ret[3]]
-            else:
+            elif ret[4]==0:
                 shouldSetZombie = True
         elif ret[4]==0:
             shouldSetZombie = True
