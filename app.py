@@ -215,8 +215,8 @@ def getUserInfos(uid):
     return dict(name=r[0], score=r[1], clan=r[2], mtype=r[3])
 
 def getUserAllInfos(uid):
-    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime, registerTime FROM nozomi_user WHERE id=%s", (uid))
-    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12])
+    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime, registerTime, ban FROM nozomi_user WHERE id=%s", (uid))
+    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12], ban=r[13])
 
 def getBindGameCenter(tempName):
     r = queryOne("SELECT gameCenter FROM `nozomi_gc_bind` WHERE uuid=%s",(tempName))
@@ -523,11 +523,14 @@ def getData():
         if 'attackTime' in state:
             return json.dumps(state)
         data = getUserAllInfos(uid)
+        if data==None or data['ban']!=0:
+            return json.dumps(dict(serverError=1, title="You are banned!", content="You are banned because of the hacked data!", button="Close"))
         if ret!=None:
             data.update(ret)
         t = int(time.mktime(time.localtime()))
         data['serverTime'] = t
-        #data['payDebug'] =1
+        if platform=="ios_cn":
+            data['payDebug'] =1
         #while t>util.leagueWarStartTime:
         #    util.leagueWarStartTime = util.leagueWarStartTime+86400*14
         #while t>util.leagueWarEndTime:
@@ -694,6 +697,24 @@ def synData():
             y = build[1]%10000
             if x<1 or x>40 or y>40:
                 return '{"code":1}'
+            if build[2]==1005 and build[6]!="":
+                checkExt = json.loads(build[6])
+                if 'weapons' in checkExt:
+                    weapons = checkExt['weapons']
+                    if weapons[0]>2 or weapons[1]>2:
+                        update("UPDATE nozomi_user SET ban=2 WHERE id=%s",(uid))
+                        return '{"code":1}'
+            elif build[2]==1001 and build[6]!="":
+                checkExt = json.loads(build[6])
+                if 'callList' in checkExt:
+                    callList = checkExt['callList']
+                    for callItem in callList:
+                        if callItem[0]>build[3] or callItem[1]>100:
+                            update("UPDATE nozomi_user SET ban=2 WHERE id=%s",(uid))
+                            return '{"code":1}'
+    userDbInfo = getUserAllInfos(uid)
+    if userDbInfo['ban']!=0:
+        return '{"code":1}'
     if 'cstatue' in request.form:
         if UserRankModule.checkBattleReward(uid, True)==False:
             return '{"code":1}'
@@ -706,7 +727,7 @@ def synData():
     if 'cstatue6008' in request.form:
         if UserRankModule.checkZombieReward(uid, request.form.get('cstatue6008',1,type=int))==False:
             return '{"code":1}'
-    oldCrystal = getUserAllInfos(uid)['crystal']
+    oldCrystal = userDbInfo['crystal']
     newCrystal = oldCrystal
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
     if 'userInfo' in request.form:
