@@ -374,7 +374,7 @@ def initUser(username, nickname, platform):
     platformId = platformIds.get(platform, 0)
     initScore = 500
     #uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
-    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime) VALUES(%s, %s, %s, %s, 500, 497, 0, %s, %s)", (username, regTime, nickname, util.getTime(), platformId, regTime))
+    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime) VALUES(%s, %s, %s, %s, 500, 497, 0, %s, %s)", (username, regTime, nickname, util.getTime(), platformId, 0))
 
     myCon = getConn()
     module.UserRankModule.initUserScore(myCon, uid, initScore)
@@ -454,8 +454,44 @@ def login():
         #测试timeout
         #pass
 
+@app.route("/loginv2", methods=['POST'])
+def loginVersion2():
+    #This interface is a new way of login
+    device = request.form.get("device", "")
+    channel = request.form.get("channel", "")
+    account = request.form.get("account","")
+    uid = 0
+    ret = dict(code=0)
+    if account=="":
+        if device=="":
+            abort(401)
+    else:
+        one = queryOne("SELECT userId FROM nozomi_user_bind WHERE account=%s", (account))
+        if one!=None:
+            uid = one[0]
+    #If didn't get userId with account, then use device to reg one user
+    if uid==0:
+        if device=="":
+            tmp = os.urandom(12)
+            for char in tmp:
+                device = device + ("%02x" % ord(char))
+            ret["sDeviceId"] = device
+        uid = getUidByName(device)
+        if uid==0:
+            timelogger.info("new user %s" % (device))
+            platform = "ios"
+            if 'platform' in request.form:
+                platform = request.form['platform']
+            uid = initUser(device, "", platform)
+            loginlogger.info("%s\t%d\treg" % (platform,uid))
+            achieveModule.initAchieves(uid)
+        if account!="":
+            update("INSERT INTO nozomi_user_bind (account, channel, userId) VALUES (%s,%s,%s)", (account, channel, uid))
+    ret['uid'] = uid
+    return json.dumps(ret)
+
 updateUrls = dict()
-settings = [6,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,4]
+settings = [1,0, True, 0,1]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -467,7 +503,7 @@ def getData():
         platform = "ios"
         if 'platform' in request.args:
             platform = request.args['platform']
-        language = 0
+        language = 1
         if platform=="ios_cn":
             language=1
         if 'language' in request.args:
@@ -476,29 +512,25 @@ def getData():
         if sversion<settings[4]:
             return json.dumps(dict(serverError=1, title="Please Update!", content="There are some new changes found when you login:\n1. Biochemical Factory is coming!\n2. Update zombie ranking!\n3.Update Population Statue for activity!\nPlease close your game and restart it again to update your game!", button="Close"))
         ret = None
-        if 'check' in request.args:
-            checkVersion = request.args.get("checkVersion", 0, type=int)
-            if checkVersion<settings[0]:
-                country = request.args.get('country',"us").lower()
-                if country=="":
-                    country = "us"
-                ret = dict(serverUpdate=1)
-                if language==0:
-                    ret['title'] = "New Version!"
-                    ret['content']="1. Update heroes system!\n2. Update statues system!\n3. Update population related values!\n4. Update the rules of League Wars, Zombie attack!"
-                    ret['button1']="Update Now"
-                    ret['button2']="Later"
-                else:
-                    ret['title'] = "新版本来啦！"
-                    ret['content'] = "1. 上线了英雄系统；\n2. 上线了神像系统；\n3. 调整了人口相关数值；\n4. 优化了联盟战斗、僵尸攻打机制。"
-                    ret['button1']="立即更新"
-                    ret['button2']="稍后更新"
-                ret['url'] = "https://itunes.apple.com/app/id608847384?mt=8&uo=4"
-                #if platform=="ios_cn":
-                #    ret['url'] = ret['url'].replace("608847384","666289981")
-                if settings[2]==True:
-                    ret['forceUpdate']=1
-                    return json.dumps(ret)
+        if version<settings[0]:
+            country = request.args.get('country',"us").lower()
+            if country=="":
+                country = "us"
+            ret = dict(serverUpdate=1)
+            if language==0:
+                ret['title'] = "New Version!"
+                ret['content']="1. Update heroes system!\n2. Update statues system!\n3. Update population related values!\n4. Update the rules of League Wars, Zombie attack!"
+                ret['button1']="Update Now"
+                ret['button2']="Later"
+            else:
+                ret['title'] = "新版本来啦！"
+                ret['content'] = "1. 上线了英雄系统；\n2. 上线了神像系统；\n3. 调整了人口相关数值；\n4. 优化了联盟战斗、僵尸攻打机制。"
+                ret['button1']="立即更新"
+                ret['button2']="稍后更新"
+            ret['url'] = "https://itunes.apple.com/app/id608847384?mt=8&uo=4"
+            if settings[2]==True:
+                ret['forceUpdate']=1
+                return json.dumps(ret)
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
@@ -507,38 +539,16 @@ def getData():
             data.update(ret)
         t = int(time.mktime(time.localtime()))
         data['serverTime'] = t
-        #while t>util.leagueWarStartTime:
-        #    util.leagueWarStartTime = util.leagueWarStartTime+86400*14
-        #while t>util.leagueWarEndTime:
-        #    util.leagueWarEndTime = util.leagueWarEndTime+86400*14
         data['leagueWarTime'] = util.leagueWarEndTime
         data['nextLeagueWarTime'] = util.leagueWarStartTime
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
-        #if data['registerTime']>newbieCup[0]:
-        #    data['newbieTime'] = newbieCup[1]
-        #data.pop('registerTime')
         data['achieves'] = achieveModule.getAchieves(uid)
-        print 'guide', data['guide']
-        if data['registerTime'] > settings[3]:
-            data['leftDay'] = newUserLogin(uid)
+        data['leftDay'] = newUserLogin(uid)
         data['newRewards'] = getUserRewardsNew(uid)
         if data['guide']>=1400:
             if data.get('leftDay',0)==0:
                 data['nzstat'] = UserRankModule.getNozomiZombieStat(uid)
-            days = 0
-            if data['registerTime'] < settings[1]:
-                days = dailyModule.dailyLogin(uid)
-            print 'days', days
-            if days>0:
-                data['days']=days
-                reward = int((50+30*days)**0.5+0.5)
-                if version==0 or (days!=7 and days!=14 and days!=30):
-                    updateCrystal(uid, reward)
-                    if version==0 and (days==7 or days==14 or days==30):
-                        dailyModule.loginWithDays(uid, days)
-                    data['crystal'] = data['crystal']+reward
-                data['reward'] = reward
             ret = checkUserReward(uid, language)
             if ret!=None:
                 data['crystal'] = data['crystal']+ret[0]
@@ -548,9 +558,7 @@ def getData():
         data = getUserInfos(uid)
     if data['clan']>0:
         data['clanInfo'] = ClanModule.getClanInfo(data['clan'])
-    #data['builds'] = getUserBuilds(uid)
     data['researches'] = getUserResearch(uid)
-    #fix data
     repairDatas = []
     builds = getUserBuilds(uid)
     builds = [list(r) for r in builds]
@@ -575,7 +583,6 @@ def getData():
             except e:
                 print e
 
-            #if build[6]=='{"resource":0}':
         if build[4]>0:
             errorBuilderNum = errorBuilderNum-1
     while errorBuilderNum>0:
@@ -1095,7 +1102,7 @@ def getRewards():
     else:
         return json.dumps(dict(code=0, rewards=getUserRewardsNew(uid)))
 
-bulletins = ["1. Get free rewards by sharing news with your friends!","2. Download your own particular Battle Video!","3. Get double crystals by first Recharge!", "4. Continuously login to get more New User Gift!"]
+bulletins = ["1.生产食物和能源液，召集人类升级你的希望号","2.每天登录游戏可以获得新手奖励","3.第一次购买水晶可以获得双倍返还","4.攻击敌人后可以下载战斗视频","5.点击僵尸军营墓碑可以召唤僵尸攻打自己的大本营","6.成功防御僵尸攻打可以捕获僵尸","7.成功捕获的僵尸可以参加战斗，掠夺其他玩家资源","8.僵尸攻打大本营按加速按钮可以加速僵尸攻打速度","9.僵尸攻打大本营可以点击被攻打建筑物按修复键，机器人即可修复","10.购买防御盾牌可以防止大本营资源被其他玩家掠夺","11.购买僵尸防御盾牌可以防止大本营被僵尸军团攻打","12.购买建筑者可以同时建造多个建筑物","13.升级资源建筑可以建造等级更高的希望号","14.升级希望号解锁高级的防御武器","15.点击联盟建筑修复，你可以建立自己的联盟并发起联盟战斗","16.完成任务可以获得水晶奖励"]
 
 productDict = {"crystal0":500,"crystal1":1200,"crystal2":2500,"crystal3":6500,"crystal4":14000,"crystal5":200,"Xicrystal0":500,"Xicrystal1":1200,"Xicrystal2":2500,"Xicrystal3":6500,"Xicrystal4":14000,"Xicrystal5":200}
 
@@ -1214,6 +1221,45 @@ def genPaypalInvoice():
     else:
         invoice = insertAndGetId("INSERT INTO nozomi_paypal_purchase (uid,email,amount,state) values(%s,'',%s,%s)", (uid, product['amount'], 0))
         return json.dumps(dict(invoice=invoice, amount=product['price'], item=product['name'],currency_code="USD", ret=1)) 
+
+@app.route("/dxlogin", methods=['GET'])
+def dxLoginIndex():
+    dxUid = request.args.get("userId", 0)
+    key = request.args.get("key")
+    cpId = request.args.get("cpId")
+    cpServiceId = request.args.get("cpServiceId")
+    channelId = request.args.get("channelId")
+    region = request.args.get("region")
+    Ua = request.args.get("Ua")
+    print 'dxlogin', request.args
+    return "Content-Type: text/plain; charset=UTF8\r\nContent-Length: xx\r\n\r\n0"
+
+@app.route("/dxpurchase", methods=['POST'])
+def verifyDXPurchase():
+    print 'dxpurchase',request.form
+    ret = request.form['ret']
+    status = request.form['status']
+    if ret==0 and status==1800:
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response><hRet>0</hRet><message>successful</message></response>"
+    else:
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response><hRet>1</hRet><message>failure</message></response>"
+
+@app.route("/ltverify", methods=['POST'])
+def verifyLiantongPurchaseClient():
+    uid = request.form.get('uid', 0, type=int)
+    tid = request.form.get('tid')
+    sid = request.form.get('sid')
+    platform = request.form.get("plat")
+    product = request.form.get('product', 0, type=int)
+    rt = request.form.get('time', 0, type=int)
+    amount = [50,120,210,375,900,30][product]
+    curTime =  int(time.mktime(time.localtime()))
+    if rt<curTime-3600 or rt>curTime+3600 or uid==0 or platform!="android_lt":
+        return json.dumps(dict(ret=-1))
+    if addPurchaseCrystal(tid, uid, amount, platform, curTime):
+        return json.dumps(dict(ret=1))
+    else:
+        return json.dumps(dict(ret=-1))
 
 app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024
