@@ -100,11 +100,6 @@ def internalError(exception):
     ''' % (str(request.args), str(request.form), exception))
     return '', 500 
     
-    
-#可能没有web 上下文环境
-def getConn():
-    return MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
-
 
 def getMyConn():
     top = _app_ctx_stack.top
@@ -689,10 +684,10 @@ def synData():
         ctime = int(time.mktime(time.localtime()))
         if stime<ctime-600 or stime>ctime+600:
             return '{"code":1}'
-    update = request.form.get("update")
-    if update!=None:
-        update = json.loads(update)
-        for build in update:
+    updateBuilds = request.form.get("update")
+    if updateBuilds!=None:
+        updateBuilds = json.loads(updateBuilds)
+        for build in updateBuilds:
             x = build[1]/10000
             y = build[1]%10000
             if x<1 or x>40 or y>40:
@@ -783,8 +778,8 @@ def synData():
     if 'research' in request.form:
         researches = json.loads(request.form['research'])
         updateUserResearch(uid, researches)
-    if update!=None:
-        updateUserBuilds(uid, update)
+    if updateBuilds!=None:
+        updateUserBuilds(uid, updateBuilds)
     updateUserInfoById(userInfoUpdate, uid)
     updateUserState(uid, int(request.form.get("eid", 0)))
     if 'stat' in request.form:
@@ -1118,6 +1113,37 @@ def synLuaError():
     platform = request.form.get("error","")
     testlogger.info("userId:%d,platform:%s\n%s" % (uid,platform,error))
     return "success"
+
+@app.route("/report", methods=['POST'])
+def reportChat():
+    uid = request.form.get('uid', 0, type=int)
+    eid = request.form.get('eid', 0, type=int)
+    msg = request.form.get('msg',"")
+    if uid>0 and eid>0 and msg!="":
+        con = getConn()
+        cur = con.cursor()
+        state = 0
+        cur.execute("SELECT score FROM nozomi_user WHERE id=%s", (eid))
+        ret = cur.fetchone()
+        if ret==None:
+            return "fail"
+        escore = ret[0]
+        if escore<1400:
+            cur.execute("SELECT score FROM nozomi_user WHERE id=%s", (uid))
+            ret = cur.fetchone()
+            if ret==None:
+                return "fail"
+            score = ret[0]
+            if score>escore:
+                state=1
+                print("ban user", uid, score, eid, escore, msg)
+                #send url
+        cur.execute("INSERT INTO nozomi_ban_record (reporter,banner,msg,state) VALUES (%s,%s,%s,%s)", (uid,eid,msg,state))
+        con.commit()
+        cur.close()
+        return "success"
+    return "fail"
+
 @app.route('/updateTime')
 def updateTime():
     start = queryOne('select value from activity where `key` = "startTime"')[0]
