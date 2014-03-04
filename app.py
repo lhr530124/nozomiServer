@@ -1122,23 +1122,7 @@ def reportChat():
     if uid>0 and eid>0 and msg!="":
         con = getConn()
         cur = con.cursor()
-        state = 0
-        cur.execute("SELECT score FROM nozomi_user WHERE id=%s", (eid))
-        ret = cur.fetchone()
-        if ret==None:
-            return "fail"
-        escore = ret[0]
-        if escore<1400:
-            cur.execute("SELECT score FROM nozomi_user WHERE id=%s", (uid))
-            ret = cur.fetchone()
-            if ret==None:
-                return "fail"
-            score = ret[0]
-            if score>escore:
-                state=1
-                print("ban user", uid, score, eid, escore, msg)
-                #send url
-        cur.execute("INSERT INTO nozomi_ban_record (reporter,banner,msg,state) VALUES (%s,%s,%s,%s)", (uid,eid,msg,state))
+        cur.execute("INSERT INTO nozomi_ban_record (reporter,banner,msg) VALUES (%s,%s,%s)", (uid,eid,msg))
         con.commit()
         cur.close()
         return "success"

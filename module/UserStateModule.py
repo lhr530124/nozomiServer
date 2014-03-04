@@ -52,10 +52,10 @@ def findAMatch(uid, score, scoreOff):
             if minScore>highScore:
                 minScore = highScore
             #it is a small number, so get all to random
-            ids = queryAll("SELECT uid FROM nozomi_user_state WHERE uid!=%s AND shieldTime<%s AND attackTime<%s AND onlineTime<%s AND score>%s AND score<%s", (uid,curTme,curTime,curTime,minScore,maxScore))
+            ids = queryAll("SELECT uid FROM nozomi_user_state WHERE uid!=%s AND shieldTime<%s AND attackTime<%s AND onlineTime<%s AND score>%s AND score<%s", (uid,curTime,curTime,curTime,minScore,maxScore))
             if ids!=None:
                 num = len(ids)
-                cut = ids[random.randint(0, num-1)]
+                cut = ids[random.randint(0, num-1)][0]
                 updateUserAttack(cut)
                 return cut
         else:
