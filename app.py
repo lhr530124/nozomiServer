@@ -392,15 +392,9 @@ def initUser(username, nickname, platform):
     #uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
     uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime) VALUES(%s, %s, %s, %s, 500, %s, 0, %s, %s)", (username, regTime, nickname, util.getTime(), initCrystal, platformId, regTime))
 
-    myCon = getConn()
-    module.UserRankModule.initUserScore(myCon, uid, initScore)
-    module.UserRankModule.updateScore(myCon, uid, initScore)
-    myCon.commit()
-    myCon.close()
+    module.UserRankModule.initUserScore(uid, initScore)
 
     updateUserBuilds(uid, dataBuilds)
-    update("INSERT INTO nozomi_research (id, research) VALUES(%s, '[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]')", (uid))
-    newUserState(uid)
     
     return uid
 
