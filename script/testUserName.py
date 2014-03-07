@@ -16,6 +16,7 @@ cur.execute(sql)
 sql = 'insert into activity (`key`, `value`) values ("endTime", "[2014, 2,7, 0, 0, 0, 0, 0, 0]")'
 cur.execute(sql)
 
+
 f = open('uname.json')
 u = f.read()
 u = json.loads(u)
