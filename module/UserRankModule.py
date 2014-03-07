@@ -28,10 +28,14 @@ def initScoreCount(myCon):
     #sql = 'select * from nozomi_rank'
     pass
 
-def initUserScore(myCon, uid, score):
-    sql = 'insert into  nozomi_rank (uid, score) values(%d, %d)' % (uid, score)
-    myCon.query(sql)
+def initUserScore(uid, score):
+    myCon = getConn()
+    cur = myCon.cursor()
+    cur.execute("INSERT INTO nozomi_rank (uid, score) VALUES (%s, %s)",(uid, score))
+    cur.execute("INSERT INTO nozomi_research (id, research) VALUES(%s, '[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]')", (uid))
+    cur.execute("INSERT INTO nozomi_user_state (uid, score, shieldTime, onlineTime, attackTime) VALUES (%s, %s, 0, 0, 0)", (uid, score))
     myCon.commit()
+    cur.close()
     
     rserver = getServer()
     rserver.zadd('userRank', uid, score)
@@ -89,7 +93,7 @@ def getNozomiZombieStat(uid):
                 ret1 = [6008, ret[1], ret[0]-ret[4], 0]
             elif ret[3]==0:
                 ret1 = [6007, ret[1], ret[2], ret[3]]
-            else:
+            elif ret[4]==0:
                 shouldSetZombie = True
         elif ret[4]==0:
             shouldSetZombie = True

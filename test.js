@@ -71,6 +71,7 @@ HOST = null;
 port = 8011;
 
 var channels = {};//cid channel
+var bannedUsers = {};
 function createChannel(cid)
 {
     var channel = channels[cid];
@@ -138,8 +139,7 @@ function createChannel(cid)
 
 
         //多种类型消息 appendMessage
-        this.appendMessage = function(uid, name, type, text){
-            uid = parseInt(uid, 10)
+        this.appendMessage = function(uid, name, type, text, cur){
             switch(type){
             case "msg":
                 sys.puts("<"+uid+">"+text);
@@ -151,13 +151,12 @@ function createChannel(cid)
                 sys.puts(nick+" part");
                 break;
             };
-            var cur = Math.floor((new Date()).getTime()/1000);
             if(lastTime>=cur){
                 lastTime = lastTime+1;
                 cur = lastTime;
             }
             else
-                lastTime = cur
+                lastTime = cur;
             var m = [uid, name,  text, (cur - beginTime), type];
             pool.getConnection(function(err, connection) {
                 console.log("connection Error", err);
@@ -337,14 +336,32 @@ function createChannel(cid)
 ser.listen(Number(process.env.port||port), HOST);
 //first time receive or send will join
 ser.get("/send", function(req, res){
-    var uid = qs.parse(url.parse(req.url).query).uid;
+    var uid = parseInt(qs.parse(url.parse(req.url).query).uid,10);
+    var curTime = Math.floor((new Date()).getTime()/1000);
+    var banTime = bannedUsers[uid];
+    if(typeof(banTime)!="undefined"){
+        if(banTime>curTime){
+            res.simpleJSON(200, {result: "baned"});
+            return;
+        }
+        else{
+            delete bannedUsers[uid];
+        }
+    }
     var name = qs.parse(url.parse(req.url).query).name;
     var cid = qs.parse(url.parse(req.url).query).cid;
     var text = qs.parse(url.parse(req.url).query).text;
-    sys.puts("send " + uid + " "+ name +" "+cid +" " + text);
+    sys.puts("send " + name +" "+cid +" " + text);
     channel = createChannel(cid)
-    channel.appendMessage(uid, name, "msg", text);
+    channel.appendMessage(uid, name, "msg", text, curTime);
     res.simpleJSON(200, {result: "send suc"});
+});
+ser.get("/ban", function(req, res){
+    var args = qs.parse(url.parse(req.url).query);
+    var uid = parseInt(args.uid,10);
+    var btime = parseInt(args.endtime,10);
+    bannedUsers[uid] = btime;
+    res.simpleJSON(200, {result: "ok"});
 });
 ser.get("/sys", function(req, res){
     var args = qs.parse(url.parse(req.url).query);
@@ -352,7 +369,6 @@ ser.get("/sys", function(req, res){
     var info = args.info;
     var cid = args.cid;
     channel = createChannel(cid);
-    sys.puts("sys " + cid + " " + type + " " + info)
     channel.appendSys(type, info);
     res.simpleJSON(200, {result: "send suc"});
 });
