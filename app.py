@@ -102,11 +102,6 @@ def internalError(exception):
     return '', 500 
     
     
-#可能没有web 上下文环境
-def getConn():
-    return MySQLdb.connect(host=app.config['HOST'], user=app.config['USER'], passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
-
-
 def getMyConn():
     top = _app_ctx_stack.top
     if not hasattr(top, 'db'):
@@ -216,8 +211,8 @@ def getUserInfos(uid):
     return dict(name=r[0], score=r[1], clan=r[2], mtype=r[3])
 
 def getUserAllInfos(uid):
-    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime, registerTime FROM nozomi_user WHERE id=%s", (uid))
-    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12])
+    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime, registerTime, ban FROM nozomi_user WHERE id=%s", (uid))
+    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12], ban=r[13])
 
 def getBindGameCenter(tempName):
     r = queryOne("SELECT gameCenter FROM `nozomi_gc_bind` WHERE uuid=%s",(tempName))
@@ -376,15 +371,9 @@ def initUser(username, nickname, platform):
     #uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
     uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime) VALUES(%s, %s, %s, %s, 500, 497, 0, %s, %s)", (username, regTime, nickname, util.getTime(), platformId, regTime))
 
-    myCon = getConn()
-    module.UserRankModule.initUserScore(myCon, uid, initScore)
-    module.UserRankModule.updateScore(myCon, uid, initScore)
-    myCon.commit()
-    myCon.close()
+    module.UserRankModule.initUserScore(uid, initScore)
 
     updateUserBuilds(uid, dataBuilds)
-    update("INSERT INTO nozomi_research (id, research) VALUES(%s, '[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]')", (uid))
-    newUserState(uid)
     
     return uid
 
@@ -493,6 +482,8 @@ def getData():
         if 'attackTime' in state:
             return json.dumps(state)
         data = getUserAllInfos(uid)
+        if data==None or data['ban']!=0:
+            return json.dumps(dict(serverError=1, title="You are banned!", content="You are banned because of the hacked data!", button="Close"))
         if ret!=None:
             data.update(ret)
         t = int(time.mktime(time.localtime()))
@@ -715,6 +706,85 @@ def verifyIAP():
                     return "success"
     return "fail"
 
+resourceMap={2004:1, 2001:2000000, 2003:2000000, 2005:80000}
+maxList = [[0,4],[1,1],[2,1],[1000,4],[1001,4],[1002,1],[1003,1],[1004,1],[1005,1],[2000,6],[2001,4],[2002,6],[2003,4],[2004,5],[2005,4],[3000,5],[3001,6],[3002,3],[3003,4],[3004,4],[3005,4],[3006,250],[3007,2]]
+
+def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
+    oldBuilds = getUserBuilds(uid)
+    buildsMap = dict()
+    countMap = dict()
+    for build in oldBuilds:
+        buildsMap[build[0]] = build
+        countMap[build[2]] = countMap.get(build[2],0)+1
+    for bid in deleteBuilds:
+        build = buildsMap.pop(bid)
+        countMap[build[2]] = countMap[build[2]]-1
+    ret = 0
+    try:
+        etime = int(time.mktime(time.localtime()))+60
+        for build in updateBuilds:
+            x = build[1]/10000
+            y = build[1]%10000
+            if x<1 or x>40 or y>40:
+                ret = 1
+                break
+            oldBuild = buildsMap.get(build[0])
+            if oldBuild!=None:
+                if oldBuild[2]!=build[2]:
+                    if oldBuild[2]<4000 and oldBuild[3]>0:
+                        ret = 2
+                        break
+                    countMap[oldBuild[2]] = countMap[oldBuild[2]]-1
+                    countMap[build[2]] = countMap.get(build[2],0)+1
+                elif build[3]>oldBuild[3] and build[2]!=3006:
+                    dis = build[3]-oldBuild[3]
+                    if oldBuild[3]<=2 or oldBuild[4]>0 or build[2]>=7000:
+                        dis = dis-1
+                        if oldBuild[4]>=etime:
+                            testlogger.info("compare time:%d,%d,%d" % (uid, oldBuild[4],etime))
+                    accTimes = accTimes-dis
+                    if accTimes<0:
+                        ret = 3
+                        break
+            if build[6]!="":
+                checkExt = json.loads(build[6])
+                if build[2]==1005:
+                    if 'weapons' in checkExt:
+                        weapons = checkExt['weapons']
+                        if weapons[0]>2 or weapons[1]>2:
+                            ret = 4
+                            break
+                elif build[2]==1001:
+                    if 'callList' in checkExt:
+                        callList = checkExt['callList']
+                        for callItem in callList:
+                            if callItem[0]>build[3] or callItem[1]>100:
+                                ret = 5
+                                break
+                        if ret>0:
+                            break
+                elif build[2]==1:
+                    if checkExt.get('oil',0)>1000 or checkExt.get('food',0)>1000:
+                        ret = 6
+                        break
+                elif build[2] in resourceMap:
+                    if checkExt.get('resource',0)>resourceMap[build[2]]:
+                        ret = 6
+                        break
+    except:
+        ret = 7
+    if ret==0:
+        for pair in maxList:
+            if countMap.get(pair[0],0)>pair[1]:
+                ret = 8
+                break
+    if ret>0:
+        update("UPDATE nozomi_user SET ban=2 WHERE id=%s",(uid))
+        testlogger.info("banUserId:%d,banType:%d,requestBuilds:%s" % (uid, ret, json.dumps(updateBuilds)))
+        return True
+    else:
+        return False
+
 @app.route("/synData", methods=['POST'])
 def synData():
     print 'synData', request.form
@@ -730,22 +800,31 @@ def synData():
         ctime = int(time.mktime(time.localtime()))
         if stime<ctime-600 or stime>ctime+600:
             return '{"code":1}'
+    accTimes = 0
+    if 'crystal' in request.form:
+        ls = json.loads(request.form['crystal'])
+        for l in ls:
+            if l[0]>0:
+                crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
+                if l[0]==1:
+                    accTimes=accTimes+1
+    deleteBuilds = []
+    if 'delete' in request.form:
+        deleteBuilds = json.loads(request.form['delete'])
+    updateBuilds = request.form.get("update")
+    if updateBuilds!=None:
+        updateBuilds = json.loads(updateBuilds)
+        if checkBuilds(uid,updateBuilds,deleteBuilds,accTimes):
+            return '{"code":1}'
+    userDbInfo = getUserAllInfos(uid)
+    if userDbInfo['ban']!=0:
+        return '{"code":1}'
     if 'cstatue' in request.form:
         if UserRankModule.checkBattleReward(uid)==False:
             return '{"code":1}'
-    update = request.form.get("update")
-    if update!=None:
-        update = json.loads(update)
-        for build in update:
-            x = build[1]/10000
-            y = build[1]%10000
-            if x<1 or x>40 or y>40:
-                return '{"code":1}'
     if 'zinc' in request.form:
         newKill = request.form.get('zinc',0,type=int)
         UserRankModule.updateZombieCount(uid, newKill)
-    oldCrystal = getUserAllInfos(uid)['crystal']
-    newCrystal = oldCrystal
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
     if 'userInfo' in request.form:
         userInfo = json.loads(request.form['userInfo'])
@@ -754,9 +833,9 @@ def synData():
             userInfoUpdate.pop('score')
         if 'shieldTime' in userInfo:
             setUserShield(uid, userInfo['shieldTime'])
-        if 'crystal' in userInfo:
-            newCrystal = userInfo['crystal']
     changeCrystal = 0
+    oldCrystal = getUserAllInfos(uid)['crystal']
+    newCrystal = oldCrystal
     if 'cc' in request.form:
         baseCrystal = request.form.get('bs',0,type=int)
         changeCrystal = request.form.get('cc',0,type=int)
@@ -764,38 +843,22 @@ def synData():
             return '{"code":1}'
         newCrystal = baseCrystal+changeCrystal
         userInfoUpdate['crystal'] = newCrystal
-    if 'crystal' in request.form:
-        ls = json.loads(request.form['crystal'])
-        allAdd = 0
-        for l in ls:
-            if l[0]==-1:
-                allAdd = allAdd+l[2]
-            else:
-                allAdd = allAdd-l[2]
-        if (changeCrystal>0 and allAdd+200<changeCrystal) or (oldCrystal+allAdd-newCrystal<=-200):
-            testlogger.info("[crystal]BadSynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
-        for l in ls:
-            if l[0]>0:
-                crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
-    elif changeCrystal==0 and newCrystal-oldCrystal>=200:
-        testlogger.info("[crystal]BadSynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
     if 'days' in request.form:
         days = int(request.form['days'])
         dailyModule.loginWithDays(uid, days)
     if 'grl' in request.form:
         getRewardList = json.loads(request.form['grl'])
         deleteUserRewards(getRewardList)
-    if 'delete' in request.form:
-        delete = json.loads(request.form['delete'])
-        deleteUserBuilds(uid, delete)
     if 'achieves' in request.form:
         achieves = json.loads(request.form['achieves'])
         achieveModule.updateAchieves(uid, achieves)
     if 'research' in request.form:
         researches = json.loads(request.form['research'])
         updateUserResearch(uid, researches)
-    if update!=None:
-        updateUserBuilds(uid, update)
+    if len(deleteBuilds)>0:
+        deleteUserBuilds(uid, deleteBuilds)
+    if updateBuilds!=None:
+        updateUserBuilds(uid, updateBuilds)
     updateUserInfoById(userInfoUpdate, uid)
     updateUserState(uid, int(request.form.get("eid", 0)))
     if 'stat' in request.form:
@@ -1123,6 +1186,21 @@ def synLuaError():
     platform = request.form.get("error","")
     testlogger.info("userId:%d,platform:%s\n%s" % (uid,platform,error))
     return "success"
+
+@app.route("/report", methods=['POST'])
+def reportChat():
+    uid = request.form.get('uid', 0, type=int)
+    eid = request.form.get('eid', 0, type=int)
+    msg = request.form.get('msg',"")
+    if uid>0 and eid>0 and msg!="":
+        con = getConn()
+        cur = con.cursor()
+        cur.execute("INSERT INTO nozomi_ban_record (reporter,banner,msg) VALUES (%s,%s,%s)", (uid,eid,msg))
+        con.commit()
+        cur.close()
+        return "success"
+    return "fail"
+
 @app.route('/updateTime')
 def updateTime():
     start = queryOne('select value from activity where `key` = "startTime"')[0]
