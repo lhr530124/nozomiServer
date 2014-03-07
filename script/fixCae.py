@@ -12,7 +12,7 @@ import os
 myCon = MySQLdb.connect(host=config.HOST, user='root', passwd=config.PASSWORD, db=config.DATABASE, charset='utf8')
 cur = myCon.cursor()
 
-sql = 'delete from nozomi_build from where id = 1'
+sql = 'delete from nozomi_build where id = 1'
 cur.execute(sql)
 
 f = open('caedata.json')
