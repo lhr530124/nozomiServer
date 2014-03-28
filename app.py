@@ -647,9 +647,9 @@ def verifyIAP():
                     return "success"
     return "fail"
 
-+resourceMap={2004:1, 2001:2000000, 2003:2000000, 2005:80000}
-+maxList = [[0,4],[1,1],[2,1],[1000,4],[1001,4],[1002,1],[1003,1],[1004,1],[1005,1],[2000,6],[2001,4],[2002,6],[2003,4],[2004,5],[2005,4],[3000,5],[3001,6],[3002,3],[3003,4],[3004,4],[3005,
-+
+resourceMap={2004:1, 2001:2000000, 2003:2000000, 2005:80000}
+maxList = [[0,4],[1,1],[2,1],[1000,4],[1001,4],[1002,1],[1003,1],[1004,1],[1005,1],[2000,6],[2001,4],[2002,6],[2003,4],[2004,5],[2005,4],[3000,5],[3001,6],[3002,3],[3003,4],[3004,4],[3005,4],[3006,250],[3007,2]]
+
 def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
     oldBuilds = getUserBuilds(uid)
     buildsMap = dict()
@@ -1248,7 +1248,7 @@ def verifyInappPurchase():
                 amount = productDict.get(productId, 0)
                 if amount==0:
                     return "fail"
-                elif addPurchaseCrystal(receipt['original_transaction_id'], uid, amount, "ios", curTime, "iap"):
+                elif addPurchaseCrystal(receipt['original_transaction_id'], uid, amount, "ios_new", curTime, "iap"):
                     return "success"
     return "fail"
 
