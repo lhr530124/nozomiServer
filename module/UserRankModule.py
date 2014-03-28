@@ -105,6 +105,62 @@ def getNozomiZombieStat(uid):
     cur.close()
     return ret1
 
+def getActivityUser(actid, uid):
+    con = getConn()
+    cur = con.cursor()
+    cur.execute("SELECT num1,num2,score FROM nozomi_activity_user WHERE actid=%s AND id=%s", (actid,uid))
+    ret = cur.fetchone()
+    if ret==None:
+        cur.execute("INSERT INTO nozomi_activity_user (actid, id, num1, num2, score) VALUES(%s,%s,10,0,0)",(actid,uid))
+        con.commit()
+        ret = [10,0,0]
+    cur.close()
+    return ret
+
+actTimes = [[1395975600,1395975600+86400,345600]]
+
+def getActivityTime(actid, t):
+    actTime = actTimes[actid]
+    while actTime[1]<t:
+        actTime[0] += actTime[2]
+        actTime[1] += actTime[2]
+    return [actTime[0], actTime[1]]
+
+def buyActivityNum(actid, uid, activityNum):
+    update("UPDATE nozomi_activity_user SET num1=num1+%s WHERE actid=%s AND id=%s", (activityNum,actid,uid))
+
+def updateActivityState(actid, uid, activityData):
+    num2 = activityData[0]
+    if num2%10>8 or num2>=100:
+        return False
+    if num2%10==8 and num2/10<10:
+        num2 = num2+2
+    elif num2%10==0:
+        num2 = num2+1
+    score = activityData[1]
+    con = getConn()
+    cur = con.cursor()
+    cur.execute("SELECT num1,num2,score FROM nozomi_activity_user WHERE actid=%s AND id=%s", (actid,uid))
+    ret = cur.fetchone()
+    if ret==None:
+        cur.execute("INSERT INTO nozomi_activity_user (actid, id, num1, num2, score) VALUES(%s,%s,9,%s,%s)",(actid,uid,num2,score))
+    else:
+        num1 = ret[0]
+        if num1>0:
+            num1 = num1-1
+        if num2<ret[1]:
+            num2 = ret[1]
+        score += ret[2]
+        cur.execute("UPDATE nozomi_activity_user SET num1=%s,num2=%s,score=%s WHERE actid=%s AND id=%s", (num1,num2,score,actid,uid))
+    con.commit()
+    cur.close()
+    return True
+
+def getZombieChallengeRank(actid):
+    ret = queryAll("SELECT au.id,au.num2,au.score,u.name,c.icon,c.name FROM nozomi_activity_user AS au LEFT JOIN nozomi_user AS u ON au.id=u.id LEFT JOIN nozomi_clan AS c ON u.clan=c.id WHERE au.actid=%s AND au.score>0 ORDER BY au.num2 DESC, au.score DESC", (actid))
+    return ret
+
+
 def updateZombieCount(uid, newKill):
     con = getConn()
     cur = con.cursor()
