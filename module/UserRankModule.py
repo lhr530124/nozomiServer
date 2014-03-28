@@ -117,7 +117,7 @@ def getActivityUser(actid, uid):
     cur.close()
     return ret
 
-actTimes = [[1396004400,1396090800,345600]]
+actTimes = [[1395975600,1395975600+86400,345600]]
 
 def getActivityTime(actid, t):
     actTime = actTimes[actid]
