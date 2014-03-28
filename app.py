@@ -451,11 +451,6 @@ def login():
             loginlogger.info("%s\t%d\treg" % (platform,uid))
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
-        else:
-            ban = queryOne('select ban from nozomi_user where id = %s', (uid))[0]
-            if ban != 0:
-                abort(401)
-
         return json.dumps(ret)
     else:
         #time.sleep(209) 
@@ -464,7 +459,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [7,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,6]
+settings = [7,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,8]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -483,7 +478,7 @@ def getData():
             language = request.args['language']
         sversion = request.args.get("scriptVersion",1,type=int)
         if sversion<settings[4]:
-            return json.dumps(dict(serverError=1, title="Please Update!", content="There is a bug fix found when you login! Please close your game and restart it again to update your game!", button="Close"))
+            return json.dumps(dict(serverError=1, title="Please Update!", content="Zombie Challenge Come! Please close your game and restart it again to update your game!", button="Close"))
         ret = None
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
@@ -520,17 +515,10 @@ def getData():
         data['serverTime'] = t
         if platform=="ios_cn":
             data['payDebug'] =1
-        #while t>util.leagueWarStartTime:
-        #    util.leagueWarStartTime = util.leagueWarStartTime+86400*14
-        #while t>util.leagueWarEndTime:
-        #    util.leagueWarEndTime = util.leagueWarEndTime+86400*14
         data['leagueWarTime'] = util.leagueWarEndTime
         data['nextLeagueWarTime'] = util.leagueWarStartTime
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
-        #if data['registerTime']>newbieCup[0]:
-        #    data['newbieTime'] = newbieCup[1]
-        #data.pop('registerTime')
         data['achieves'] = achieveModule.getAchieves(uid)
         print 'guide', data['guide']
         if data['registerTime'] > settings[3]:
@@ -541,6 +529,10 @@ def getData():
                 nzstat = UserRankModule.getNozomiZombieStat(uid)
                 if nzstat!=None:
                     data['nzstat'] = nzstat
+                activity = UserRankModule.getActivityUser(0,uid)
+                if activity!=None:
+                    data['activity'] = activity
+                    data['acttime'] = UserRankModule.getActivityTime(0,t)
             days = 0
             if data['registerTime'] < settings[1]:
                 days = dailyModule.dailyLogin(uid)
@@ -619,6 +611,7 @@ def revergeGetData():
         return json.dumps(dict(code=3))
     else:
         data = getUserInfos(eid)
+        updateUserAttack(eid)
         if data['clan']>0:
             data['clanInfo'] = ClanModule.getClanInfo(data['clan'])
         data['builds'] = getUserBuilds(eid)
@@ -674,11 +667,12 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
         buildsMap[build[0]] = build
         countMap[build[2]] = countMap.get(build[2],0)+1
     for bid in deleteBuilds:
-        build = buildsMap.pop(bid)
-        countMap[build[2]] = countMap[build[2]]-1
+        if bid in buildsMap:
+            build = buildsMap.pop(bid)
+            countMap[build[2]] = countMap[build[2]]-1
     ret = 0
     try:
-        etime = int(time.mktime(time.localtime()))-60
+        etime = int(time.mktime(time.localtime()))+60
         for build in updateBuilds:
             x = build[1]/10000
             y = build[1]%10000
@@ -695,8 +689,10 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
                     countMap[build[2]] = countMap.get(build[2],0)+1
                 elif build[2]<7000 and build[3]>oldBuild[3] and build[2]!=3006:
                     dis = build[3]-oldBuild[3]
-                    if oldBuild[3]==0 or oldBuild[4]>etime:
+                    if oldBuild[3]==0 or oldBuild[4]>0:
                         dis = dis-1
+                        if oldBuild[4]>=etime:
+                            testlogger.info("compare time:%d,%d,%d" % (uid, oldBuild[4],etime))
                     accTimes = accTimes-dis
                     if accTimes<0:
                         ret = 3
@@ -806,6 +802,13 @@ def synData():
         userInfoUpdate['crystal'] = newCrystal
     elif changeCrystal==0 and newCrystal-oldCrystal>=200:
         testlogger.info("[crystal]BadSynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
+    activityNum = request.form.get("actbuy", 0, type=int)
+    if activityNum>0:
+        UserRankModule.buyActivityNum(0, uid, activityNum)
+    activityData = request.form.get("actdata")
+    if activityData!=None:
+        activityData = json.loads(activityData)
+        UserRankModule.updateActivityState(0, uid, activityData)
     if 'days' in request.form:
         days = int(request.form['days'])
         dailyModule.loginWithDays(uid, days)
@@ -897,7 +900,6 @@ def synBattleData():
         else:
             update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,0)", (eid, uid, videoId, int(time.mktime(time.localtime())), util.filter4utf8(request.form['history'])))
     return json.dumps({'code':0})
-
 
 @app.route("/findEnemy", methods=['GET'])
 def findEnemy():
@@ -1106,6 +1108,10 @@ def getNewbieRank():
 def getZombieRank():
     uid = request.args.get('uid',0,type=int)
     return json.dumps(UserRankModule.getZombieRank(uid))
+
+@app.route("/getZombieChallengeRank", methods=['GET'])
+def getZombieChallengeRank():
+    return json.dumps(UserRankModule.getZombieChallengeRank(0))
 
 @app.route("/synErrorLog", methods=['POST'])
 def synErrorLog():
