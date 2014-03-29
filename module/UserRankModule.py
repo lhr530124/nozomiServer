@@ -117,14 +117,26 @@ def getActivityUser(actid, uid):
     cur.close()
     return ret
 
-actTimes = [[1395982800,1396069200,345600]]
+actTimes = [[1396083600,1396170000,345600]]
+waveScore = [
+[0,20,30,35,40,45,50,55,60],
+[0,40,60,70,80,90,100,110,120],
+[0,60,90,105,120,135,150,165,180],
+[0,80,120,140,160,180,200,220,240],
+[0,100,150,175,200,225,250,325,350],
+[0,120,180,210,240,270,350,380,460],
+[0,190,260,295,330,365,400,435,620],
+[0,210,340,380,420,510,550,590,730],
+[0,380,470,565,610,705,750,895,1040],
+[0,700,1050,1350,1650,1950,2250,2550,3100]
+]
 
 def getActivityTime(actid, t):
     actTime = actTimes[actid]
     while actTime[1]<t:
         actTime[0] += actTime[2]
         actTime[1] += actTime[2]
-    return [actTime[0], actTime[1]]
+    return [actTime[0], actTime[1], 1800]
 
 def buyActivityNum(actid, uid, activityNum):
     update("UPDATE nozomi_activity_user SET num1=num1+%s WHERE actid=%s AND id=%s", (activityNum,actid,uid))
@@ -133,6 +145,7 @@ def updateActivityState(actid, uid, activityData):
     num2 = activityData[0]
     if num2%10>8 or num2>=100:
         return False
+    score = activityData[1]+activityData[2]*activityData[3]+waveScore[num2/10][num2%10]
     if num2%10==8 and num2/10<10:
         num2 = num2+2
     elif num2%10==0:
@@ -143,7 +156,8 @@ def updateActivityState(actid, uid, activityData):
     cur.execute("SELECT num1,num2,score FROM nozomi_activity_user WHERE actid=%s AND id=%s", (actid,uid))
     ret = cur.fetchone()
     if ret==None:
-        cur.execute("INSERT INTO nozomi_activity_user (actid, id, num1, num2, score) VALUES(%s,%s,9,%s,%s)",(actid,uid,num2,score))
+        cur.close()
+        return False
     else:
         num1 = ret[0]
         if num1>0:
@@ -151,15 +165,36 @@ def updateActivityState(actid, uid, activityData):
         if num2<ret[1]:
             num2 = ret[1]
         score += ret[2]
+        rserver = getServer()
+        rserver.zadd('challenge%d' % actid, uid, score)
         cur.execute("UPDATE nozomi_activity_user SET num1=%s,num2=%s,score=%s WHERE actid=%s AND id=%s", (num1,num2,score,actid,uid))
     con.commit()
     cur.close()
     return True
 
-def getZombieChallengeRank(actid):
-    ret = queryAll("SELECT au.id,au.num2,au.score,u.name,c.icon,c.name FROM nozomi_activity_user AS au LEFT JOIN nozomi_user AS u ON au.id=u.id LEFT JOIN nozomi_clan AS c ON u.clan=c.id WHERE au.actid=%s AND au.score>0 ORDER BY au.num2 DESC, au.score DESC", (actid))
-    return ret
-
+def getZombieChallengeRank(actid, uid):
+    rserver = getServer()
+    srank = rserver.zrevrank('challenge%d' % actid, uid)
+    con = getConn()
+    cur = con.cursor()
+    allUsers = []
+    uids = rserver.zrevrange('challenge%d' % actid, 0, 49)
+    sql = "SELECT au.id,au.num2,au.score,u.name,c.icon,c.name FROM nozomi_activity_user AS au, nozomi_user AS u LEFT JOIN `nozomi_clan` AS c ON u.clan=c.id WHERE au.actid=%s AND au.id=%s AND au.id=u.id"
+    for ruid in uids:
+        cur.execute(sql,(actid, int(ruid)))
+        allUsers.append(cur.fetchone())
+    if srank==None or srank<50 or len(allUsers)<50:
+        cur.close()
+        return allUsers
+    uids = rserver.zrevrange('challenge%d' % actid, srank-1, srank+9)
+    for i in range(len(uids)):
+        if i+srank>50:
+            cur.execute(sql,(actid, int(uids[i])))
+            item = list(cur.fetchone())
+            item.append(i+srank)
+            allUsers.append(item)
+    cur.close()
+    return allUsers
 
 def updateZombieCount(uid, newKill):
     con = getConn()

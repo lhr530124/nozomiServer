@@ -525,14 +525,14 @@ def getData():
             data['leftDay'] = newUserLogin(uid)
         data['newRewards'] = getUserRewardsNew(uid)
         if data['guide']>=1400:
+            activity = UserRankModule.getActivityUser(0,uid)
+            if activity!=None:
+                data['activity'] = activity
+                data['acttime'] = UserRankModule.getActivityTime(0,t)
             if data.get('leftDay',0)==0:
                 nzstat = UserRankModule.getNozomiZombieStat(uid)
                 if nzstat!=None:
                     data['nzstat'] = nzstat
-                activity = UserRankModule.getActivityUser(0,uid)
-                if activity!=None:
-                    data['activity'] = activity
-                    data['acttime'] = UserRankModule.getActivityTime(0,t)
             days = 0
             if data['registerTime'] < settings[1]:
                 days = dailyModule.dailyLogin(uid)
