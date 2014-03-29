@@ -1111,7 +1111,8 @@ def getZombieRank():
 
 @app.route("/getZombieChallengeRank", methods=['GET'])
 def getZombieChallengeRank():
-    return json.dumps(UserRankModule.getZombieChallengeRank(0))
+    uid = request.args.get('uid',0,type=int)
+    return json.dumps(UserRankModule.getZombieChallengeRank(0,uid))
 
 @app.route("/synErrorLog", methods=['POST'])
 def synErrorLog():

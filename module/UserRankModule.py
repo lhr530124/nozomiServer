@@ -117,7 +117,7 @@ def getActivityUser(actid, uid):
     cur.close()
     return ret
 
-actTimes = [[1396083600,1396170000,345600]]
+actTimes = [[1396087200,1396173600,345600]]
 waveScore = [
 [0,20,30,35,40,45,50,55,60],
 [0,40,60,70,80,90,100,110,120],
