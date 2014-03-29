@@ -150,7 +150,6 @@ def updateActivityState(actid, uid, activityData):
         num2 = num2+2
     elif num2%10==0:
         num2 = num2+1
-    score = activityData[1]
     con = getConn()
     cur = con.cursor()
     cur.execute("SELECT num1,num2,score FROM nozomi_activity_user WHERE actid=%s AND id=%s", (actid,uid))
