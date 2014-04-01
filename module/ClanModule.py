@@ -18,6 +18,7 @@ def searchClans(text):
     if text=="":
         return None
     isUnicode = False
+    baseName = text
     for i in range(len(text)):
         if ord(text[i])>=128:
             if i==0:
@@ -28,7 +29,7 @@ def searchClans(text):
             break
     if isUnicode:
         return queryAll("SELECT `id`,icon,score,`type`,name,`desc`,members,`min`,creator FROM `nozomi_clan` WHERE `name` LIKE %s AND members>0 LIMIT 50", (text+"%"))
-    rets = queryAll("SELECT `id`,icon,score,`type`,name,`desc`,members,`min`,creator FROM `nozomi_clan` WHERE MATCH(`name`) AGAINST (%s) AND members>0 LIMIT 50", (text))
+    rets = queryAll("SELECT `id`,icon,score,`type`,name,`desc`,members,`min`,creator FROM `nozomi_clan` WHERE (MATCH(`name`) AGAINST (%s) OR name=%s) AND members>0 LIMIT 50", (text,baseName))
     return rets
 
 def createClan(uid, icon, ltype, name, desc, minScore):

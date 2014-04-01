@@ -430,11 +430,6 @@ def login():
             loginlogger.info("%s\t%d\treg" % (platform,uid))
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
-        else:
-            ban = queryOne('select ban from nozomi_user where id = %s', (uid))[0]
-            if ban != 0:
-                abort(401)
-
         return json.dumps(ret)
     else:
         #time.sleep(209) 
@@ -443,7 +438,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [2,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime, 5]
+settings = [3,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime, 7]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -461,12 +456,12 @@ def getData():
         if 'language' in request.args:
             language = request.args['language']
         ret = None
-        if version<settings[0]:
+        if platform=="ios" and version<settings[0] or version<settings[0]-1:
             country = request.args.get('country',"us").lower()
 
             ret = dict(serverUpdate=1)
             ret['title'] = "New Version"
-            ret['content']="1. Update heroes system!\n2. Update statues system!\n3. Update population related values!\n4. Update the rules of League Wars, Zombie attack!"
+            ret['content']="1. You can Upgrade Zombie Camp Now!\n2. Add a new zombie soldier!\n3. Features of Statues Updated!\n4. Killing Zombies Contest is Coming!\n5. Bug fixed and some other improvement!"
             ret['button1']="Update Now"
             if platform=="ios":
                 ret['url'] = "https://itunes.apple.com/app/id750915921"
@@ -477,7 +472,7 @@ def getData():
                 return json.dumps(ret)
         sversion = request.args.get("scriptVersion",1,type=int)
         if sversion<settings[4]:
-            return json.dumps(dict(serverError=1, title="Please Update!", content="There is a bug fix found when you login! Please close your game and restart it again to update your game!", button="Close"))
+            return json.dumps(dict(serverError=1, title="Please Update!", content="There is a new hero come! Please close your game and restart it again to update your game!", button="Close"))
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
@@ -505,7 +500,9 @@ def getData():
         data['newRewards'] = getUserRewardsNew(uid)
         if data['guide']>=1400:
             if data.get('leftDay',0)==0:
-                data['nzstat'] = UserRankModule.getNozomiZombieStat(uid)
+                nzstat = UserRankModule.getNozomiZombieStat(uid)
+                if nzstat!=None:
+                    data['nzstat'] = nzstat
             ret = checkUserReward(uid, language)
             if ret!=None:
                 data['crystal'] = data['crystal']+ret[0]
@@ -739,7 +736,10 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
                 elif build[3]>oldBuild[3] and build[2]!=3006:
                     dis = build[3]-oldBuild[3]
                     if oldBuild[3]<=2 or oldBuild[4]>0 or build[2]>=7000:
-                        dis = dis-1
+                        if oldBuild[3]<=2 and dis<=3:
+                            dis = 0
+                        else:
+                            dis = dis-1
                         if oldBuild[4]>=etime:
                             testlogger.info("compare time:%d,%d,%d" % (uid, oldBuild[4],etime))
                     accTimes = accTimes-dis
@@ -808,6 +808,8 @@ def synData():
                 crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
                 if l[0]==1:
                     accTimes=accTimes+1
+    if 'cc' in request.form:
+        accTimes += 3
     deleteBuilds = []
     if 'delete' in request.form:
         deleteBuilds = json.loads(request.form['delete'])
@@ -820,11 +822,17 @@ def synData():
     if userDbInfo['ban']!=0:
         return '{"code":1}'
     if 'cstatue' in request.form:
-        if UserRankModule.checkBattleReward(uid)==False:
+        if UserRankModule.checkBattleReward(uid, True)==False:
+            return '{"code":1}'
+    if 'cstatue6007' in request.form:
+        if UserRankModule.checkBattleReward(uid, request.form.get('cstatue6007',1,type=int))==False:
             return '{"code":1}'
     if 'zinc' in request.form:
         newKill = request.form.get('zinc',0,type=int)
         UserRankModule.updateZombieCount(uid, newKill)
+    if 'cstatue6008' in request.form:
+        if UserRankModule.checkZombieReward(uid, request.form.get('cstatue6008',1,type=int))==False:
+            return '{"code":1}'
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
     if 'userInfo' in request.form:
         userInfo = json.loads(request.form['userInfo'])
@@ -834,7 +842,7 @@ def synData():
         if 'shieldTime' in userInfo:
             setUserShield(uid, userInfo['shieldTime'])
     changeCrystal = 0
-    oldCrystal = getUserAllInfos(uid)['crystal']
+    oldCrystal = userDbInfo['crystal']
     newCrystal = oldCrystal
     if 'cc' in request.form:
         baseCrystal = request.form.get('bs',0,type=int)
