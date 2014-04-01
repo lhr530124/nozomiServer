@@ -17,7 +17,7 @@ def clearUserShield(uid):
     update("UPDATE nozomi_user_state SET shieldTime=0 WHERE uid=%s", (uid))
 
 def updateUserOnline(uid):
-    update("UPDATE nozomi_user_state SET onlineTime=%s WHERE uid=%s", (getTime()+240, uid))
+    update("UPDATE nozomi_user_state SET onlineTime=%s WHERE uid=%s", (getTime()+1800, uid))
 
 #减少通讯频率，因此每次请求仅更新一次进攻时间（随着下次请求而取消）
 def updateUserAttack(uid):
@@ -41,24 +41,37 @@ def getUserState(uid):
 #uid = 0 user not exist ! so don't return any user info
 def findAMatch(uid, score, scoreOff):
     curTime = getTime()
-    while scoreOff<1000:
-        minScore = score-scoreOff
-        maxScore = score+scoreOff
-        if minScore>1100:
-            minScore = 1100
-        if maxScore>1200 and maxScore<10000:
-            maxScore=10000
-        print("scores %d,%d" % (minScore, maxScore))
-        ids = queryOne("SELECT MIN(uid), MAX(uid) FROM nozomi_user_state WHERE score>%s AND score<%s", (minScore, maxScore))
-        if ids!=None:
-            minId = ids[0]
-            maxId = ids[1]
-            if maxId != None and minId!=None:
-                cut = random.randint(minId, maxId)
-                ret = queryOne("SELECT uid FROM nozomi_user_state WHERE uid>=%s AND uid!=%s AND shieldTime<%s AND attackTime<%s AND onlineTime<%s AND score>%s AND score<%s LIMIT 1", (cut, uid, curTime, curTime, curTime, minScore, maxScore))
-                print("cut id %d" % (cut))
-                if ret!=None:
-                    updateUserAttack(ret[0])
-                    return ret[0]
-        scoreOff *= 2
+    highScore = 1500
+    tryTime = 0
+    while tryTime<3:
+        tryTime = tryTime+1
+        rscore = score+score*random.randint(-100,100)/400
+        if rscore>highScore:
+            maxScore = 10000
+            minScore = rscore-100
+            if minScore>highScore:
+                minScore = highScore
+            #it is a small number, so get all to random
+            ids = queryAll("SELECT uid FROM nozomi_user_state WHERE uid!=%s AND shieldTime<%s AND attackTime<%s AND onlineTime<%s AND score>%s AND score<%s", (uid,curTime,curTime,curTime,minScore,maxScore))
+            if ids!=None:
+                num = len(ids)
+                cut = ids[random.randint(0, num-1)][0]
+                updateUserAttack(cut)
+                return cut
+        else:
+            maxScore = rscore+50
+            minScore = rscore-50
+            if minScore<500:
+                minScore = 500
+                maxScore = 650
+            ids = queryOne("SELECT MIN(uid), MAX(uid) FROM nozomi_user_state WHERE score>%s AND score<%s", (minScore, maxScore))
+            if ids!=None:
+                minId = ids[0]
+                maxId = ids[1]
+                if maxId != None and minId!=None:
+                    cut = random.randint(minId, maxId)
+                    ret = queryOne("SELECT uid FROM nozomi_user_state WHERE uid>=%s AND uid!=%s AND shieldTime<%s AND attackTime<%s AND onlineTime<%s AND score>%s AND score<%s LIMIT 1", (cut, uid, curTime, curTime, curTime, minScore, maxScore))
+                    if ret!=None:
+                        updateUserAttack(ret[0])
+                        return ret[0]
     return 1

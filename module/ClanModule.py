@@ -279,12 +279,11 @@ def changeBattleState(uid, eid, cid, ecid, bid, vid, lscore):
                         params.append([mtype, m[0]])
                 cur.executemany("UPDATE `nozomi_user` SET memberType=%s WHERE id=%s", params)
                 cur.execute("UPDATE `nozomi_clan` SET state=0, statetime=0 WHERE id=%s or id=%s", (cid, ecid))
-                
             cur.execute("UPDATE `nozomi_user` SET lscore=lscore+%s WHERE id=%s", (lscore, uid))
             if isE1:
-                cur.execute("UPDATE `nozomi_clan_battle` SET left1=%s, winner=%s WHERE id=%s and left1 > 0", (eleft, winner, bid))
+                cur.execute("UPDATE `nozomi_clan_battle` SET left1=%s, winner=%s WHERE id=%s", (eleft, winner, bid))
             else:
-                cur.execute("UPDATE `nozomi_clan_battle` SET left2=%s, winner=%s WHERE id=%s and left2 > 0", (eleft, winner, bid))
+                cur.execute("UPDATE `nozomi_clan_battle` SET left2=%s, winner=%s WHERE id=%s", (eleft, winner, bid))
             s2 = lscore
             if not util.isInWar():
                 s2=0

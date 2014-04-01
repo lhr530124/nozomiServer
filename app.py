@@ -101,7 +101,6 @@ def internalError(exception):
     ''' % (str(request.args), str(request.form), exception))
     return '', 500 
     
-    
 def getMyConn():
     top = _app_ctx_stack.top
     if not hasattr(top, 'db'):
@@ -438,7 +437,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [3,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime, 7]
+settings = [3,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime, 8]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -472,7 +471,7 @@ def getData():
                 return json.dumps(ret)
         sversion = request.args.get("scriptVersion",1,type=int)
         if sversion<settings[4]:
-            return json.dumps(dict(serverError=1, title="Please Update!", content="There is a new hero come! Please close your game and restart it again to update your game!", button="Close"))
+            return json.dumps(dict(serverError=1, title="Please Update!", content="Zombie Challenge Come! Please close your game and restart it again to update your game!", button="Close"))
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
@@ -483,22 +482,19 @@ def getData():
             data.update(ret)
         t = int(time.mktime(time.localtime()))
         data['serverTime'] = t
-        #while t>util.leagueWarStartTime:
-        #    util.leagueWarStartTime = util.leagueWarStartTime+86400*14
-        #while t>util.leagueWarEndTime:
-        #    util.leagueWarEndTime = util.leagueWarEndTime+86400*14
         data['leagueWarTime'] = util.leagueWarEndTime
         data['nextLeagueWarTime'] = util.leagueWarStartTime
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
-        #if data['registerTime']>newbieCup[0]:
-        #    data['newbieTime'] = newbieCup[1]
-        #data.pop('registerTime')
         data['achieves'] = achieveModule.getAchieves(uid)
         if data['registerTime'] > settings[3]:
             data['leftDay'] = newUserLogin(uid)
         data['newRewards'] = getUserRewardsNew(uid)
         if data['guide']>=1400:
+            activity = UserRankModule.getActivityUser(0,uid)
+            if activity!=None:
+                data['activity'] = activity
+                data['acttime'] = UserRankModule.getActivityTime(0,t)
             if data.get('leftDay',0)==0:
                 nzstat = UserRankModule.getNozomiZombieStat(uid)
                 if nzstat!=None:
@@ -567,6 +563,7 @@ def revergeGetData():
         return json.dumps(dict(code=3))
     else:
         data = getUserInfos(eid)
+        updateUserAttack(eid)
         if data['clan']>0:
             data['clanInfo'] = ClanModule.getClanInfo(data['clan'])
         data['builds'] = getUserBuilds(eid)
@@ -714,8 +711,9 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
         buildsMap[build[0]] = build
         countMap[build[2]] = countMap.get(build[2],0)+1
     for bid in deleteBuilds:
-        build = buildsMap.pop(bid)
-        countMap[build[2]] = countMap[build[2]]-1
+        if bid in buildsMap:
+            build = buildsMap.pop(bid)
+            countMap[build[2]] = countMap[build[2]]-1
     ret = 0
     try:
         etime = int(time.mktime(time.localtime()))+60
@@ -809,7 +807,7 @@ def synData():
                 if l[0]==1:
                     accTimes=accTimes+1
     if 'cc' in request.form:
-        accTimes += 3
+        accTimes += 5
     deleteBuilds = []
     if 'delete' in request.form:
         deleteBuilds = json.loads(request.form['delete'])
@@ -851,6 +849,13 @@ def synData():
             return '{"code":1}'
         newCrystal = baseCrystal+changeCrystal
         userInfoUpdate['crystal'] = newCrystal
+    activityNum = request.form.get("actbuy", 0, type=int)
+    if activityNum>0:
+        UserRankModule.buyActivityNum(0, uid, activityNum)
+    activityData = request.form.get("actdata")
+    if activityData!=None:
+        activityData = json.loads(activityData)
+        UserRankModule.updateActivityState(0, uid, activityData)
     if 'days' in request.form:
         days = int(request.form['days'])
         dailyModule.loginWithDays(uid, days)
@@ -873,7 +878,6 @@ def synData():
         statlogger.info("%s\t%d\t%s" % (platform, uid, request.form['stat']))
     if 'bcl' in request.form:
         testlogger.info("[BuyCrystalList]%d\t%s" % (uid, request.form['bcl']))
-
     loginlogger.info("%s\t%d\tsynData" % (platform,uid))
     return json.dumps({'code':0})
 
@@ -885,7 +889,13 @@ def synBattleData():
     incScore = int(request.form.get("score", 0))
     print("test uid and eid %d,%d; score=%d" % (uid, eid, -incScore))
     if uid==0 or eid==0 or incScore>60 or incScore<-60:
-        return json.dumps({'code':401})
+        abort(401)
+    if 'history' in request.form:
+        history = json.loads(request.form['history'])
+        if history[2]>0 and len(history[7])==0:
+            abort(401)
+    elif 'isLeague' not in request.form:
+        abort(401)
     baseScore = request.form.get("bscore", 0, type=int)
     ebaseScore = request.form.get("ebscore", 0, type=int)
     if baseScore>0 and ebaseScore>0:
@@ -932,11 +942,8 @@ def synBattleData():
             cid = int(request.form.get('cid', 0))
             ecid = int(request.form.get('ecid', 0))
             ClanModule.changeBattleState(uid, eid, cid, ecid, bid, videoId, lscore)
-        if 'history' in request.form:
-            print "insert history filter"
             update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,0)", (eid, uid, videoId, int(time.mktime(time.localtime())), util.filter4utf8(request.form['history'])))
     return json.dumps({'code':0})
-
 
 @app.route("/findEnemy", methods=['GET'])
 def findEnemy():
@@ -1083,6 +1090,9 @@ def joinClan():
     user = getUserInfos(uid)
     if user==None or user['clan']!=0:
         return json.dumps(dict(code=2))
+    check = queryOne("SELECT level FROM nozomi_build WHERE id=%s AND bid=2", (uid))
+    if check[0]<=0:
+        return json.dumps(dict(code=2))
     ret = ClanModule.joinClan(uid, cid)
     if ret==None:
         return json.dumps(dict(code=1))
@@ -1145,6 +1155,11 @@ def getNewbieRank():
 def getZombieRank():
     uid = request.args.get('uid',0,type=int)
     return json.dumps(UserRankModule.getZombieRank(uid))
+
+@app.route("/getZombieChallengeRank", methods=['GET'])
+def getZombieChallengeRank():
+    uid = request.args.get('uid',0,type=int)
+    return json.dumps(UserRankModule.getZombieChallengeRank(0,uid))
 
 @app.route("/synErrorLog", methods=['POST'])
 def synErrorLog():
