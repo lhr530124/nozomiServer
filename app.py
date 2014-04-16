@@ -432,15 +432,32 @@ def login():
     username = None
     if 'username' in request.form:
         username = request.form['username']
+    servertest = False
+    if 'servertest' in request.form:
+        plat = request.form['platform']
+        if plat=="ios" or plat=="android_our":
+            servertest = True
+    shouldBind = False
+    tuid = 0
     if tempname!=None:
         if username==None:
             username = getBindGameCenter(tempname)
         else:
-            bindGameCenter(username, tempname)
+            tuid = getUidByName(tempname)
+            if tuid>0:
+                bindGameCenter(username, tempname)
+                shouldBind = True
     if username!=None:
-        uid = getUidByName(username)
+        uid = tuid
+        if not shouldBind:
+            uid = getUidByName(username)
         ret = dict(code=0, uid=uid)
         if uid==0:
+            if servertest:
+                ret['baseUrl'] = "http://54.197.163.8:9195/"
+                ret['scoreUrl'] = "http://54.197.163.8:9158/"
+                ret['chatUrl'] = "http://54.197.163.8:8111/"
+                return json.dumps(ret)
             timelogger.info("new user %s %d " % (username, uid))
             print "new user"
             nickname = request.form['nickname']
@@ -459,7 +476,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [7,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,8]
+settings = [7,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,10]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -759,6 +776,10 @@ def synData():
                 crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
                 if l[0]==1:
                     accTimes=accTimes+1
+                elif l[0]==4 and l[2]<250:
+                    update("UPDATE nozomi_user SET ban=2 WHERE id=%s",(uid))
+                    testlogger.info("banUserId:%d,banType:%d,requestCrystals:%s" % (uid, 9, json.dumps(ls)))
+                    return '{"code":1}'
     deleteBuilds = []
     if 'delete' in request.form:
         deleteBuilds = json.loads(request.form['delete'])
@@ -800,8 +821,6 @@ def synData():
             return '{"code":1}'
         newCrystal = baseCrystal+changeCrystal
         userInfoUpdate['crystal'] = newCrystal
-    elif changeCrystal==0 and newCrystal-oldCrystal>=200:
-        testlogger.info("[crystal]BadSynData\t%d\t%d\t%d" % (uid, oldCrystal, newCrystal))
     activityNum = request.form.get("actbuy", 0, type=int)
     if activityNum>0:
         UserRankModule.buyActivityNum(0, uid, activityNum)
@@ -1217,6 +1236,17 @@ def getButtetins():
     return json.dumps(bulletins)
 
 def addPurchaseCrystal(orderId, roleId, amount, platform, curTime, payFunc):
+    if roleId<0:
+        roleId = -roleId
+        url = "http://54.197.163.8:9195/normalverify"
+        if platform=="ios":
+            platform="ios_new"
+        postData = "pay=%s&tid=%s&uid=%d&sid=1&amount=%d&platform=%s" % (payFunc,orderId,roleId,amount,platform)
+        req = urllib2.Request(url,postData)
+        rep = urllib2.urlopen(req)
+        page = rep.read()
+        result = json.loads(page)
+        return (result['code']==0)
     uinfo = queryOne("SELECT totalCrystal FROM `nozomi_user` WHERE id=%s",(roleId))
     if uinfo==None:
         return False
