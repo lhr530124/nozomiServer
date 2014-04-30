@@ -117,7 +117,7 @@ def getActivityUser(actid, uid):
     cur.close()
     return ret
 
-actTimes = [[1396087200,1396173600,345600]]
+actTimes = [[1396087200,1396173600,345600,1396087200]]
 waveScore = [
 [0,20,50,85,125,170,220,275,335],
 [0,40,100,170,250,340,440,550,670],
@@ -136,7 +136,7 @@ def getActivityTime(actid, t):
     while actTime[1]<t:
         actTime[0] += actTime[2]
         actTime[1] += actTime[2]
-    return [actTime[0], actTime[1], 1800]
+    return [actTime[0], actTime[1], 1800, actTime[2], actTime[3]]
 
 def buyActivityNum(actid, uid, activityNum):
     update("UPDATE nozomi_activity_user SET num1=num1+%s WHERE actid=%s AND id=%s", (activityNum,actid,uid))

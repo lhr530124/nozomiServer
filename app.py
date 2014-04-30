@@ -476,7 +476,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [7,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,10]
+settings = [7,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,11]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -495,7 +495,7 @@ def getData():
             language = request.args['language']
         sversion = request.args.get("scriptVersion",1,type=int)
         if sversion<settings[4]:
-            return json.dumps(dict(serverError=1, title="Please Update!", content="Zombie Challenge Come! Please close your game and restart it again to update your game!", button="Close"))
+            return json.dumps(dict(serverError=1, title="Please Update!", content="Zombie Challenge Update! Please close your game and restart it again to update your game!", button="Close"))
         ret = None
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
