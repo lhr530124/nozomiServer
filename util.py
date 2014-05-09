@@ -6,15 +6,18 @@ import json
 beginTime = (2013, 1, 1, 0, 0, 0, 0, 0, 0)
 beginTime = int(time.mktime(beginTime))
 
-start = json.loads(queryOne('select value from activity where  `key` = "startTime"')[0])
-end = json.loads(queryOne('select value from activity where `key` = "endTime"')[0])
+leagueWarTime = [1398729600,1399334400,1814400]
 
-leagueWarStartTime = int(time.mktime(start))
-leagueWarEndTime = int(time.mktime(end))
+def getLeagueWarTime(t):
+    while t>leagueWarTime[1]:
+        leagueWarTime[0] += leagueWarTime[2]
+        leagueWarTime[1] += leagueWarTime[2]
+    return leagueWarTime
 
 def isInWar():
     t = int(time.mktime(time.localtime()))
-    if t<leagueWarEndTime and (leagueWarEndTime<leagueWarStartTime or leagueWarStartTime<t):
+    lt = getLeagueWarTime(t)
+    if lt[0]<=t:
         return True
     else:
         return False

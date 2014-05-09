@@ -476,7 +476,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [7,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,11]
+settings = [8,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,11]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -506,7 +506,7 @@ def getData():
                 ret = dict(serverUpdate=1)
                 if language==0:
                     ret['title'] = "New Version!"
-                    ret['content']="1. You can Upgrade Zombie Camp Now!\n2. Add a new zombie soldier!\n3. Features of Statues Updated!\n4. Killing Zombies Contest is Coming!\n5. Bug fixed and some other improvement!"
+                    ret['content']="1. Some bugs fixed!\n2. Update Zombies Challenge Function!\n3. Update Heroes Discount Function!"
                     ret['button1']="Update Now"
                     ret['button2']="Later"
                 else:
@@ -532,8 +532,9 @@ def getData():
         data['serverTime'] = t
         if platform=="ios_cn":
             data['payDebug'] =1
-        data['leagueWarTime'] = util.leagueWarEndTime
-        data['nextLeagueWarTime'] = util.leagueWarStartTime
+        lt = util.getLeagueWarTime(t)
+        data['leagueWarTime'] = lt[1]
+        data['nextLeagueWarTime'] = lt[0]
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
         data['achieves'] = achieveModule.getAchieves(uid)
@@ -1259,6 +1260,8 @@ def addPurchaseCrystal(orderId, roleId, amount, platform, curTime, payFunc):
         rewards = [[roleId,0,amount]]
         if curCrystal==0:
             rewards.append([roleId,2,amount])
+        if curTime>=1399618800 and curTime<=1399878000:
+            rewards.append([roleId,3,amount/5])
         executemany("INSERT INTO `nozomi_reward_new` (uid,type,rtype,rvalue,info) VALUES (%s,%s,0,%s,'')", rewards)
         if amount==200:
             update("UPDATE `nozomi_user` SET lastOffTime=%s,totalCrystal=%s WHERE id=%s", (curTime,curCrystal+amount,roleId))
