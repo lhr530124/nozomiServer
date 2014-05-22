@@ -433,39 +433,40 @@ def login():
     if 'username' in request.form:
         username = request.form['username']
     servertest = False
-    if 'servertest' in request.form:
+    plat = "ios"
+    if 'platform' in request.form:
         plat = request.form['platform']
+    if 'servertest' in request.form:
         if plat=="ios" or plat=="android_our":
             servertest = True
-    shouldBind = False
-    tuid = 0
+    servers = None
     if tempname!=None:
         if username==None:
             username = getBindGameCenter(tempname)
         else:
-            tuid = getUidByName(tempname)
-            if tuid>0:
-                bindGameCenter(username, tempname)
-                shouldBind = True
+            bindGameCenter(username, tempname)
+            servers = queryOne("SELECT servers FROM caesars_users WHERE account=%s", tempname)
+            if servers!=None:
+                update("UPDATE IGNORE caesars_users SET account=%s WHERE account=%s", (username, tempname))
     if username!=None:
-        uid = tuid
-        if not shouldBind:
-            uid = getUidByName(username)
+        uid = 0
+        if servers==None:
+            servers = queryOne("SELECT servers FROM caesars_users WHERE account=%s", username)
+        if servers!=None:
+            sids = servers[0]
+            if sids&1==1:
+                uid = getUidByName(username)
+            elif sids&2==2 and servertest:
+                ret = dict(code=0,uid=0,baseUrl="http://54.197.163.8:9195/",scoreUrl="http://54.197.163.8:9158/",chatUrl="http://54.197.163.8:8111/")
+                return json.dumps(ret)
+        else:
+            update("INSERT IGNORE INTO caesars_users (account,servers) VALUES (%s,%s)", (username,1))
         ret = dict(code=0, uid=uid)
         if uid==0:
-            if servertest:
-                ret['baseUrl'] = "http://54.197.163.8:9195/"
-                ret['scoreUrl'] = "http://54.197.163.8:9158/"
-                ret['chatUrl'] = "http://54.197.163.8:8111/"
-                return json.dumps(ret)
             timelogger.info("new user %s %d " % (username, uid))
-            print "new user"
             nickname = request.form['nickname']
-            platform = "ios"
-            if 'platform' in request.form:
-                platform = request.form['platform']
-            uid = initUser(username, nickname, platform)
-            loginlogger.info("%s\t%d\treg" % (platform,uid))
+            uid = initUser(username, nickname, plat)
+            loginlogger.info("%s\t%d\treg" % (plat,uid))
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
         return json.dumps(ret)
