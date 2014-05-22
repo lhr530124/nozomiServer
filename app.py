@@ -1237,9 +1237,9 @@ crystalRmbDict = {500:30,1200:60,2500:120,6500:300,14000:600,200:6}
 def getButtetins():
     return json.dumps(bulletins)
 
-def addPurchaseCrystal(orderId, roleId, amount, platform, curTime, payFunc):
-    if roleId<0:
-        roleId = -roleId
+def addPurchaseCrystal(orderId, roleId, amount, platform, curTime, payFunc, serverId):
+    if roleId<0 or serverId==1:
+        roleId = abs(roleId)
         url = "http://54.197.163.8:9195/normalverify"
         if platform=="ios":
             platform="ios_new"
@@ -1279,6 +1279,7 @@ def addPurchaseCrystal(orderId, roleId, amount, platform, curTime, payFunc):
 @app.route("/iapverify", methods=['POST'])
 def verifyInappPurchase():
     receipt = request.form.get("receipt")
+    sid = request.form.get('sid', 0, type=int)
     uid = request.form.get('uid', 0, type=int)
     if uid==0:
         return "fail"
@@ -1305,7 +1306,7 @@ def verifyInappPurchase():
                 amount = productDict.get(productId, 0)
                 if amount==0:
                     return "fail"
-                elif addPurchaseCrystal(receipt['original_transaction_id'], uid, amount, "ios", curTime, "iap"):
+                elif addPurchaseCrystal(receipt['original_transaction_id'], uid, amount, "ios", curTime, "iap", sid):
                     return "success"
     return "fail"
 
@@ -1326,7 +1327,7 @@ def verifyGooglePay():
         return json.dumps(dict(ret=-1))
     info = json.loads(developerPayload)
     roleId = info['roleId']
-    serverId = info['sid']
+    serverId = int(info['sid'])
     if roleId==0:
         return json.dumps(dict(ret=-1))
     else:
@@ -1334,7 +1335,7 @@ def verifyGooglePay():
         if 'amount' in info:
             amount = info['amount']
         platform = info['plat']
-        if addPurchaseCrystal(orderId, roleId, amount, platform, t/1000,"google"):
+        if addPurchaseCrystal(orderId, roleId, amount, platform, t/1000,"google",serverId):
             if 'noads' in info:
                 update('insert into ads (uid, ads) values(%s, 1) on duplicate key update ads=1 ', (roleId))
         else:
@@ -1346,10 +1347,10 @@ def verifyAllPurchase():
     payFunc = request.form.get('pay')
     tid = request.form.get("tid")
     uid = request.form.get("uid", 0, type=int)
-    sid = request.form.get("sid")
+    sid = request.form.get("sid", 0, type=int)
     amount = request.form.get("amount", 0, type=int)
     platform = request.form.get("platform")
-    if addPurchaseCrystal(tid, uid, amount, platform, int(time.mktime(time.localtime())), payFunc):
+    if addPurchaseCrystal(tid, uid, amount, platform, int(time.mktime(time.localtime())), payFunc, sid):
         return json.dumps(dict(code=0))
     return json.dumps(dict(code=1))
 
@@ -1361,7 +1362,7 @@ def verifyPaypal():
     print("Request verify:%d,%s,%s" % (invoice,email,tid))
     paypalPurchase = queryOne("SELECT uid,amount FROM nozomi_paypal_purchase WHERE id=%s", (invoice))
     if paypalPurchase!=None:
-        if addPurchaseCrystal(tid, paypalPurchase[0], paypalPurchase[1], "android_our", int(time.mktime(time.localtime())),"paypal"):
+        if addPurchaseCrystal(tid, paypalPurchase[0], paypalPurchase[1], "android_our", int(time.mktime(time.localtime())),"paypal",0):
             update("UPDATE nozomi_paypal_purchase SET email=%s,state=1 WHERE id=%s", (email, invoice))
 
     return "test success!"
