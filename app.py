@@ -496,7 +496,7 @@ def getData():
             language = request.args['language']
         sversion = request.args.get("scriptVersion",1,type=int)
         if sversion<settings[4]:
-            return json.dumps(dict(serverError=1, title="Please Update!", content="Zombie Challenge Update! Please close your game and restart it again to update your game!", button="Close"))
+            return json.dumps(dict(serverError=1, title="Please Update!", content="League War Rule Update! Please close your game and restart it again to update your game!", button="Close"))
         ret = None
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
