@@ -184,7 +184,7 @@ def beginLeagueBattle(cid, eid):
         emems = getClanMembers(eid)
         for mem in emems:
             members.append([mem[0], bid, eid])
-        executemany("INSERT INTO `nozomi_clan_battle_member` (uid, bid, cid, battler, video, inbattle) VALUES (%s,%s,%s,'',0,0) ON DUPLICATE KEY UPDATE bid=VALUES(bid), cid=VALUES(cid), battler='', video=0, inbattle=0", members)
+        executemany("INSERT INTO `nozomi_clan_battle_member` (uid, bid, cid, battler, video, inbattle, num) VALUES (%s,%s,%s,'',0,0,2) ON DUPLICATE KEY UPDATE bid=VALUES(bid), cid=VALUES(cid), battler='', video=0, inbattle=0, num=2", members)
         requestGet(config.CHATSERVER, dict(cid=cid, type="lbb", info=curTime+86400))
         requestGet(config.CHATSERVER, dict(cid=eid, type="lbb", info=curTime+86400))
         return 0
@@ -219,7 +219,7 @@ def checkBattleWithMember(uid, euid):
     return 0
 
 def changeBattleState(uid, eid, cid, ecid, bid, vid, lscore):
-    print("test change %d,%d,%d,%d,%d,%d,%d" % (uid, eid, cid, ecid, bid, vid, lscore))
+    update("UPDATE nozomi_clan_battle_member SET num=if(num>0,num-1,0) WHERE uid=%s", (uid))
     if lscore>0 and vid>0:
         con = getConn()
         cur = con.cursor()

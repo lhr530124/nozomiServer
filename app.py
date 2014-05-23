@@ -454,7 +454,7 @@ def login():
             servers = queryOne("SELECT servers FROM caesars_users WHERE account=%s", username)
         if servers!=None:
             sids = servers[0]
-            if sids&1==1:
+            if sids&1==1 or not servertest:
                 uid = getUidByName(username)
             elif sids&2==2 and servertest:
                 ret = dict(code=0,uid=0,baseUrl="http://54.197.163.8:9195/",scoreUrl="http://54.197.163.8:9158/",chatUrl="http://54.197.163.8:8111/")
@@ -477,7 +477,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [8,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,11]
+settings = [8,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,12]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -575,6 +575,10 @@ def getData():
         data = getUserInfos(uid)
     if data['clan']>0:
         data['clanInfo'] = ClanModule.getClanInfo(data['clan'])
+        if data['clanInfo'][9]==2:
+            item = queryOne("SELECT num FROM nozomi_clan_battle_member WHERE uid=%s",(uid))
+            if item!=None:
+                data['lbnum'] = item[0]
     #data['builds'] = getUserBuilds(uid)
     data['researches'] = getUserResearch(uid)
     #fix data
@@ -826,6 +830,9 @@ def synData():
     activityNum = request.form.get("actbuy", 0, type=int)
     if activityNum>0:
         UserRankModule.buyActivityNum(0, uid, activityNum)
+    activityNum = request.form.get("lbbuy", 0, type=int)
+    if activityNum>0:
+        update('UPDATE nozomi_clan_battle_member SET num=num+%s WHERE uid=%s', (activityNum, uid))
     activityData = request.form.get("actdata")
     if activityData!=None:
         activityData = json.loads(activityData)
