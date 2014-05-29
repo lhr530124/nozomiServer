@@ -477,7 +477,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [8,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,12]
+settings = [9,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, False, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,12]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -500,14 +500,14 @@ def getData():
         ret = None
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
-            if checkVersion<settings[0]:
+            if checkVersion<settings[0] and platform.find("ios")==0:
                 country = request.args.get('country',"us").lower()
                 if country=="":
                     country = "us"
                 ret = dict(serverUpdate=1)
                 if language==0:
                     ret['title'] = "New Version!"
-                    ret['content']="1. Some bugs fixed!\n2. Update Zombies Challenge Function!\n3. Update Heroes Discount Function!"
+                    ret['content']="1. Return to the original League War Rule;\n2. Balance U2 data."
                     ret['button1']="Update Now"
                     ret['button2']="Later"
                 else:
