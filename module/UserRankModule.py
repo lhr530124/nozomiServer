@@ -115,9 +115,9 @@ def getActivityUser(actid, uid):
     cur.execute("SELECT num1,num2,score FROM nozomi_activity_user WHERE actid=%s AND id=%s", (actid,uid))
     ret = cur.fetchone()
     if ret==None:
-        cur.execute("INSERT INTO nozomi_activity_user (actid, id, num1, num2, score) VALUES(%s,%s,10,0,0)",(actid,uid))
+        cur.execute("INSERT INTO nozomi_activity_user (actid, id, num1, num2, score) VALUES(%s,%s,5,0,0)",(actid,uid))
         con.commit()
-        ret = [10,0,0]
+        ret = [5,0,0]
     cur.close()
     return ret
 

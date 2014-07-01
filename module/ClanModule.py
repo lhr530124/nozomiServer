@@ -149,7 +149,15 @@ def findLeagueEnemy(cid, score):
     interval=14400
     if inWar:
         interval = 43200
-    allCanBattle = queryAll("SELECT id,icon,score,`type`,`name`,`desc`,members FROM `nozomi_clan` AS nc LEFT JOIN `nozomi_clan_check` AS ncc ON ncc.cid1=%s AND ncc.cid2=nc.id WHERE id!=%s AND state=1 and statetime<%s AND members>0 AND (ncc.time IS NULL OR ncc.time<%s)",(cid,cid,curTime,curTime-interval))
+    scorelimit = 0
+    memberlimit = 0
+    if score>3000:
+        memberlimit = 20
+        scorelimit = 1000
+    elif score>200:
+        memberlimit = 10
+        scorelimit = 100
+    allCanBattle = queryAll("SELECT id,icon,score,`type`,`name`,`desc`,members FROM `nozomi_clan` AS nc LEFT JOIN `nozomi_clan_check` AS ncc ON ncc.cid1=%s AND ncc.cid2=nc.id WHERE id!=%s AND state=1 and statetime<%s AND members>%s AND score>=%s AND (ncc.time IS NULL OR ncc.time<%s)",(cid,cid,curTime,memberlimit,scorelimit,curTime-interval))
     if allCanBattle!=None:
         cut = random.randint(0, len(allCanBattle)-1)
         ret = allCanBattle[cut]

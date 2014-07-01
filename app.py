@@ -437,7 +437,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [3,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime, 8]
+settings = [3,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime, 9]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -471,7 +471,8 @@ def getData():
                 return json.dumps(ret)
         sversion = request.args.get("scriptVersion",1,type=int)
         if sversion<settings[4]:
-            return json.dumps(dict(serverError=1, title="Please Update!", content="Zombie Challenge Come! Please close your game and restart it again to update your game!", button="Close"))
+            #return json.dumps(dict(serverError=1, title="Please Update!", content="Zombie Challenge Come! Please close your game and restart it again to update your game!", button="Close"))
+            return json.dumps(dict(serverError=1, title="Please Update!", content="Purchase reward in 3 days! Please close your game and restart it again to update your game!", button="Close"))
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
@@ -654,8 +655,8 @@ def verifyKaiXin():
                 if uinfo[0]==0:
                     rewards.append([roleId,2,amount])
                 t = int(time.mktime(time.localtime()))
-                if t>=1393056000 and t<1393228800:
-                    rewards.append([roleId,3,(amount+4)/5])
+                if t>=1397203200 and t<1397462400:
+                    rewards.append([roleId,3,(amount+1)/2])
                 executemany("INSERT INTO `nozomi_reward_new` (uid,type,rtype,rvalue,info) VALUES (%s,%s,0,%s,'')", rewards)
                 update("UPDATE `nozomi_user` SET totalCrystal=%s WHERE id=%s", (uinfo[0]+amount,roleId))
             else:
@@ -942,6 +943,7 @@ def synBattleData():
             cid = int(request.form.get('cid', 0))
             ecid = int(request.form.get('ecid', 0))
             ClanModule.changeBattleState(uid, eid, cid, ecid, bid, videoId, lscore)
+        else:
             update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,0)", (eid, uid, videoId, int(time.mktime(time.localtime())), util.filter4utf8(request.form['history'])))
     return json.dumps({'code':0})
 
