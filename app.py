@@ -210,8 +210,8 @@ def getUserInfos(uid):
     return dict(name=r[0], score=r[1], clan=r[2], mtype=r[3])
 
 def getUserAllInfos(uid):
-    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime, registerTime, ban FROM nozomi_user WHERE id=%s", (uid))
-    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12], ban=r[13])
+    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime, registerTime, ban, rewardNums FROM nozomi_user WHERE id=%s", (uid))
+    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12], ban=r[13], rnum=r[14])
 
 def getBindGameCenter(tempName):
     r = queryOne("SELECT gameCenter FROM `nozomi_gc_bind` WHERE uuid=%s",(tempName))
@@ -477,7 +477,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [9,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, False, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,12]
+settings = [10,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,12]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -498,16 +498,19 @@ def getData():
         if sversion<settings[4]:
             return json.dumps(dict(serverError=1, title="Please Update!", content="League War Rule Update! Please close your game and restart it again to update your game!", button="Close"))
         ret = None
+        shouldDebug = False
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
-            if checkVersion<settings[0] and platform.find("ios")==0:
+            if platform=="ios" and checkVersion>settings[0]:
+                shouldDebug = True
+            if checkVersion<settings[0]:
                 country = request.args.get('country',"us").lower()
                 if country=="":
                     country = "us"
                 ret = dict(serverUpdate=1)
                 if language==0:
                     ret['title'] = "New Version!"
-                    ret['content']="1. Return to the original League War Rule;\n2. Balance U2 data."
+                    ret['content']="*Free Crystals:  You can earn more free crystals by Tapjoy now."
                     ret['button1']="Update Now"
                     ret['button2']="Later"
                 else:
@@ -515,10 +518,13 @@ def getData():
                     ret['content'] = "1. 上线了英雄系统；\n2. 上线了神像系统；\n3. 调整了人口相关数值；\n4. 优化了联盟战斗、僵尸攻打机制。"
                     ret['button1']="立即更新"
                     ret['button2']="稍后更新"
-                ret['url'] = "https://itunes.apple.com/app/id608847384?mt=8&uo=4"
+                if platform.find("android")==0:
+                    ret['url'] = "https://play.google.com/store/apps/details?id=com.caesars.nozomi"
+                else:
+                    ret['url'] = "https://itunes.apple.com/app/id608847384?mt=8&uo=4"
                 #if platform=="ios_cn":
                 #    ret['url'] = ret['url'].replace("608847384","666289981")
-                if settings[2]==True:
+                if settings[2]==True and platform.find("ios")==0:
                     ret['forceUpdate']=1
                     return json.dumps(ret)
         state = getUserState(uid)
@@ -531,8 +537,8 @@ def getData():
             data.update(ret)
         t = int(time.mktime(time.localtime()))
         data['serverTime'] = t
-        if platform=="ios_cn":
-            data['payDebug'] =1
+        if shouldDebug:
+            data['payDebug'] = 1
         lt = util.getLeagueWarTime(t)
         data['leagueWarTime'] = lt[1]
         data['nextLeagueWarTime'] = lt[0]
@@ -810,6 +816,8 @@ def synData():
         if UserRankModule.checkZombieReward(uid, request.form.get('cstatue6008',1,type=int))==False:
             return '{"code":1}'
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
+    if 'level6' in request.form:
+        userInfoUpdate['rewardNums'] = request.form.get('level6',0,type=int)
     if 'userInfo' in request.form:
         userInfo = json.loads(request.form['userInfo'])
         userInfoUpdate.update(userInfo)
@@ -1234,7 +1242,10 @@ def getRewards():
     if uid==0:
         return json.dumps(dict(code=1))
     else:
-        return json.dumps(dict(code=0, rewards=getUserRewardsNew(uid)))
+        l = queryOne("select lastOffTime from nozomi_user where id=%s", (uid,))
+        if l==None:
+            return json.dumps(dict(code=1))
+        return json.dumps(dict(code=0, rewards=getUserRewardsNew(uid), offtime=l[0]))
 
 bulletins = ["1. Get free rewards by sharing news with your friends!","2. Download your own particular Battle Video!","3. Get double crystals by first Recharge!", "4. Continuously login to get more New User Gift!"]
 
@@ -1256,7 +1267,7 @@ def addPurchaseCrystal(orderId, roleId, amount, platform, curTime, payFunc, serv
         page = rep.read()
         result = json.loads(page)
         return (result['code']==0)
-    uinfo = queryOne("SELECT totalCrystal FROM `nozomi_user` WHERE id=%s",(roleId))
+    uinfo = queryOne("SELECT totalCrystal,rewardNums FROM `nozomi_user` WHERE id=%s",(roleId))
     if uinfo==None:
         return False
     ret = queryOne("SELECT * FROM `nozomi_purchase_record` WHERE transactionId=%s", (orderId))
@@ -1266,15 +1277,14 @@ def addPurchaseCrystal(orderId, roleId, amount, platform, curTime, payFunc, serv
     if amount>0:
         curCrystal = uinfo[0]
         rewards = [[roleId,0,amount]]
-        if curCrystal==0:
+        rnum = uinfo[1]
+        if rnum>0:
             rewards.append([roleId,2,amount])
-        if curTime>=1399618800 and curTime<=1399878000:
-            rewards.append([roleId,3,amount/5])
+            rnum = rnum-1
+        if curTime>=1402668000 and curTime<=1403186400:
+            rewards.append([roleId,3,amount*2/5])
         executemany("INSERT INTO `nozomi_reward_new` (uid,type,rtype,rvalue,info) VALUES (%s,%s,0,%s,'')", rewards)
-        if amount==200:
-            update("UPDATE `nozomi_user` SET lastOffTime=%s,totalCrystal=%s WHERE id=%s", (curTime,curCrystal+amount,roleId))
-        else:
-            update("UPDATE `nozomi_user` SET totalCrystal=%s WHERE id=%s", (curCrystal+amount,roleId))
+        update("UPDATE `nozomi_user` SET totalCrystal=%s,rewardNums=%s WHERE id=%s", (curCrystal+amount,rnum,roleId))
         rmb = crystalRmbDict.get(amount,0)
         if payFunc!="paypal":
             rmb = rmb*7/10
