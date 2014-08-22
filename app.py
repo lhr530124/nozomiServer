@@ -1250,7 +1250,7 @@ def getRewards():
 bulletins = ["1. Get free rewards by sharing news with your friends!","2. Download your own particular Battle Video!","3. Get double crystals by first Recharge!", "4. Continuously login to get more New User Gift!"]
 
 productDict = {"crystal0":500,"crystal1":1200,"crystal2":2500,"crystal3":6500,"crystal4":14000,"crystal5":200,"Xicrystal0":500,"Xicrystal1":1200,"Xicrystal2":2500,"Xicrystal3":6500,"Xicrystal4":14000,"Xicrystal5":200, "cncrystal0":500,"cncrystal1":1200,"cncrystal2":2500,"cncrystal3":6500,"cncrystal4":14000}
-crystalRmbDict = {500:30,1200:60,2500:120,6500:300,14000:600,200:6}
+crystalRmbDict = {500:30,1200:60,2500:120,6500:300,14000:600,90:6}
 @app.route("/getBulletins", methods=['GET'])
 def getButtetins():
     return json.dumps(bulletins)
@@ -1351,6 +1351,8 @@ def verifyGooglePay():
         amount = 0
         if 'amount' in info:
             amount = info['amount']
+            if amount==200:
+                amount=90
         platform = info['plat']
         if addPurchaseCrystal(orderId, roleId, amount, platform, t/1000,"google",serverId):
             if 'noads' in info:
