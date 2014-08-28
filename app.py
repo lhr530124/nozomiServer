@@ -212,7 +212,7 @@ def getUserInfos(uid):
     return dict(name=r[0], score=r[1], clan=r[2], mtype=r[3])
 
 def getUserMask(uid):
-    r = queryOne("SELECT mask FROM nozomi_user WHERE id=%s", (uid,))
+    r = queryOne("SELECT mask FROM nozomi_user_mask WHERE id=%s", (uid,))
     if r==None:
         return 0
     else:
