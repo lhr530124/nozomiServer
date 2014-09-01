@@ -342,7 +342,7 @@ def addOurAds(uid, platform, data):
 
 newGiftReward = [[1,800],[1,1500],[0,50],[1,3000],[1,5000],[0,100]]
 dailyGiftReward = [[1,1000],[1,1500],[0,10],[1,2000],[1,2500],[1,3000],[0,50],[1,3500],[1,4000],[1,4500],[1,5000],[1,6500],[1,7000],[1,8000],[0,100],[1,9000],[1,10000],[1,11000],[1,12000],[1,13000],[1,14000],[1,15000],[1,17000],[1,19000],[1,21000],[1,23000],[1,25000],[1,27000],[1,30000],[0,500]]
-def newUserLogin(uid):
+def newUserLogin(uid, noNew):
     today = datetime.date.today()
     ret = queryOne("SELECT regDate,loginDate,loginDays,maxLDays,curLDays FROM `nozomi_login_new` WHERE `id`=%s", (uid))
     leftDay = 10
@@ -363,7 +363,7 @@ def newUserLogin(uid):
             newLogin = True
             loginDays = ret[2]+1
             maxLDays = ret[3]
-            if leftDay>0 and loginDays<7:
+            if leftDay>0 and loginDays<7 and not noNew:
                 newGift = loginDays
             else:
                 leftDay = 0
@@ -381,12 +381,17 @@ def newUserLogin(uid):
     else:
         newGift = 1
         newLogin = True
-        update("INSERT INTO `nozomi_login_new` (`id`,regDate,loginDate,loginDays,maxLDays,curLDays) VALUES(%s,%s,%s,1,1,0)", (uid, today, today))
+        if noNew:
+            leftDay = 0
+            update("INSERT INTO `nozomi_login_new` (`id`,regDate,loginDate,loginDays,maxLDays,curLDays) VALUES(%s,%s,%s,1,1,1)", (uid, today, today))
+        else:
+            update("INSERT INTO `nozomi_login_new` (`id`,regDate,loginDate,loginDays,maxLDays,curLDays) VALUES(%s,%s,%s,1,1,0)", (uid, today, today))
     if newGift>0:
         if leftDay>0:
             reward = newGiftReward[newGift-1]
         else:
             reward = dailyGiftReward[(newGift-1)%30]
+            update("DELETE FROM `nozomi_reward_new` WHERE uid=%s AND `type`=%s", (uid,1))
         update("INSERT INTO `nozomi_reward_new` (uid,`type`,`rtype`,`rvalue`,`info`) VALUES(%s,%s,%s,%s,%s)", (uid,1,reward[0],reward[1],json.dumps(dict(day=newGift))))
     return [leftDay, loginDays, curLDays, newLogin]
 
@@ -413,9 +418,9 @@ def initUser(username, nickname, platform):
     regTime = int(time.mktime(time.localtime()))
     platformId = platformIds.get(platform, 0)
     initScore = 500
-    initCrystal = 497
+    initCrystal = 397
     if platformId==3 and nickname=="vip":
-        initCrystal = 1497
+        initCrystal = 1397
         nickname = ""
     #uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
     uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime) VALUES(%s, %s, %s, %s, 500, %s, 0, %s, %s)", (username, regTime, nickname, util.getTime(), initCrystal, platformId, regTime))
@@ -464,31 +469,13 @@ def login():
     plat = "ios"
     if 'platform' in request.form:
         plat = request.form['platform']
-    if 'servertest' in request.form:
-        if plat=="ios" or plat=="android_our":
-            servertest = True
-    servers = None
     if tempname!=None:
         if username==None:
             username = getBindGameCenter(tempname)
         else:
             bindGameCenter(username, tempname)
-            servers = queryOne("SELECT servers FROM caesars_users WHERE account=%s", tempname)
-            if servers!=None:
-                update("UPDATE IGNORE caesars_users SET account=%s WHERE account=%s", (username, tempname))
     if username!=None:
-        uid = 0
-        if servers==None:
-            servers = queryOne("SELECT servers FROM caesars_users WHERE account=%s", username)
-        if servers!=None:
-            sids = servers[0]
-            if sids&1==1 or not servertest:
-                uid = getUidByName(username)
-            elif sids&2==2 and servertest:
-                ret = dict(code=0,uid=0,baseUrl="http://54.197.163.8:9195/",scoreUrl="http://54.197.163.8:9158/",chatUrl="http://54.197.163.8:8111/")
-                return json.dumps(ret)
-        else:
-            update("INSERT IGNORE INTO caesars_users (account,servers) VALUES (%s,%s)", (username,1))
+        uid = getUidByName(username)
         ret = dict(code=0, uid=uid)
         if uid==0:
             timelogger.info("new user %s %d " % (username, uid))
@@ -505,7 +492,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [10,int(time.mktime((2013,9,22,2,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,12]
+settings = [10,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,12]
 
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -573,7 +560,7 @@ def getData():
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
         data['achieves'] = achieveModule.getAchieves(uid)
-        loginResult = newUserLogin(uid)
+        loginResult = newUserLogin(uid, data['registerTime']>settings[1])
         data['leftDay'] = loginResult[0]
         data['ldays'] = loginResult[1]
         data['cdays'] = loginResult[2]
