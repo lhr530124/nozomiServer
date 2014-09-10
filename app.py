@@ -101,7 +101,7 @@ def internalError(exception):
     ''' % (str(request.args), str(request.form), exception))
     return '', 500 
 
-GlobalValues = [None,redis.ConnectionPool(host="localhost")]
+GlobalValues = [None,redis.ConnectionPool(host=config.REDIS_HOST)]
 def getRedisServer(): 
     return redis.StrictRedis(connection_pool=GlobalValues[1], db=1)
 
