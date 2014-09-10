@@ -223,10 +223,10 @@ def getUserMask(uid):
         return r[0]
 
 def getUserAllInfos(uid):
-    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime, registerTime, ban, rewardNums FROM nozomi_user WHERE id=%s", (uid))
+    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime, registerTime, ban, rewardNums, magic FROM nozomi_user WHERE id=%s", (uid))
     if r==None:
         return None
-    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12], ban=r[13], rnum=r[14])
+    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12], ban=r[13], rnum=r[14], mnum=r[15])
 
 def getUserArena(uid):
     r = queryOne("SELECT stage,state,pstage,ptime,pwar,pscore,totalwin FROM nozomi_user_arena WHERE id=%s", (uid, ))
@@ -869,6 +869,16 @@ def synData():
     loginlogger.info("%s\t%d\tsynData" % (platform,uid))
     return json.dumps({'code':0})
 
+@app.route("/getArenaNum", methods=['GET'])
+def getArenaNum():
+    uid = request.args.get("uid",0,type=int)
+    ulevel = request.args.get("ulevel", 0, type=int)
+    pstage = request.args.get("stage", 0, type=int)
+    ret = queryAll("SELECT ptime,count(*) FROM nozomi_user_arena WHERE state=1 AND pstage=%s AND tlevel=%s", (pstage, ulevel))
+    if ret==None:
+        ret = []
+    return json.dumps(dict(code=0, data=ret))
+
 @app.route("/getArenaData", methods=['GET'])
 def getArenaBattle():
     uid = int(request.args.get("uid"))
@@ -883,7 +893,7 @@ def getArenaBattle():
         ret['towns'] = data
         ret['code'] = 0
     else:
-        ret = dict(code=1, aid=0)
+        ret = dict(code=1, aid=0, rewards=getUserRewardsNew(uid), stage=arenaInfo[0],state=arenaInfo[1])
     return json.dumps(ret)
 
 @app.route("/getTownData", methods=['GET','POST'])
@@ -944,6 +954,7 @@ def synArenaBattle():
     else:
         update("UPDATE nozomi_arena_town SET stars=%s,owner=%s WHERE aid=%s AND tid=%s",(stars,utid,aid,tid))
         tscore = request.form.get("score",0,type=int)/3
+        tscore = tscore*stars
         uid = request.form.get("uid",0,type=int)
         update("UPDATE nozomi_user_arena SET pscore=pscore+%s WHERE id=%s", (tscore, uid))
         con = getConn()
