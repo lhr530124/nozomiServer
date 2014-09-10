@@ -874,7 +874,7 @@ def getArenaNum():
     uid = request.args.get("uid",0,type=int)
     ulevel = request.args.get("ulevel", 0, type=int)
     pstage = request.args.get("stage", 0, type=int)
-    ret = queryAll("SELECT ptime,count(*) FROM nozomi_user_arena WHERE state=1 AND pstage=%s AND tlevel=%s", (pstage, ulevel))
+    ret = queryAll("SELECT ptime,count(*) FROM nozomi_user_arena WHERE state=1 AND pstage=%s AND tlevel=%s GROUP BY ptime", (pstage, ulevel))
     if ret==None:
         ret = []
     return json.dumps(dict(code=0, data=ret))
