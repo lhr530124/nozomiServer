@@ -587,11 +587,11 @@ def getData():
         data['astage'] = arenaResult[0]
         data['astate'] = arenaResult[1]
         data['atime'] = arenaResult[3]
+        activity = UserRankModule.getActivityUser(0,uid)
+        if activity!=None:
+            data['activity'] = activity
+            data['acttime'] = UserRankModule.getActivityTime(0,t)
         if data['guide']>=1400:
-            activity = UserRankModule.getActivityUser(0,uid)
-            if activity!=None:
-                data['activity'] = activity
-                data['acttime'] = UserRankModule.getActivityTime(0,t)
             if data.get('leftDay',0)==0:
                 nzstat = UserRankModule.getNozomiZombieStat(uid)
                 if nzstat!=None:
@@ -782,7 +782,7 @@ def synData():
                 crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
                 if l[0]==1:
                     accTimes=accTimes+1
-                elif l[0]==4 and l[2]<250:
+                elif l[0]==4 and l[2]<1:
                     update("UPDATE nozomi_user SET ban=2 WHERE id=%s",(uid))
                     testlogger.info("banUserId:%d,banType:%d,requestCrystals:%s" % (uid, 9, json.dumps(ls)))
                     return '{"code":1}'
@@ -1348,7 +1348,7 @@ def checkMask():
     if (umask&mask)==0:
         update("REPLACE INTO nozomi_user_mask (id,mask) VALUES (%s,%s)", (uid, umask|mask))
         update("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)", (uid,0,0,50,''))
-        return json.dumps(dict(code=0))
+        return json.dumps(dict(code=0, rewards=getUserRewardsNew(uid)))
     return json.dumps(dict(code=1))
 
 @app.route("/getRewards", methods=['GET'])

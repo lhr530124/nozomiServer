@@ -127,7 +127,7 @@ def leaveClan(uid, cid):
         state = clan[9]
         if clan[6]==1:
             state = 0
-        update("UPDATE `nozomi_clan` SET members=members-1, score=score-%s, state=%s WHERE id=%s", (lscore, state, cid))
+        update("UPDATE `nozomi_clan` SET members=if(members>0,members-1,0), score=score-%s, state=%s WHERE id=%s", (lscore, state, cid))
         return clan
     return None
 
