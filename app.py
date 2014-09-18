@@ -439,7 +439,7 @@ def initUser(username, nickname, platform):
     module.UserRankModule.initUserScore(uid, initScore)
 
     updateUserBuilds(uid, dataBuilds)
-    
+    update("INSERT INTO nozomi_user_gift (id,etime,rw1,rw2) VALUES (%s,%s,%s,%s)",(uid,regTime+3*86400,0,0))
     return uid
 
 def getTopNewbies():
@@ -591,6 +591,10 @@ def getData():
         if activity!=None:
             data['activity'] = activity
             data['acttime'] = UserRankModule.getActivityTime(0,t)
+        gift = queryOne("SELECT etime,rw1,rw2 FROM nozomi_user_gift WHERE id=%s",(uid,))
+        if gift!=None:
+            if gift[0]>t or (gift[1]+gift[2])>0:
+                data['gift'] = [gift[0],gift[1]+gift[2],gift[1],gift[2]]
         if data['guide']>=1400:
             if data.get('leftDay',0)==0:
                 nzstat = UserRankModule.getNozomiZombieStat(uid)
@@ -809,6 +813,9 @@ def synData():
     if 'cstatue6008' in request.form:
         if UserRankModule.checkZombieReward(uid, request.form.get('cstatue6008',1,type=int))==False:
             return '{"code":1}'
+    if 'gift' in request.form:
+        ng = json.loads(request.form['gift'])
+        update("UPDATE nozomi_user_gift SET rw1=if(rw1<%s,rw1,%s),rw2=if(rw2<%s,rw2,%s) WHERE id=%s",(ng[0],ng[0],ng[1],ng[1],uid))
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
     if 'level6' in request.form:
         userInfoUpdate['rewardNums'] = request.form.get('level6',0,type=int)
