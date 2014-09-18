@@ -351,60 +351,38 @@ def addOurAds(uid, platform, data):
                 data['adsCode'] = adsCode
                 data['adsUrl'] = adsUrl
 
-newGiftReward = [[1,800],[1,1500],[0,50],[1,3000],[1,5000],[0,100]]
 dailyGiftReward = [[1,1000],[1,1500],[0,10],[1,2000],[1,2500],[1,3000],[0,50],[1,3500],[1,4000],[1,4500],[1,5000],[1,6500],[1,7000],[1,8000],[0,100],[1,9000],[1,10000],[1,11000],[1,12000],[1,13000],[1,14000],[1,15000],[1,17000],[1,19000],[1,21000],[1,23000],[1,25000],[1,27000],[1,30000],[0,500]]
-def newUserLogin(uid, noNew):
+def newUserLogin(uid):
     today = datetime.date.today()
     ret = queryOne("SELECT regDate,loginDate,loginDays,maxLDays,curLDays FROM `nozomi_login_new` WHERE `id`=%s", (uid))
-    leftDay = 10
     newGift = 0
     newLogin = False
     loginDays = 1
     curLDays = 1
     if ret!=None:
-        timedelta = (today-ret[0]).days
-        if timedelta>10:
-            leftDay = 0
-        elif ret[2]<7:
-            leftDay = 7-ret[2]
-        else:
-            leftDay = 1
         timedelta = (today-ret[1]).days
         if timedelta>0:
             newLogin = True
             loginDays = ret[2]+1
             maxLDays = ret[3]
-            if leftDay>0 and loginDays<7 and not noNew:
-                newGift = loginDays
-            else:
-                leftDay = 0
-                if timedelta==1:
-                    curLDays = ret[4]+1
-                    if curLDays>maxLDays:
-                        maxLDays = curLDays
-                newGift = curLDays
+            if timedelta==1:
+                curLDays = ret[4]+1
+                if curLDays>maxLDays:
+                    maxLDays = curLDays
+            newGift = curLDays
             update("UPDATE `nozomi_login_new` SET loginDate=%s,loginDays=%s,maxLDays=%s,curLDays=%s WHERE `id`=%s",(today,loginDays,maxLDays,curLDays,uid))
         else:
             loginDays = ret[2]
             curLDays = ret[4]
-            if loginDays>=7:
-                leftDay = 0
     else:
         newGift = 1
         newLogin = True
-        if noNew:
-            leftDay = 0
-            update("INSERT INTO `nozomi_login_new` (`id`,regDate,loginDate,loginDays,maxLDays,curLDays) VALUES(%s,%s,%s,1,1,1)", (uid, today, today))
-        else:
-            update("INSERT INTO `nozomi_login_new` (`id`,regDate,loginDate,loginDays,maxLDays,curLDays) VALUES(%s,%s,%s,1,1,0)", (uid, today, today))
+        update("INSERT INTO `nozomi_login_new` (`id`,regDate,loginDate,loginDays,maxLDays,curLDays) VALUES(%s,%s,%s,1,1,1)", (uid, today, today))
     if newGift>0:
-        if leftDay>0:
-            reward = newGiftReward[newGift-1]
-        else:
-            reward = dailyGiftReward[(newGift-1)%30]
-            update("DELETE FROM `nozomi_reward_new` WHERE uid=%s AND `type`=%s", (uid,1))
+        reward = dailyGiftReward[(newGift-1)%30]
+        update("DELETE FROM `nozomi_reward_new` WHERE uid=%s AND `type`=%s", (uid,1))
         update("INSERT INTO `nozomi_reward_new` (uid,`type`,`rtype`,`rvalue`,`info`) VALUES(%s,%s,%s,%s,%s)", (uid,1,reward[0],reward[1],json.dumps(dict(day=newGift))))
-    return [leftDay, loginDays, curLDays, newLogin]
+    return [0, loginDays, curLDays, newLogin]
 
 def getUserRewardsNew(uid):
     allRewards = queryAll("SELECT `id`,`type`,`rtype`,`rvalue`,`info` FROM `nozomi_reward_new` WHERE uid=%s", (uid))
@@ -503,7 +481,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [11,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,13]
+settings = [11,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,14]
 arenaTimes = [1409875200+14400, 14400]
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -522,11 +500,13 @@ def getData():
             language = request.args['language']
         sversion = request.args.get("scriptVersion",1,type=int)
         if sversion<settings[4]:
-            return json.dumps(dict(serverError=1, title="Please Update!", content="Arena bug fixed! Please close your game and restart it again to update your game!", button="Close"))
+            return json.dumps(dict(serverError=1, title="Big Update!", content="Big update of Nozomi, tap Close and relogin game please!", button="Close"))
         ret = None
         shouldDebug = False
         if 'check' in request.args:
             checkVersion = request.args.get("checkVersion", 0, type=int)
+            if platform=="android_our":
+                checkVersion = checkVersion-1
             if (platform=="ios" and checkVersion>settings[0]) or platform=="ios_cn":
                 shouldDebug = True
             if checkVersion<settings[0]:
@@ -535,9 +515,9 @@ def getData():
                     country = "us"
                 ret = dict(serverUpdate=1)
                 if language==0:
-                    ret['title'] = "New Version!"
-                    ret['content']="*Free Crystals:  You can earn more free crystals by Tapjoy now."
-                    ret['button1']="Update Now"
+                    ret['title'] = "Big Update!"
+                    ret['content']="Big update of COZ, update game to find new items, features!"
+                    ret['button1']="Update"
                     ret['button2']="Later"
                 else:
                     ret['title'] = "新版本来啦！"
@@ -575,7 +555,7 @@ def getData():
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
         data['achieves'] = achieveModule.getAchieves(uid)
-        loginResult = newUserLogin(uid, data['registerTime']>settings[1])
+        loginResult = newUserLogin(uid)
         data['leftDay'] = loginResult[0]
         data['ldays'] = loginResult[1]
         data['cdays'] = loginResult[2]
