@@ -605,16 +605,7 @@ def getData():
     builders = []
     errorBuilderNum = 0
     for build in builds:
-        if build[2]==1002:
-            if build[6]!="":
-                try:
-                    rid = json.loads(build[6])['rid']
-                    if data['researches'][rid-1]==5:
-                        build[6]=""
-                        repairDatas.append([build[0],""])
-                except:
-                    print "research data error"
-        elif build[2]==2004:
+        if build[2]==2004:
             try:
                 check = json.loads(build[6])
                 if check['resource'] == 0:
@@ -622,15 +613,12 @@ def getData():
                     builders.append(build)
             except e:
                 print e
-
-            #if build[6]=='{"resource":0}':
-        if build[4]>0:
+        elif build[4]>0:
             errorBuilderNum = errorBuilderNum-1
     while errorBuilderNum>0:
         errorBuilderNum = errorBuilderNum-1
         builders[errorBuilderNum][6]='{"resource":1}'
         repairDatas.append([builders[errorBuilderNum][0],'{"resource":1}'])
-
     if len(repairDatas)>0:
         testlogger.info("repair data %d:%s" % (uid, json.dumps(repairDatas)))
         if 'login' in request.args:
@@ -664,7 +652,7 @@ def getReplay():
     return queryOne("SELECT replay FROM nozomi_replay WHERE id=%s", (vid))[0]
 
 resourceMap={2004:1, 2001:2000000, 2003:2000000, 2005:80000}
-maxList = [[0,4],[1,1],[2,1],[1000,4],[1001,4],[1002,1],[1003,1],[1004,1],[1005,1],[2000,6],[2001,4],[2002,6],[2003,4],[2004,5],[2005,4],[3000,5],[3001,6],[3002,3],[3003,4],[3004,4],[3005,4],[3006,250],[3007,2]]
+maxList = [[0,4],[1,1],[2,1],[1000,4],[1001,4],[1002,1],[1003,1],[1004,1],[1005,1],[2000,7],[2001,4],[2002,7],[2003,4],[2004,5],[2005,4],[3000,6],[3001,7],[3002,3],[3003,4],[3004,4],[3005,4],[3006,250],[3007,3]]
 
 def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
     oldBuilds = getUserBuilds(uid)
@@ -1350,7 +1338,7 @@ def getRewards():
         arenaInfo = getUserArena(uid)
         return json.dumps(dict(code=0, rewards=getUserRewardsNew(uid), offtime=l[0],stage=arenaInfo[0],state=arenaInfo[1]))
 
-bulletins = ["1. Get free rewards by sharing news with your friends!","2. Download your own particular Battle Video!","3. Get double crystals by first Recharge!", "4. Continuously login to get more New User Gift!"]
+bulletins = ["1. Get free rewards by sharing news with your friends!","2. Download your own particular Battle Video!","3. Continuously login to get more New User Gift!"]
 
 productDict = {"crystal0":500,"crystal1":1200,"crystal2":2500,"crystal3":6500,"crystal4":14000,"crystal5":200,"Xicrystal0":500,"Xicrystal1":1200,"Xicrystal2":2500,"Xicrystal3":6500,"Xicrystal4":14000,"Xicrystal5":200, "cncrystal0":500,"cncrystal1":1200,"cncrystal2":2500,"cncrystal3":6500,"cncrystal4":14000}
 crystalRmbDict = {500:30,1200:60,2500:120,6500:300,14000:600,90:6}
