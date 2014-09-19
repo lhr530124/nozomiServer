@@ -6,17 +6,18 @@ import json
 beginTime = (2013, 1, 1, 0, 0, 0, 0, 0, 0)
 beginTime = int(time.mktime(beginTime))
 
-leagueWarTime = [1398729600,1399334400,1814400]
+RankTimes = [[1411430400,1412035200,1814400],[1411344000,1411948800,604800],[1411689600,1412294400,604800]]
 
-def getLeagueWarTime(t):
-    while t>leagueWarTime[1]:
-        leagueWarTime[0] += leagueWarTime[2]
-        leagueWarTime[1] += leagueWarTime[2]
-    return leagueWarTime
+def getRankTime(t, rid):
+    rtime = RankTimes[rid]
+    while t>rtime[1]:
+        rtime[0] += rtime[2]
+        rtime[1] += rtime[2]
+    return rtime
 
 def isInWar():
     t = int(time.mktime(time.localtime()))
-    lt = getLeagueWarTime(t)
+    lt = getRankTime(t,0)
     if lt[0]<=t:
         return True
     else:

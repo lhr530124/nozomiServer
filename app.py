@@ -549,9 +549,11 @@ def getData():
         data['a2time'] = arenaTimes[1]
         if shouldDebug:
             data['payDebug'] = 1
-        lt = util.getLeagueWarTime(t)
+        lt = util.getRankTime(t,0)
         data['leagueWarTime'] = lt[1]
         data['nextLeagueWarTime'] = lt[0]
+        data['r1time'] = util.getRankTime(t,1)
+        data['r2time'] = util.getRankTime(t,2)
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
         data['achieves'] = achieveModule.getAchieves(uid)
@@ -927,34 +929,58 @@ def synArenaBattle():
         tkey = "town%d_%d" % (aid, tid)
         rserver.delete(tkey)
     else:
-        update("UPDATE nozomi_arena_town SET stars=%s,owner=%s WHERE aid=%s AND tid=%s",(stars,utid,aid,tid))
-        tscore = request.form.get("score",0,type=int)/3
-        tscore = tscore*stars
-        uid = request.form.get("uid",0,type=int)
-        update("UPDATE nozomi_user_arena SET pscore=pscore+%s WHERE id=%s", (tscore, uid))
         con = getConn()
         cur = con.cursor()
-        cur.execute("SELECT count(*) FROM nozomi_arena_town WHERE aid=%s AND stars=0 AND ttype!=%s", (aid,utid))
-        lnum = cur.fetchone()
-        if lnum==None or lnum[0]==0:
-            cur.execute("SELECT stage,reward FROM nozomi_arena_battle WHERE id=%s", (aid, ))
-            battle = cur.fetchone()
-            cur.execute("SELECT id,stage,pscore,pstage FROM nozomi_user_arena WHERE pwar=%s",(aid,))
-            players = cur.fetchall()
-            players = sorted(players,key = lambda x:x[2],reverse=True)
-            lscore = players[0][2]
-            for player in players:
-                if player[2]==lscore:
-                    stage = player[1]
-                    if stage<battle[0]:
-                        stage = battle[0]
-                    cur.execute("UPDATE nozomi_user_arena SET totalwin=totalwin+%s, stage=%s, state=0, pwar=0 WHERE id=%s", (battle[1], stage, player[0]))
-                    cur.execute("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,3,0,%s,%s)", (player[0],battle[1],json.dumps(dict(arena=1,atype=1))))
+        cur.execute("UPDATE nozomi_arena_town SET stars=%s,owner=%s WHERE aid=%s AND tid=%s",(stars,utid,aid,tid))
+        con.commit()
+        #tscore = request.form.get("score",0,type=int)/3
+        #tscore = tscore*stars
+        uid = request.form.get("uid",0,type=int)
+        #update("UPDATE nozomi_user_arena SET pscore=pscore+%s WHERE id=%s", (tscore, uid))
+        cur.execute("SELECT stage,reward,unum,winner FROM nozomi_arena_battle WHERE id=%s", (aid, ))
+        battle = cur.fetchone()
+        if battle==None or battle[3]>0:
+            cur.close()
+            return json.dumps(dict(code=0))
+        cur.execute("SELECT ttype,owner,stars,name,did FROM nozomi_arena_town WHERE aid=%s", (aid,))
+        ltowns = cur.fetchall()
+        tscores = [0]*(battle[2]+1)
+        pinfos  = [0]*battle[2]
+        sscore = 0
+        mscore = 0
+        for ltown in ltowns:
+            tk = 1
+            if ltown[0]>0:
+                tk = 2
+                if ltown[1]>0:
+                    pinfos[ltown[0]-1] = [ltown[0],0,0,ltown[3],ltown[4]]
                 else:
-                    cur.execute("UPDATE nozomi_user_arena SET state=0, pwar=0 WHERE id=%s", (player[0],))
-                    cur.execute("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,3,0,0,%s)", (player[0],json.dumps(dict(arena=1,atype=2))))
-            cur.execute("UPDATE nozomi_arena_battle SET winner=%s WHERE id=%s", (players[0][3],aid))
-            con.commit()
+                    pinfos[ltown[0]-1] = [ltown[0],6,0,ltown[3],ltown[4]]
+            mscore += 3*tk
+            if ltown[1]>0:
+                tscores[ltown[1]] += ltown[2]*tk
+            else:
+                tscores[0] += 3*tk
+        sscore = tscores[utid]
+        for i in range(battle[2]):
+            pinfos[i][2] = tscores[i+1]
+        pinfos = sorted(pinfos, key = lambda x:x[2], reverse=True)
+        if pinfos[0][2]>pinfos[1][2]+tscores[0]-pinfos[1][1] or tscores[0]==0:
+            lscore = pinfos[0][2]
+            ext = [mscore]
+            for pi in pinfos:
+                ext.append(pi[3])
+                ext.append(pi[2])
+            for pi in pinfos:
+                if pi[2]==lscore:
+                    cur.execute("UPDATE nozomi_user_arena SET totalwin=totalwin+%s, stage=if(stage>%s,stage,%s), state=0, pwar=0 WHERE id=%s", (battle[1], battle[0], battle[0], pi[4]))
+                    cur.execute("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,3,0,%s,%s)", (pi[4],battle[1],json.dumps(dict(arena=1,atype=1))))
+                else:
+                    cur.execute("UPDATE nozomi_user_arena SET state=0, pwar=0 WHERE id=%s", (pi[4],))
+                    cur.execute("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,3,0,0,%s)", (pi[4],json.dumps(dict(arena=1,atype=2,ext=ext))))
+            cur.execute("UPDATE nozomi_arena_battle SET winner=%s WHERE id=%s", (pinfos[0][0],aid))
+        cur.execute("UPDATE nozomi_user_arena SET pscore=%s WHERE id=%s",(sscore,uid))
+        con.commit()
         cur.close()
     return json.dumps(dict(code=0))
 
@@ -964,7 +990,6 @@ def synBattleData():
     uid = int(request.form.get("uid", 0))
     eid = int(request.form.get("eid", 0))
     incScore = int(request.form.get("score", 0))
-    print("test uid and eid %d,%d; score=%d" % (uid, eid, -incScore))
     if uid==0 or eid==0 or incScore>60 or incScore<-60:
         abort(401)
     if 'history' in request.form:
@@ -982,9 +1007,6 @@ def synBattleData():
         else:
             UserRankModule.newUpdateScore(uid, eid, baseScore-incScore, ebaseScore+incScore, incScore<0)
     if eid>1 and 'isLeague' not in request.form:
-        if 'delete' in request.form:
-            delete = json.loads(request.form['delete'])
-            deleteUserBuilds(eid, delete)
         if 'eupdate' in request.form:
             #print("test_update", request.form['update'])
             up = json.loads(request.form['eupdate'])
@@ -1291,12 +1313,15 @@ def synLuaError():
     testlogger.info("userId:%d,platform:%s\n%s" % (uid,platform,error))
     return "success"
 
+adminIds = [437,1012,2634]
 @app.route("/report", methods=['POST'])
 def reportChat():
     uid = request.form.get('uid', 0, type=int)
     eid = request.form.get('eid', 0, type=int)
     msg = request.form.get('msg',"")
     if uid>0 and eid>0 and msg!="":
+        if uid in adminIds:
+            requestGet("http://10.68.55.40:8005/ban", dict(uid=eid,etime=int(time.mktime(time.localtime()))+2*86400))
         return "success"
     return "fail"
 
