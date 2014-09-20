@@ -699,7 +699,19 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
                 if build[2]==1005:
                     if 'weapons' in checkExt:
                         weapons = checkExt['weapons']
-                        if weapons[0]>2 or weapons[1]>2:
+                        tw = 0
+                        for n in weapons:
+                            tw += n
+                        if tw>5:
+                            ret = 4
+                            break
+                elif build[2]==1000 or build[2]==1004:
+                    if 'soldiers' in checkExt:
+                        soldiers = checkExt['soldiers']
+                        tn = 0
+                        for n in soldiers:
+                            tn+=n
+                        if tn>300:
                             ret = 4
                             break
                 elif build[2]==1001:
@@ -850,8 +862,19 @@ def synData():
 def getArenaNum():
     uid = request.args.get("uid",0,type=int)
     ulevel = request.args.get("ulevel", 0, type=int)
+    umin = 0
+    umax = 0
+    if ulevel>=8:
+        umin = 8
+        umax = 20
+    elif ulevel>=6:
+        umin = 6
+        umax = 7
+    else:
+        umin = 4
+        umax = 5
     pstage = request.args.get("stage", 0, type=int)
-    ret = queryAll("SELECT ptime,count(*) FROM nozomi_user_arena WHERE state=1 AND pstage=%s AND tlevel=%s GROUP BY ptime", (pstage, ulevel))
+    ret = queryAll("SELECT ptime,count(*) FROM nozomi_user_arena WHERE state=1 AND pstage=%s AND tlevel>=%s AND tlevel<=%s GROUP BY ptime", (pstage, umin, umax))
     if ret==None:
         ret = []
     return json.dumps(dict(code=0, data=ret))
