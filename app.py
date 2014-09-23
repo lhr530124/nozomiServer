@@ -269,7 +269,6 @@ def getJsonObj(string):
         return json.loads(string)
     
 def getUserBuilds(uid):
-    util.restoreBuilds(uid)
     builds = queryAll("SELECT buildIndex, grid, bid, level, time, hitpoints, extend FROM nozomi_build WHERE id=%s AND state=0", (uid), util.getDBID(uid))
     return builds
 
@@ -277,14 +276,12 @@ def deleteUserBuilds(uid, buildIndexes):
     params = []
     for bindex in buildIndexes:
         params.append([uid, bindex])
-    util.restoreBuilds(uid)
     executemany("UPDATE nozomi_build SET state=1 WHERE id=%s AND buildIndex=%s", params, dbID=util.getDBID(uid))
 
 def updateUserBuilds(uid, datas):
     params = []
     for data in datas:
         params.append([uid, data[0], data[1], data[2], data[3], data[4], data[5], data[6]])
-    util.restoreBuilds(uid)
     executemany("INSERT INTO nozomi_build (id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend) VALUES(%s,%s,%s,0,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE grid=VALUES(grid),state=0,bid=VALUES(bid),level=VALUES(level),`time`=VALUES(time),hitpoints=VALUES(hitpoints),extend=VALUES(extend);", params, util.getDBID(uid))
 
 def getUserResearch(uid):
@@ -298,14 +295,12 @@ def updateUserBuildHitpoints(uid, datas):
     params = []
     for data in datas:
         params.append([data[1], uid, data[0]])
-    util.restoreBuilds(uid)
     executemany("UPDATE nozomi_build SET hitpoints=%s WHERE id=%s AND buildIndex=%s", params, util.getDBID(uid))
 
 def updateUserBuildExtends(uid, datas):
     params = []
     for data in datas:
         params.append([data[1], uid, data[0]])
-    util.restoreBuilds(uid)
     executemany("UPDATE nozomi_build SET extend=%s WHERE id=%s AND buildIndex=%s", params, util.getDBID(uid))
 
 def getUidByName(account):
@@ -417,7 +412,6 @@ def initUser(username, nickname, platform):
     module.UserRankModule.initUserScore(uid, initScore)
 
     updateUserBuilds(uid, dataBuilds)
-    update("INSERT INTO nozomi_user_gift (id,etime,rw1,rw2) VALUES (%s,%s,%s,%s)",(uid,regTime+3*86400,0,0))
     return uid
 
 def getTopNewbies():
@@ -447,7 +441,6 @@ def getBattleHistory():
 
 @app.route("/login", methods=['POST', 'GET'])
 def login():
-    print 'login', request.form
     tempname = None
     if 'tempname' in request.form:
         tempname = request.form['tempname']
@@ -468,8 +461,7 @@ def login():
         ret = dict(code=0, uid=uid)
         if uid==0:
             timelogger.info("new user %s %d " % (username, uid))
-            nickname = request.form['nickname']
-            uid = initUser(username, nickname, plat)
+            uid = initUser(username, '', plat)
             loginlogger.info("%s\t%d\treg" % (plat,uid))
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
@@ -801,6 +793,7 @@ def synData():
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
     if 'level6' in request.form:
         userInfoUpdate['rewardNums'] = request.form.get('level6',0,type=int)
+        update("INSERT IGNORE INTO nozomi_user_gift (id,etime,rw1,rw2) VALUES (%s,%s,%s,%s)",(uid,userInfoUpdate['lastSynTime']+3*86400,0,0))
     if 'userInfo' in request.form:
         userInfo = json.loads(request.form['userInfo'])
         userInfoUpdate.update(userInfo)
