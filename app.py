@@ -569,6 +569,9 @@ def getData():
         if gift!=None:
             if gift[0]>t or (gift[1]+gift[2])>0:
                 data['gift'] = [gift[0],gift[1]+gift[2],gift[1],gift[2]]
+        stages = queryAll("SELECT stars,lres FROM nozomi_stages WHERE id=%s ORDER BY sid",(uid,))
+        if stages!=None:
+            data['stages'] = stages
         if data['guide']>=1400:
             if data.get('leftDay',0)==0:
                 nzstat = UserRankModule.getNozomiZombieStat(uid)
@@ -999,6 +1002,18 @@ def synArenaBattle():
         con.commit()
         cur.close()
     return json.dumps(dict(code=0))
+
+@app.route("/synStageBattle", methods=['POST'])
+def synStageBattle():
+    uid = request.form.get("uid",0,type=int)
+    sid = request.form.get("sid",0,type=int)
+    lres = request.form.get("lres", 0, type=int)
+    stars = request.form.get("stars",0,type=int)
+    if uid==0 or sid==0 or lres<0 or stars<0 or stars>3:
+        return json.dumps(dict(code=1))
+    else:
+        update("INSERT INTO nozomi_stages (id,sid,stars,lres) VALUES (%s,%s,%s,%s) ON DUPLICATE KEY UPDATE stars=if(stars>VALUES(stars),stars,VALUES(stars)), lres=if(lres<VALUES(lres),lres,VALUES(lres))",(uid,sid,stars,lres))
+        return json.dumps(dict(code=0))
 
 @app.route("/synBattleData", methods=['POST'])
 def synBattleData():
