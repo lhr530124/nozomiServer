@@ -45,8 +45,8 @@ def insertAndGetId(sql, params=None):
     cur.close()
     return id
 
-def update(sql, params=None):
-    con = getConn()
+def update(sql, params=None, dbID=0):
+    con = getConn(dbID=dbID)
     cur = con.cursor()
     rowcount = 0
     if params == None:
