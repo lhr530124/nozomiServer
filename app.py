@@ -270,6 +270,12 @@ def getJsonObj(string):
     
 def getUserBuilds(uid):
     builds = queryAll("SELECT buildIndex, grid, bid, level, time, hitpoints, extend FROM nozomi_build WHERE id=%s AND state=0", (uid), util.getDBID(uid))
+    if builds==None or len(builds)==0:
+        update("UPDATE nozomi_build SET state=0 WHERE id=%s AND (bid<4000 or bid>=5000)",(uid,),util.getDBID(uid))
+        builds = queryAll("SELECT buildIndex, grid, bid, level, time, hitpoints, extend FROM nozomi_build WHERE id=%s AND state=0", (uid), util.getDBID(uid))
+    if builds==None or len(builds)==0:
+        builds = dataBuilds
+        updateUserBuilds(uid, dataBuilds)
     return builds
 
 def deleteUserBuilds(uid, buildIndexes):
@@ -707,7 +713,7 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
                         for n in soldiers:
                             tn+=n
                         if tn>300:
-                            ret = 4
+                            ret = 10
                             break
                 elif build[2]==1001:
                     if 'callList' in checkExt:
@@ -728,6 +734,9 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
                         break
     except:
         ret = 7
+    if ret==10:
+        update("UPDATE nozomi_build SET extend=%s WHERE id=%s AND bid=1000",('{"soldiers":[0,0,0,0,0,0,0,0,0,0,0,0]}',uid),util.getDBID(uid))
+        return True
     if ret==0:
         for pair in maxList:
             if countMap.get(pair[0],0)>pair[1]:
@@ -770,6 +779,8 @@ def synData():
     deleteBuilds = []
     if 'delete' in request.form:
         deleteBuilds = json.loads(request.form['delete'])
+        if 1 in deleteBuilds:
+            deleteBuilds = []
     updateBuilds = request.form.get("update")
     if updateBuilds!=None:
         updateBuilds = json.loads(updateBuilds)
@@ -1352,7 +1363,7 @@ def reportChat():
     msg = request.form.get('msg',"")
     if uid>0 and eid>0 and msg!="":
         if uid in adminIds:
-            requestGet("http://10.68.55.40:8005/ban", dict(uid=eid,etime=int(time.mktime(time.localtime()))+2*86400))
+            requestGet("http://10.68.55.40:8005/ban", dict(uid=eid,endtime=int(time.mktime(time.localtime()))+2*86400))
         return "success"
     return "fail"
 
