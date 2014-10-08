@@ -201,38 +201,6 @@ def updateZombieCount(uid, newKill):
 def updateBattleNum(uid):
     update("UPDATE nozomi_zombie_stat SET battles=battles+1 WHERE id=%s",(uid))
 
-def checkBattleReward(uid, isRewardMode):
-    con = getConn()
-    cur = con.cursor()
-    if isRewardMode:
-        cur.execute("SELECT battles,state FROM nozomi_zombie_stat WHERE id=%s", (uid))
-        ret = cur.fetchone()
-        if ret[0]<100 or ret[1]!=0:
-            cur.close()
-            return False
-        cur.execute("UPDATE nozomi_zombie_stat SET state=1 WHERE id=%s", (uid))
-    else:
-        cur.execute("INSERT INTO nozomi_zombie_stat (id,zombies,endTime,battles,state,zombies2) VALUES (%s,0,%s,0,1,-1) ON DUPLICATE KEY UPDATE state=1", (uid, 0))
-    con.commit()
-    cur.close()
-    return True
-
-def checkZombieReward(uid, isRewardMode):
-    con = getConn()
-    cur = con.cursor()
-    if isRewardMode:
-        cur.execute("SELECT zombies-zombies2,zombies2 FROM nozomi_zombie_stat WHERE id=%s", (uid))
-        ret = cur.fetchone()
-        if ret[0]<5000 or ret[1]<=0:
-            cur.close()
-            return False
-        cur.execute("UPDATE nozomi_zombie_stat SET zombies2=-1 WHERE id=%s", (uid))
-    else:
-        cur.execute("INSERT INTO nozomi_zombie_stat (id,zombies,endTime,battles,state,zombies2) VALUES (%s,0,%s,0,1,-1) ON DUPLICATE KEY UPDATE zombies2=-1", (uid, 0))
-    con.commit()
-    cur.close()
-    return True
-
 def updateScore(myCon, uid, newScore, force=False):
     #don't care about oldScore
     """

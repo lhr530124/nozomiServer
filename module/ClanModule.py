@@ -105,7 +105,11 @@ def getTopClans2():
 
 def joinClan(uid, cid):
     clan = list(getClanInfo(cid))
+    user = queryOne("SELECT score FROM nozomi_user WHERE id=%s",(uid,))
     if clan[6]<50 and clan[9]<2:
+        if clan[7]>user[0]+100:
+            update("UPDATE `nozomi_user` SET ban=2 WHERE id=%s",(uid,))
+            return None
         clan[6] = clan[6]+1
         update("UPDATE `nozomi_user` SET clan=%s, memberType=0 WHERE id=%s", (cid, uid))
         update("UPDATE `nozomi_clan` SET members=members+1 WHERE id=%s", (cid))

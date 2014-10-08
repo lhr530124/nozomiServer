@@ -579,14 +579,7 @@ def getData():
         if stages!=None:
             data['stages'] = stages
         if data['guide']>=1400:
-            if data.get('leftDay',0)==0:
-                nzstat = UserRankModule.getNozomiZombieStat(uid)
-                if nzstat!=None:
-                    data['nzstat'] = nzstat
-            ret = checkUserReward(uid, language)
-            if ret!=None:
-                data['crystal'] = data['crystal']+ret[0]
-                data['rewards'] = ret[1]
+            nzstat = UserRankModule.getNozomiZombieStat(uid)
             #addOurAds(uid, platform, data)
         loginlogger.info("%s\t%d\tlogin" % (platform,uid))
     else:
@@ -789,18 +782,9 @@ def synData():
     userDbInfo = getUserAllInfos(uid)
     if userDbInfo==None or userDbInfo['ban']!=0:
         return '{"code":1}'
-    if 'cstatue' in request.form:
-        if UserRankModule.checkBattleReward(uid, True)==False:
-            return '{"code":1}'
-    if 'cstatue6007' in request.form:
-        if UserRankModule.checkBattleReward(uid, request.form.get('cstatue6007',1,type=int))==False:
-            return '{"code":1}'
     if 'zinc' in request.form:
         newKill = request.form.get('zinc',0,type=int)
         UserRankModule.updateZombieCount(uid, newKill)
-    if 'cstatue6008' in request.form:
-        if UserRankModule.checkZombieReward(uid, request.form.get('cstatue6008',1,type=int))==False:
-            return '{"code":1}'
     if 'gift' in request.form:
         ng = json.loads(request.form['gift'])
         update("UPDATE nozomi_user_gift SET rw1=if(rw1<%s,rw1,%s),rw2=if(rw2<%s,rw2,%s) WHERE id=%s",(ng[0],ng[0],ng[1],ng[1],uid))
@@ -831,9 +815,6 @@ def synData():
     activityNum = request.form.get("actbuy", 0, type=int)
     if activityNum>0:
         UserRankModule.buyActivityNum(0, uid, activityNum)
-    activityNum = request.form.get("lbbuy", 0, type=int)
-    if activityNum>0:
-        update('UPDATE nozomi_clan_battle_member SET num=num+%s WHERE uid=%s', (activityNum, uid))
     activityData = request.form.get("actdata")
     if activityData!=None:
         activityData = json.loads(activityData)
@@ -998,9 +979,15 @@ def synArenaBattle():
         if pinfos[0][2]>pinfos[1][2]+tscores[0]-pinfos[1][1] or tscores[0]==0:
             lscore = pinfos[0][2]
             ext = [mscore]
+            fnum = 0
             for pi in pinfos:
                 ext.append(pi[3])
                 ext.append(pi[2])
+                if pi[2]==lscore:
+                    fnum += 1
+            if fnum>1:
+                battle = list(battle)
+                battle[1] = battle[1]/fnum
             for pi in pinfos:
                 if pi[2]==lscore:
                     cur.execute("UPDATE nozomi_user_arena SET totalwin=totalwin+%s, stage=if(stage>%s,stage,%s), state=0, pwar=0 WHERE id=%s", (battle[1], battle[0], battle[0], pi[4]))
