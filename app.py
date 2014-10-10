@@ -479,7 +479,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [11,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,14]
+settings = [12,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,14]
 arenaTimes = [1409875200+14400, 14400]
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -985,12 +985,15 @@ def synArenaBattle():
                 ext.append(pi[2])
                 if pi[2]==lscore:
                     fnum += 1
+            realwin = battle[1]/2
             if fnum>1:
                 battle = list(battle)
                 battle[1] = battle[1]/fnum
+                realwin = 0
             for pi in pinfos:
                 if pi[2]==lscore:
-                    cur.execute("UPDATE nozomi_user_arena SET totalwin=totalwin+%s, stage=if(stage>%s,stage,%s), state=0, pwar=0 WHERE id=%s", (battle[1], battle[0], battle[0], pi[4]))
+                    UserRankModule.updateRankNormal(pi[4],"arena",realwin)
+                    cur.execute("UPDATE nozomi_user_arena SET totalwin=totalwin+%s, stage=if(stage>%s,stage,%s), state=0, pwar=0 WHERE id=%s", (realwin, battle[0], battle[0], pi[4]))
                     cur.execute("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,3,0,%s,%s)", (pi[4],battle[1],json.dumps(dict(arena=1,atype=1))))
                 else:
                     cur.execute("UPDATE nozomi_user_arena SET state=0, pwar=0 WHERE id=%s", (pi[4],))

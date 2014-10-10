@@ -301,3 +301,16 @@ def getRange(myCon, start, end):
         allUser += users
     return allUser
 
+def updateRankNormal(uid, key, cvalue):
+    if uid>0 and cvalue!=0:
+        try:
+            rserver = getServer()
+            score = rserver.zscore(key, uid)
+            if score==None:
+                score = 0
+            else:
+                score = int(score)
+            rserver.zadd(key, uid, score+cvalue)
+        except:
+            return False
+    return True
