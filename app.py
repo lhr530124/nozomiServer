@@ -1086,9 +1086,12 @@ def findEnemy():
     selfUid = int(request.args.get('uid', 0))
     print("selfUid", selfUid)
     isGuide = request.args.get('isGuide')
+    isAdmin = request.args.get('admin')
     uid = 1
     #uid = 37
-    if isGuide==None:
+    if isAdmin!=None:
+        uid = findSpecial(selfUid, int(request.args.get('blevel', 0)))
+    elif isGuide==None:
         uid = findAMatch(selfUid, int(request.args.get('baseScore', 0)), 200)
     #uid = 29
     print("Find Enemy:%d" % uid)
@@ -1287,12 +1290,13 @@ def getNewbieRank():
 @app.route("/getZombieRank", methods=['GET'])
 def getZombieRank():
     uid = request.args.get('uid',0,type=int)
-    return json.dumps(UserRankModule.getZombieRank(uid))
+    return json.dumps(UserRankModule.getRankNormal(uid, "zombieRank", 100))
 
 @app.route("/getArenaRank", methods=['GET'])
 def getArenaRank():
     uid = request.args.get('uid',0,type=int)
-    data = queryAll("SELECT a.id,a.totalwin,0,u.name,c.icon,c.name FROM nozomi_user_arena AS a, nozomi_user AS u LEFT JOIN nozomi_clan AS c ON u.clan=c.id WHERE a.id=u.id order by totalwin desc limit 50")
+    #data = queryAll("SELECT a.id,a.totalwin,0,u.name,c.icon,c.name FROM nozomi_user_arena AS a, nozomi_user AS u LEFT JOIN nozomi_clan AS c ON u.clan=c.id WHERE a.id=u.id order by totalwin desc limit 50")
+    data = UserRankModule.getRankNormal(uid, "arena", 100)
     return json.dumps(data)
 
 @app.route("/getZombieChallengeRank", methods=['GET'])

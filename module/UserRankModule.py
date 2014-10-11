@@ -314,3 +314,29 @@ def updateRankNormal(uid, key, cvalue):
         except:
             return False
     return True
+
+def getRankNormal(uid, key, topnum):
+    if uid>0 and topnum>0:
+        rserver = getServer()
+        srank = rserver.zrevrank(key, uid)
+        con = getConn()
+        cur = con.cursor()
+        allUsers = []
+        uids = rserver.zrevrange(key, 0, topnum-1, True)
+        sql = "SELECT u.id,%s,0,u.name,c.icon,c.name FROM nozomi_user AS u LEFT JOIN `nozomi_clan` AS c ON u.clan=c.id WHERE u.id=%s"
+        for uid in uids:
+            cur.execute(sql,(int(uid[1]), int(uid[0])))
+            allUsers.append(cur.fetchone())
+        if srank==None or srank<topnum or len(allUsers)<topnum:
+            cur.close()
+            return allUsers
+        uids = rserver.zrevrange(key, srank-1, srank+9, True)
+        for i in range(len(uids)):
+            if i+srank>topnum:
+                cur.execute(sql,(int(uids[i][1]), int(uids[i][0])))
+                item = list(cur.fetchone())
+                item.append(i+srank)
+                allUsers.append(item)
+        cur.close()
+        return allUsers
+    return []

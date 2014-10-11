@@ -75,3 +75,14 @@ def findAMatch(uid, score, scoreOff):
                         updateUserAttack(ret[0])
                         return ret[0]
     return 1
+
+def findSpecial(uid, level):
+    curTime = getTime()
+    ids = queryAll("SELECT u.id FROM nozomi_special_users AS u INNER JOIN nozomi_user_state AS s ON u.id=s.uid WHERE s.shieldTime<%s AND s.attackTime<%s AND s.onlineTime<%s AND u.level>=%s AND u.level<=%s", (curTime,curTime,curTime,level-1,level+1))
+    if ids!=None and len(ids)>0:
+        num = len(ids)
+        cut = ids[random.randint(0, num-1)][0]
+        updateUserAttack(cut)
+        return cut
+    else:
+        return findAMatch(uid, 1600, 200)
