@@ -457,6 +457,10 @@ def login():
     plat = "ios"
     if 'platform' in request.form:
         plat = request.form['platform']
+    if 'admin' in request.form:
+        uinfos = queryAll("SELECT t.id, u.name FROM nozomi_test_users as t, nozomi_user as u where t.id=u.id and t.state=0")
+        ret = dict(code=0, uinfos=uinfos)
+        return json.dumps(ret)
     if tempname!=None:
         if username==None:
             username = getBindGameCenter(tempname)
