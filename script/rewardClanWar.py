@@ -34,7 +34,7 @@ for i in res:
         if totalScore>0:
             urw = (rc*u[1]+totalScore-1)/totalScore
         if urw>0:
-            cur.execute("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)", (u[0],3,0,urw,json.dumps(dict(type="C",sc=1,s1=score2,s2=u[1],rank=num+1,total=rc))))
+            cur.execute("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)", (u[0],3,0,urw,json.dumps(dict(type="C",sc=1,so=score2,st=u[1],rank=num+1,total=rc))))
             #sql = 'insert into nozomi_reward_new (uid, type, rtype, rvalue, info) values(%d, %d, "%s", "%s")' % (u["id"], urw, "Your League get %d points, ranked %d, received %d crystals as total rewards\nYour Exploit is %d, get %d crystal as rewards" % (score2, num+1, rc, u['lscore'], urw), "你的联盟获得了%d积分，排名%d，奖励%d水晶\n你的联盟功勋为%d，奖励水晶%d" % (score2, num+1, rc, u['lscore'], urw))
             #myCon.query(sql)
             #print sql

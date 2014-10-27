@@ -16,8 +16,11 @@ sys.path.append('..')
 import config
 import redis
 from flaskext import *
+
+redisPool = redis.ConnectionPool(host=config.REDIS_HOST)
+
 def getServer():
-    rserver = redis.Redis(host=config.REDIS_HOST)
+    rserver = redis.StrictRedis(connection_pool=redisPool)
     return rserver
 
 #cold synchronize database and redis

@@ -3,7 +3,6 @@
 from flask import Flask, g, abort, session, redirect, url_for, \
      request, render_template, _app_ctx_stack
 from flaskext import *
-from module import *
 
 import MySQLdb
 import os, sys, time, datetime
@@ -16,7 +15,7 @@ from logging.handlers import TimedRotatingFileHandler
 from logging import Formatter
 import BufferMailHandler
 
-from MySQLdb import cursors, connections
+import redis
 
 """
 HOST = 'localhost'
@@ -28,35 +27,6 @@ PASSWORD = '2e4n5k2w2x'
 
 reload(sys)
 sys.setdefaultencoding('utf-8') 
-
-#record mysql query time
-mysqlLogHandler = TimedRotatingFileHandler('mysqlSortLog.log', 'd', 1)
-
-mysqllogger = logging.getLogger("mysqlLogger")
-mysqllogger.addHandler(mysqlLogHandler)
-mysqllogger.setLevel(logging.INFO)
-
-#oldExec = getattr(cursors.BaseCursor, 'execute')
-oldQuery = getattr(connections.Connection, 'query')
-
-"""
-def execute(self, query, args=None):
-    startTime = time.time()*1000
-    oldExec(self, query, args)
-    endTime = time.time()*1000
-    mysqlLogHandler.info("%s %d", query, int(endTime-startTime))
-"""
-    
-def query(self, sql):
-    startTime = time.time()*1000
-    oldQuery(self, sql)
-    endTime = time.time()*1000
-    mysqllogger.info("%s\t%d\t%s", sql, int(endTime-startTime), time.asctime())
-
-#setattr(cursor.BaseCursor, 'execute', execute)
-setattr(connections.Connection, 'query', query)
-
-
 
 app = Flask(__name__)
 app.config.from_object("config")
@@ -114,85 +84,51 @@ def internalError(exception):
     ''' % (str(request.args), str(request.form), exception))
     return '', 500 
 
+redisPool = redis.ConnectionPool(host="127.0.0.1")
 
-def getConn():
-    top = _app_ctx_stack.top
-    if not hasattr(top, 'db'):
-        top.db = MySQLdb.connect(host=app.config['HOST'], user='root', passwd=app.config['PASSWORD'], db=app.config['DATABASE'], charset='utf8')
-    return top.db
-@app.teardown_appcontext
-def closeCon(excp):
-    top = _app_ctx_stack.top
-    if hasattr(top, 'db'):
-        top.db.close()
+def getServer():
+    return redis.StrictRedis(connection_pool=redisPool)
 
-
-def initUserRankModule():
-    #myCon = getConn()
-    #UserRankModule.initScoreCount(myCon)
-    #myCon.close()
-    pass
-#initUserRankModule()
-
-
-
-@app.route("/updateScore")
-def updateScore(): 
-    myCon = getConn();
+@app.route('/v2/rank')
+def getRank():
+    rankMode = str(request.args['mode'])
     uid = int(request.args['uid'])
-    newScore = int(request.args['score'])
-    UserRankModule.updateScore(myCon, uid, newScore)
-    return json.dumps(dict(id=1))
-
-@app.route("/restoreScore")
-def restoreScore():
-    myCon = getConn()
-    uid = int(request.args['uid'])
-    newScore = int(request.args['score'])
-    UserRankModule.updateScore(myCon, uid, newScore, force=True)
-    return json.dumps(dict(id=1))
-
-
-import cProfile, pstats, io
-@app.route('/getUserRank')
-def getUserRank():
-    """
-    pr = cProfile.Profile()
-    pr.enable()
-    """
-
-    myCon = getConn();
-    uid = int(request.args['uid'])
-    score = int(request.args['score'])
-    rank = UserRankModule.getRank(myCon, uid)
-    l = UserRankModule.getRange(myCon, 0, 50)
-
-    #user name 
-    myCon.query('select name from nozomi_user where id = %d' % (uid))
-    userInfo = myCon.store_result().fetch_row(0, 1)[0]
-
-    if len(l)<50 or rank<50:
-        return json.dumps([[r['uid'], r['score'], r['lastRank'], r['name'], r['icon'], r['cname']] for r in l])
-    else:
-        zw = UserRankModule.getRange(myCon, rank-1, rank+9)
-        inZw = False
-        for z in zw:
-            if z['uid']==uid:
-                inZw = True
-                break
-        #self not in ranking put me at first place
-        if not inZw:
-            zw[1] = dict(uid=uid, lastRank=0, score=score, name=userInfo['name'])
-        l = [[r['uid'], r['score'], r['lastRank'], r['name'], r.get('icon'), r.get('cname')] for r in l]
-        for i in range(len(zw)):
-            z = zw[i]
-            if rank+i<=50:
-                continue
-            l.append([z['uid'],z['score'],z['lastRank'], z['name'], z.get('icon'), z.get('cname'),rank+i])
-        return json.dumps(l)
-    #return json.dumps(dict(rank=rank))
+    num = 100
+    pos = rankMode.find("week")
+    if pos!=-1:
+        level = int(request.args['level'])
+        lstage = 1
+        if level>8:
+            lstage = 3
+        elif level>6:
+            lstage = 2
+        rankMode = "%s%d" % (rankMode[:pos], lstage)
+    if uid>0 and num>0:
+        rserver = getServer()
+        srank = rserver.zrevrank(rankMode, uid)
+        con = getConn()
+        cur = con.cursor()
+        allUsers = []
+        uids = rserver.zrevrange(rankMode, 0, num-1, True)
+        sql = "SELECT u.id,%s,0,u.name,u.level,u.totalCrystal,c.icon,c.name FROM nozomi_user AS u LEFT JOIN `nozomi_clan` AS c ON u.clan=c.id WHERE u.id=%s"
+        for uid in uids:
+            cur.execute(sql,(int(uid[1]), int(uid[0])))
+            allUsers.append(cur.fetchone())
+        if srank==None or srank<num or len(allUsers)<num:
+            cur.close()
+            return json.dumps(allUsers)
+        uids = rserver.zrevrange(rankMode, srank-1, srank+9, True)
+        for i in range(len(uids)):
+            if i+srank>num:
+                cur.execute(sql,(int(uids[i][1]), int(uids[i][0])))
+                item = list(cur.fetchone())
+                item.append(i+srank)
+                allUsers.append(item)
+        cur.close()
+        return json.dumps(allUsers)
+    return "[]"
 
 app.secret_key = os.urandom(24)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=config.SORTPORT)
+    app.run(debug=False, host='0.0.0.0', port=config.SORTPORT)
