@@ -131,4 +131,4 @@ def getRank():
 app.secret_key = os.urandom(24)
 
 if __name__ == '__main__':
-    app.run(debug=False, host='0.0.0.0', port=config.SORTPORT)
+    app.run(debug=False, host='0.0.0.0', port=9966)

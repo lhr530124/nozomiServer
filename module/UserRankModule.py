@@ -41,7 +41,7 @@ def initUserScore(uid, score):
     cur.close()
     
     rserver = getServer()
-    rserver.zadd('userRank', uid, score)
+    rserver.zadd('userRank', score, uid)
 
     
 
@@ -158,7 +158,7 @@ def updateActivityState(actid, uid, activityData):
             num2 = ret[1]
         score += ret[2]
         rserver = getServer()
-        rserver.zadd('challenge%d' % actid, uid, score)
+        rserver.zadd('challenge%d' % actid, score, uid)
         cur.execute("UPDATE nozomi_activity_user SET num1=%s,num2=%s,score=%s WHERE actid=%s AND id=%s", (num1,num2,score,actid,uid))
     con.commit()
     cur.close()
@@ -197,7 +197,7 @@ def updateZombieCount(uid, newKill):
         oldNum = ret[0]
         cur.execute("UPDATE nozomi_zombie_stat SET zombies=%s WHERE id=%s",(oldNum+newKill, uid))
         rserver = getServer()
-        rserver.zadd('zombieRank', uid, oldNum+newKill)
+        rserver.zadd('zombieRank', oldNum+newKill, uid)
     con.commit()
     cur.close()
 
@@ -240,7 +240,7 @@ def updateScore(myCon, uid, newScore, force=False):
 
     #如果使用redis 来做数据持久话 则不用担心锁问题
     rserver = getServer()
-    rserver.zadd('userRank',uid, newScore )
+    rserver.zadd('userRank',newScore,uid)
 
 
 #init redis when need 
@@ -313,7 +313,7 @@ def updateRankNormal(uid, key, cvalue):
                 score = 0
             else:
                 score = int(score)
-            rserver.zadd(key, uid, score+cvalue)
+            rserver.zadd(key, score+cvalue, uid)
         except:
             return False
     return True

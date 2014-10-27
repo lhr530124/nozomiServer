@@ -1040,7 +1040,7 @@ def updateLevelRank(rserver, uid, score, level):
             lstage = 3
         elif level>6:
             lstage = 2
-        rserver.zadd("ur%d" % lstage,uid, score)
+        rserver.zadd("ur%d" % lstage,score,uid)
 
 @app.route("/synBattleData", methods=['POST'])
 def synBattleData():
@@ -1071,12 +1071,12 @@ def synBattleData():
             baseScore -= incScore
             scores = [[baseScore, uid]]
             updateLevelRank(rserver, uid, baseScore, mlevel)
-            rserver.zadd('userRank',uid,baseScore)
-            if eid>1 and !isChallenge:
+            rserver.zadd('userRank',baseScore,uid)
+            if eid>1 and not isChallenge:
                 ebaseScore += incScore
                 scores.append([ebaseScore, eid])
                 updateLevelRank(rserver, eid, ebaseScore, elevel)
-                rserver.zadd("userRank",eid,ebaseScore)
+                rserver.zadd("userRank",ebaseScore,eid)
             con = getConn()
             cur = con.cursor()
             cur.executemany("update nozomi_rank set score=%s where uid=%s", scores)
