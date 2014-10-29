@@ -104,6 +104,8 @@ def getRank():
             lstage = 2
         rankMode = "%s%d" % (rankMode[:pos], lstage)
     if uid>0 and num>0:
+        if rankMode=="arenaRank":
+            rankMode = "arena"
         rserver = getServer()
         srank = rserver.zrevrank(rankMode, uid)
         con = getConn()

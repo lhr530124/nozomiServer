@@ -487,8 +487,8 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [12,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,14]
-arenaTimes = [1409875200+14400, 14400]
+settings = [13,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,14]
+arenaTimes = [1414598400+21600, 21600]
 @app.route("/getData", methods=['GET'])
 def getData():
     print 'getData', request.args
@@ -509,36 +509,36 @@ def getData():
             return json.dumps(dict(serverError=1, title="Big Update!", content="Big update of Nozomi, tap Close and relogin game please!", button="Close"))
         ret = None
         shouldDebug = False
-        if 'check' in request.args:
-            checkVersion = request.args.get("checkVersion", 0, type=int)
-            if platform=="android_our":
-                checkVersion = checkVersion-1
-            if (platform=="ios" and checkVersion>settings[0]) or platform=="ios_cn":
-                shouldDebug = True
-            if checkVersion<settings[0]:
-                country = request.args.get('country',"us").lower()
-                if country=="":
-                    country = "us"
-                ret = dict(serverUpdate=1)
-                if language==0:
-                    ret['title'] = "Big Update!"
-                    ret['content']="Big update of COZ, update game to find new items, features!"
-                    ret['button1']="Update"
-                    ret['button2']="Later"
-                else:
-                    ret['title'] = "新版本来啦！"
-                    ret['content'] = "1. 上线了英雄系统；\n2. 上线了神像系统；\n3. 调整了人口相关数值；\n4. 优化了联盟战斗、僵尸攻打机制。"
-                    ret['button1']="立即更新"
-                    ret['button2']="稍后更新"
-                if platform.find("android")==0:
-                    ret['url'] = "https://play.google.com/store/apps/details?id=com.caesars.nozomi"
-                else:
-                    ret['url'] = "https://itunes.apple.com/app/id608847384?mt=8&uo=4"
+        if 'v2' not in request.args:
+            #checkVersion = request.args.get("checkVersion", 0, type=int)
+            #if platform=="android_our":
+            #    checkVersion = checkVersion-1
+            #if (platform=="ios" and checkVersion>settings[0]) or platform=="ios_cn":
+            #    shouldDebug = True
+            #if checkVersion<settings[0]:
+            country = request.args.get('country',"us").lower()
+            if country=="":
+                country = "us"
+            ret = dict(serverUpdate=1)
+            if language==0:
+                ret['title'] = "Big Update!"
+                ret['content']="More updates in the near future, welcome to feedback!"
+                ret['button1']="Update"
+                ret['button2']="Later"
+            else:
+                ret['title'] = "新版本来啦！"
+                ret['content'] = "1. 上线了英雄系统；\n2. 上线了神像系统；\n3. 调整了人口相关数值；\n4. 优化了联盟战斗、僵尸攻打机制。"
+                ret['button1']="立即更新"
+                ret['button2']="稍后更新"
+            if platform.find("android")==0:
+                ret['url'] = "https://play.google.com/store/apps/details?id=com.caesars.nozomi"
+            else:
+                ret['url'] = "https://itunes.apple.com/app/id608847384?mt=8&uo=4"
                 #if platform=="ios_cn":
                 #    ret['url'] = ret['url'].replace("608847384","666289981")
-                if settings[2]==True and platform.find("ios")==0:
-                    ret['forceUpdate']=1
-                    return json.dumps(ret)
+            #if settings[2]==True and platform.find("ios")==0:
+            ret['forceUpdate']=1
+            return json.dumps(ret)
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
@@ -691,10 +691,8 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
                     countMap[build[2]] = countMap.get(build[2],0)+1
                 elif build[2]<7000 and build[3]>oldBuild[3] and build[2]!=3006:
                     dis = build[3]-oldBuild[3]
-                    if oldBuild[3]==0 or oldBuild[4]>0:
-                        dis = dis-1
-                        if oldBuild[4]>=etime:
-                            testlogger.info("compare time:%d,%d,%d" % (uid, oldBuild[4],etime))
+                    if oldBuild[3]<=3 or oldBuild[4]>0:
+                        dis = 0
                     accTimes = accTimes-dis
                     if accTimes<0:
                         ret = 3
@@ -738,7 +736,9 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
                         break
     except:
         ret = 7
-    if ret==10:
+    if ret==2:
+        return True
+    elif ret==10:
         update("UPDATE nozomi_build SET extend=%s WHERE id=%s AND bid=1000",('{"soldiers":[0,0,0,0,0,0,0,0,0,0,0,0]}',uid),util.getDBID(uid))
         return True
     if ret==0:
