@@ -923,7 +923,13 @@ def getTownData():
                 ret['code'] = 2
                 ret['atker'] = int(tvalue)
             else:
-                rserver.set(tkey, utid)
+                tkey2 = "atkt%d_%d" % (aid, utid)
+                tvalue2 = rserver.get(tkey2)
+                if tvalue2!=None:
+                    rserver.delete("town%d_%d" % (aid, int(tvalue2)))
+                rserver.set(tkey2, str(tid))
+                rserver.expire(tkey2, 360)
+                rserver.set(tkey, str(utid))
                 rserver.expire(tkey, 360)
         if ret['code']==0:
             did = data[4]
@@ -946,10 +952,11 @@ def synArenaBattle():
     stars = request.form.get('stars',0,type=int)
     if tid==0 or aid==0 or utid==0:
         return json.dumps(dict(code=1))
-    if stars==0:
+    if stars<=1:
         rserver = getRedisServer()
         tkey = "town%d_%d" % (aid, tid)
         rserver.delete(tkey)
+        rserver.delete("atkt%d_%d" % (aid,utid))
     else:
         con = getConn()
         cur = con.cursor()
@@ -973,11 +980,10 @@ def synArenaBattle():
         for ltown in ltowns:
             tk = 1
             if ltown[0]>0:
-                tk = 2
                 if ltown[1]>0:
                     pinfos[ltown[0]-1] = [ltown[0],0,0,ltown[3],ltown[4]]
                 else:
-                    pinfos[ltown[0]-1] = [ltown[0],6,0,ltown[3],ltown[4]]
+                    pinfos[ltown[0]-1] = [ltown[0],3,0,ltown[3],ltown[4]]
             mscore += 3*tk
             if ltown[1]>0:
                 tscores[ltown[1]] += ltown[2]*tk
@@ -996,14 +1002,16 @@ def synArenaBattle():
                 ext.append(pi[2])
                 if pi[2]==lscore:
                     fnum += 1
-            realwin = battle[1]/2
+            realwin = 0
             if fnum>1:
                 battle = list(battle)
                 battle[1] = battle[1]/fnum
-                realwin = 0
+            else:
+                realwin = battle[1]-[10,100,500][battle[0]-1]
             for pi in pinfos:
                 if pi[2]==lscore:
                     UserRankModule.updateRankNormal(pi[4],"arena",realwin)
+                    UserRankModule.updateRankNormal(pi[4],"arenaRank",realwin)
                     cur.execute("UPDATE nozomi_user_arena SET totalwin=totalwin+%s, stage=if(stage>%s,stage,%s), state=0, pwar=0 WHERE id=%s", (realwin, battle[0], battle[0], pi[4]))
                     cur.execute("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,3,0,%s,%s)", (pi[4],battle[1],json.dumps(dict(arena=1,atype=1))))
                 else:
