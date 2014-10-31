@@ -902,7 +902,7 @@ def nextTownData():
     aid = mdict.get("aid",0,type=int)
     utid = mdict.get("utid",0,type=int)
     tid = mdict.get("tid",0,type=int)
-    datas = list(queryAll("SELECT tid,name,ttype,did FROM nozomi_arena_town WHERE aid=%s AND tid!=%s AND stars=0",(aid,tid)))
+    datas = list(queryAll("SELECT tid,name,ttype,did FROM nozomi_arena_town WHERE aid=%s AND tid!=%s AND tid!=%s AND stars=0",(aid,tid,utid)))
     random.shuffle(datas)
     ret = dict(code=0)
     max = len(datas)
