@@ -104,8 +104,6 @@ def getRank():
             lstage = 2
         rankMode = "%s%d" % (rankMode[:pos], lstage)
     if uid>0 and num>0:
-        if rankMode=="arenaRank":
-            rankMode = "arena"
         rserver = getServer()
         srank = rserver.zrevrank(rankMode, uid)
         con = getConn()
@@ -123,9 +121,14 @@ def getRank():
         for i in range(len(uids)):
             if i+srank>num:
                 cur.execute(sql,(int(uids[i][1]), int(uids[i][0])))
-                item = list(cur.fetchone())
-                item.append(i+srank)
-                allUsers.append(item)
+                item = cur.fetchone()
+                if item==None:
+                    rserver.zrem(rankMode, uids[i][0])
+                    srank -= 1
+                else:
+                    item = list(item)
+                    item.append(i+srank)
+                    allUsers.append(item)
         cur.close()
         return json.dumps(allUsers)
     return "[]"

@@ -19,6 +19,7 @@ import module
 #from requestlogger import WSGILogger, ApacheFormatter
 from logging.handlers import TimedRotatingFileHandler
 import time
+import random
 
 from logging import Formatter
 import BufferMailHandler
@@ -893,6 +894,44 @@ def getArenaBattle():
         ret['code'] = 0
     else:
         ret = dict(code=1, aid=0, rewards=getUserRewardsNew(uid), stage=arenaInfo[0],state=arenaInfo[1])
+    return json.dumps(ret)
+
+@app.route("/nextTownData", methods=['POST'])
+def nextTownData():
+    midct = request.form
+    aid = mdict.get("aid",0,type=int)
+    utid = mdict.get("utid",0,type=int)
+    tid = mdict.get("tid",0,type=int)
+    datas = list(queryAll("SELECT tid,name,ttype,did FROM nozomi_arena_town WHERE aid=%s AND stars=0",(aid,)))
+    random.shuffle(datas)
+    ret = dict(code=0)
+    max = len(datas)
+    rserver = getRedisServer()
+    for data in datas:
+        tkey = "town%d_%d" % (aid, data[0])
+        tvalue = rserver.get(tkey)
+        if tvalue!=None and int(tvalue)!=utid:
+            continue
+        tkey2 = "atkt%d_%d" % (aid, utid)
+        tvalue2 = rserver.get(tkey2)
+        if tvalue2!=None:
+            rserver.delete("town%d_%d" % (aid, int(tvalue2)))
+        rserver.set(tkey2, str(data[0]))
+        rserver.expire(tkey2, 360)
+        rserver.set(tkey, str(utid))
+        rserver.expire(tkey, 360)
+        did = data[3]
+        ret['name'] = data[1]
+        ret['ttype'] = data[2]
+        ret['aid'] = aid
+        ret['utid'] = utid
+        ret['tid'] = data[0]
+        if data[2]==0:
+            ret['builds'] = json.loads(queryOne("SELECT builds FROM nozomi_town_builds WHERE id=%s",(did,))[0])
+        else:
+            ret['builds'] = getUserBuilds(did)
+    if 'name' not in ret:
+        ret['code'] = 1
     return json.dumps(ret)
 
 @app.route("/getTownData", methods=['GET','POST'])
