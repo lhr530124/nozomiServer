@@ -39,6 +39,8 @@ def insertAndGetId(sql, params=None):
     if params == None:
         cur.execute(sql)
     else:
+        if not isinstance(params,(list,tuple)):
+            params = (params,)
         cur.execute(sql, params)
     con.commit()
     id = cur.lastrowid
@@ -52,6 +54,8 @@ def update(sql, params=None, dbID=0):
     if params == None:
         rowcount = cur.execute(sql)
     else:
+        if not isinstance(params,(list,tuple)):
+            params = (params,)
         rowcount = cur.execute(sql, params)
     con.commit()
     cur.close()
@@ -72,6 +76,8 @@ def queryOne(sql, params=None, dbID=0):
     if params == None:
         rowcount = cur.execute(sql)
     else:
+        if not isinstance(params,(list,tuple)):
+            params = (params,)
         rowcount = cur.execute(sql, params)
     ret = None
     if rowcount>0:
@@ -87,6 +93,8 @@ def queryAll(sql, params=None, dbID=0):
     if params == None:
         rowcount = cur.execute(sql)
     else:
+        if not isinstance(params,(list,tuple)):
+            params = (params,)
         rowcount = cur.execute(sql, params)
     ret = None
     if rowcount>0:

@@ -35,7 +35,7 @@ def initUserScore(uid, score):
     myCon = getConn()
     cur = myCon.cursor()
     cur.execute("INSERT INTO nozomi_rank (uid, score) VALUES (%s, %s)",(uid, score))
-    cur.execute("INSERT INTO nozomi_research (id, research) VALUES(%s, '[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]')", (uid))
+    cur.execute("INSERT INTO nozomi_research (id, research) VALUES(%s, '[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]')", (uid,))
     cur.execute("INSERT INTO nozomi_user_state (uid, score, shieldTime, onlineTime, attackTime) VALUES (%s, %s, 0, 0, 0)", (uid, score))
     myCon.commit()
     cur.close()
@@ -74,14 +74,14 @@ def newUpdateScore(uid, eid, uscore, escore, isWin):
     cur.executemany("update nozomi_user_state set score=%s where uid=%s", scores)
     cur.executemany("update nozomi_user set score=%s where id=%s", scores)
     if isWin:
-        cur.execute("UPDATE nozomi_zombie_stat SET battles=battles+1 WHERE id=%s",(uid))
+        cur.execute("UPDATE nozomi_zombie_stat SET battles=battles+1 WHERE id=%s",(uid,))
     con.commit()
     cur.close()
 
 def getNozomiZombieStat(uid):
     con = getConn()
     cur = con.cursor()
-    cur.execute("SELECT zombies, endTime, battles, state, zombies2 FROM nozomi_zombie_stat WHERE id=%s",(uid))
+    cur.execute("SELECT zombies, endTime, battles, state, zombies2 FROM nozomi_zombie_stat WHERE id=%s",(uid,))
     ret = cur.fetchone()
     ret1 = None
     curTime = int(time.mktime(time.localtime()))
@@ -191,7 +191,7 @@ def getZombieChallengeRank(actid, uid):
 def updateZombieCount(uid, newKill):
     con = getConn()
     cur = con.cursor()
-    cur.execute("SELECT zombies FROM nozomi_zombie_stat WHERE id=%s", uid)
+    cur.execute("SELECT zombies FROM nozomi_zombie_stat WHERE id=%s", (uid,))
     ret = cur.fetchone()
     if ret!=None:
         oldNum = ret[0]
@@ -259,7 +259,7 @@ def getZombieRank(uid):
     uids = rserver.zrevrange('zombieRank', 0, 49)
     sql = "SELECT z.id,z.zombies,0,u.name,c.icon,c.name FROM nozomi_zombie_stat AS z, nozomi_user AS u LEFT JOIN `nozomi_clan` AS c ON u.clan=c.id WHERE z.id=%s AND z.id=u.id"
     for uid in uids:
-        cur.execute(sql,(int(uid)))
+        cur.execute(sql,(int(uid),))
         allUsers.append(cur.fetchone())
     if srank==None or srank<50 or len(allUsers)<50:
         cur.close()
@@ -267,7 +267,7 @@ def getZombieRank(uid):
     uids = rserver.zrevrange('zombieRank', srank-1, srank+9)
     for i in range(len(uids)):
         if i+srank>50:
-            cur.execute(sql,(int(uids[i])))
+            cur.execute(sql,(int(uids[i]),))
             item = list(cur.fetchone())
             item.append(i+srank)
             allUsers.append(item)

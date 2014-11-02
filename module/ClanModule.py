@@ -227,11 +227,11 @@ def changeBattleState(uid, eid, cid, ecid, bid, vid, lscore):
     if lscore>0 and vid>0:
         con = getConn()
         cur = con.cursor()
-        cur.execute("SELECT id, cid1, cid2, left1, left2, winner FROM `nozomi_clan_battle` WHERE id=%s", (bid))
+        cur.execute("SELECT id, cid1, cid2, left1, left2, winner FROM `nozomi_clan_battle` WHERE id=%s", (bid,))
         binfo = cur.fetchone()
         if binfo==None:
             return
-        cur.execute("SELECT clan, name FROM nozomi_user WHERE id=%s", (uid))
+        cur.execute("SELECT clan, name FROM nozomi_user WHERE id=%s", (uid,))
         ret = cur.fetchone()
         if ret==None or ret[0]!=cid:
             return
