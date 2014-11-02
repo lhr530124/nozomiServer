@@ -16,12 +16,15 @@ def getRankTime(t, rid):
     return rtime
 
 def isInWar():
+    """
     t = int(time.mktime(time.localtime()))
     lt = getRankTime(t,0)
     if lt[0]<=t:
         return True
     else:
         return False
+    """
+    return False
 
 def getTime():
     return int(time.time()-beginTime)
