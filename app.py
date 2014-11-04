@@ -489,7 +489,7 @@ def login():
 
 updateUrls = dict()
 settings = [13,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,14]
-arenaTimes = [1414598400+21600, 21600]
+arenaTimes = [1415084400, 600]
 @app.route("/getData", methods=['GET'])
 def getData():
     print 'getData', request.args
@@ -864,12 +864,15 @@ def getArenaNum():
     ulevel = request.args.get("ulevel", 0, type=int)
     umin = 0
     umax = 0
-    if ulevel>=8:
-        umin = 8
+    if ulevel>=9:
+        umin = 9
         umax = 20
-    elif ulevel>=6:
+    elif ulevel>=7:
+        umin = 7
+        umax = 8
+    elif ulevel==6:
         umin = 6
-        umax = 7
+        umax = 6
     else:
         umin = 4
         umax = 5
