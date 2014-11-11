@@ -692,8 +692,10 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
                     countMap[build[2]] = countMap.get(build[2],0)+1
                 elif build[2]<7000 and build[3]>oldBuild[3] and build[2]!=3006:
                     dis = build[3]-oldBuild[3]
-                    if oldBuild[3]<=3 or oldBuild[4]>0:
-                        dis = 0
+                    if oldBuild[3]<=3:
+                        dis -= (3-oldBuild[3])
+                    if dis>0 and oldBuild[4]>0:
+                        dis -= 1
                     accTimes = accTimes-dis
                     if accTimes<0:
                         ret = 3
@@ -748,8 +750,9 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
                 ret = 8
                 break
     if ret>0:
-        update("UPDATE nozomi_user SET ban=2 WHERE id=%s",(uid))
-        testlogger.info("banUserId:%d,banType:%d,requestBuilds:%s" % (uid, ret, json.dumps(updateBuilds)))
+        if ret!=2:
+            update("UPDATE nozomi_user SET ban=2 WHERE id=%s",(uid))
+            testlogger.info("banUserId:%d,banType:%d,requestBuilds:%s" % (uid, ret, json.dumps(updateBuilds)))
         return True
     else:
         return False
@@ -905,7 +908,12 @@ def nextTownData():
     aid = mdict.get("aid",0,type=int)
     utid = mdict.get("utid",0,type=int)
     tid = mdict.get("tid",0,type=int)
-    datas = list(queryAll("SELECT tid,name,ttype,did FROM nozomi_arena_town WHERE aid=%s AND tid!=%s AND ttype!=%s AND stars=0",(aid,tid,utid)))
+    datas = queryAll("SELECT tid,name,ttype,did FROM nozomi_arena_town WHERE aid=%s AND tid!=%s AND ttype!=%s AND stars=0",(aid,tid,utid))
+    if datas==None:
+        ret['code'] = 1
+        return json.dumps(ret)
+    else:
+        datas = list(datas)
     random.shuffle(datas)
     ret = dict(code=0)
     max = len(datas)
@@ -1091,6 +1099,8 @@ def updateLevelRank(rserver, uid, score, level):
         elif level>6:
             lstage = 2
         rserver.zadd("ur%d" % lstage,score,uid)
+        if lstage>1:
+            rserver.zrem("ur%d" % (lstage-1), uid)
 
 @app.route("/synBattleData", methods=['POST'])
 def synBattleData():
