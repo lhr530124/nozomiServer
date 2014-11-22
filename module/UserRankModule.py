@@ -197,7 +197,13 @@ def updateZombieCount(uid, newKill):
         oldNum = ret[0]
         cur.execute("UPDATE nozomi_zombie_stat SET zombies=%s WHERE id=%s",(oldNum+newKill, uid))
         rserver = getServer()
-        rserver.zadd('zombieRank', oldNum+newKill, uid)
+        rserver.zadd('zombie', oldNum+newKill, uid)
+        ozscore = rserver.zscore("zombieRank", uid)
+        if ozscore==None:
+            ozscore = 0
+        else:
+            ozscore = int(ozscore)
+        rserver.zadd('zombieRank', ozscore+newKill, uid)
     con.commit()
     cur.close()
 
