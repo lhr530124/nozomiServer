@@ -479,7 +479,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [13,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,14]
+settings = [13,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,15]
 arenaTimes = [1415084400, 600]
 newActivitys = [[1416614400,1416787200,"act1",0,8,2419200],[1417219200,1417305600,"act2",30,16,2419200],[1417824000,1417910400,"act3",30,32,2419200],[1418428800,1418515200,"act4",30,64,2419200]]
 @app.route("/getData", methods=['GET'])
@@ -498,7 +498,20 @@ def getData():
             language = request.args['language']
         sversion = request.args.get("scriptVersion",1,type=int)
         if sversion<settings[4]:
-            return json.dumps(dict(serverError=1, title="Big Update!", content="Big update of Nozomi, tap Close and relogin game please!", button="Close"))
+            stitle = "New Version!"
+            stext = "Big update of Nozomi, tap Close and relogin game please!"
+            sbut = "Close"
+            if "lang" in request.args:
+                lang = request.args.get("lang")
+                if lang=="CN":
+                    stitle = "新版本来啦！"
+                    stext = "希望号升级了许多新功能，请点击关闭重启游戏以进行更新！"
+                    sbut = "关闭"
+                elif lang=="HK":
+                    stitle = "新版本來啦！"
+                    stext = "希望號升級了許多新功能，請點擊關閉重啓遊戲以進行更新！"
+                    sbut = "關閉"
+            return json.dumps(dict(serverError=1, title=stitle, content=stext, button=sbut))
         ret = None
         shouldDebug = False
         if 'v2' not in request.args:
@@ -531,6 +544,10 @@ def getData():
             #if settings[2]==True and platform.find("ios")==0:
             ret['forceUpdate']=1
             return json.dumps(ret)
+        else:
+            checkVersion = request.args.get("checkVersion", 0, type=int)
+            if checkVersion>settings[0]:
+                shouldDebug = True
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
