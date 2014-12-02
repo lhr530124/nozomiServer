@@ -480,7 +480,6 @@ def login():
 
 updateUrls = dict()
 settings = [13,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,15]
-arenaTimes = [1415084400, 600]
 newActivitys = [[1416614400,1416787200,"act1",0,8,2419200],[1417219200,1417305600,"act2",30,16,2419200],[1417824000,1417910400,"act3",30,32,2419200],[1418428800,1418515200,"act4",30,64,2419200]]
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -558,19 +557,8 @@ def getData():
             data.update(ret)
         t = int(time.mktime(time.localtime()))
         data['serverTime'] = t
-        while arenaTimes[0]<t-60:
-            arenaTimes[0] += arenaTimes[1]
-        data['a1time'] = arenaTimes[0]
-        data['a2time'] = arenaTimes[1]
         if shouldDebug:
             data['payDebug'] = 1
-        #to delete in future
-        lt = util.getRankTime(t,0)
-        data['leagueWarTime'] = lt[1]
-        data['nextLeagueWarTime'] = lt[0]
-        data['r1time'] = util.getRankTime(t,1)
-        data['r2time'] = util.getRankTime(t,2)
-        data['r3time'] = util.getRankTime(t,3)
         data['rtime'] = util.getRankTime(t,0)
         if data['lastSynTime']==0:
             data['lastSynTime'] = data['serverTime']
@@ -585,16 +573,6 @@ def getData():
         data['lts'] = loginResult[5]
         data['newRewards'] = getUserRewardsNew(uid)
         data['mask'] = getUserMask(uid)
-        arenaResult = getUserArena(uid)
-        data['astage'] = arenaResult[0]
-        data['astate'] = arenaResult[1]
-        data['atime'] = arenaResult[3]
-        #to delete in future.
-        activity = UserRankModule.getActivityUser(0,uid)
-        if activity!=None:
-            data['activity'] = activity
-            data['acttime'] = UserRankModule.getActivityTime(0,t)
-        #instead of above
         zdc = queryOne("SELECT chance,stage,etime FROM nozomi_zombie_challenge WHERE id=%s",(uid,))
         if zdc!=None:
             data['zdc'] = zdc
@@ -624,17 +602,24 @@ def getData():
             data['arena2'] = arena
         if data['guide']>=1400:
             data['ng2'] = queryAll("SELECT etime,num FROM nozomi_user_gift2 WHERE id=%s",(uid,))
-        loginlogger.info("%s\t%d\tlogin" % (platform,uid))
+        rserver = getRedisServer()
+        rid = random.randint(0, 1000000) 
+        ug = rserver.hget("ugrank", uid)
+        if ug==None:
+            ug = 0
+        else:
+            ug = int(ug)
+        data['ug'] = ug
+        data['treq'] = rid
+        rserver.set("utoken%d" % uid, rid)
+        rserver.expire("utoken%d" % uid, 3600)
+        loginlogger.info("%s\t%d\tlogin\t%d" % (platform,uid,rid))
     else:
         data = getUserInfos(uid)
     if data==None:
         return json.dumps(dict(serverError=1, title="User was deleted!", content="This user was deleted!", button="Close"))
     if data['clan']>0:
         data['clanInfo'] = ClanModule.getClanInfo(data['clan'])
-        if data['clanInfo'][9]==2:
-            item = queryOne("SELECT num FROM nozomi_clan_battle_member WHERE uid=%s",(uid))
-            if item!=None:
-                data['lbnum'] = item[0]
     #data['builds'] = getUserBuilds(uid)
     data['researches'] = getUserResearch(uid)
     #fix data
@@ -654,8 +639,6 @@ def getData():
                 print e
         elif build[4]>0:
             errorBuilderNum = errorBuilderNum-1
-        if build[2]==1:
-            UserRankModule.getServer().set("ulevel%d" % uid, str(build[3]))
     while errorBuilderNum>0:
         errorBuilderNum = errorBuilderNum-1
         builders[errorBuilderNum][6]='{"resource":1}'
@@ -795,6 +778,20 @@ def synData():
     uid = int(request.form.get("uid", 0))
     if uid==0:
         return json.dumps({'code':401})
+    if 'req' in request.form:
+        rserver = getRedisServer()
+        rid = rserver.get("utoken%d" % uid)
+        if rid!=None:
+            rid = int(rid)
+            nrid = request.form.get('req',0,type=int)
+            if nrid>rid or nrid<rid-1:
+                return json.dumps({'code':401})
+            elif nrid==rid-1:
+                return json.dumps(dict(code=0))
+            else:
+                rid += 1
+                rserver.set("utoken%d" % uid, rid)
+                rserver.expire("utoken%d" % uid, 7200)
     platform = "ios"
     if 'platform' in request.form:
         platform = request.form['platform']
@@ -829,9 +826,6 @@ def synData():
     userDbInfo = getUserAllInfos(uid)
     if userDbInfo==None or userDbInfo['ban']!=0:
         return '{"code":1}'
-    if 'zinc' in request.form:
-        newKill = request.form.get('zinc',0,type=int)
-        UserRankModule.updateZombieCount(uid, newKill)
     if 'cmds' in request.form:
         cmds = json.loads(request.form['cmds'])
         baseTime = cmds[0]
@@ -882,9 +876,6 @@ def synData():
             userInfoUpdate.pop('score')
         if 'shieldTime' in userInfo:
             setUserShield(uid, userInfo['shieldTime'])
-    if 'arena' in request.form:
-        arenaInfos = json.loads(request.form['arena'])
-        update("UPDATE nozomi_user_arena SET state=%s,pstage=%s,ptime=%s,tlevel=%s WHERE id=%s", (arenaInfos[0],arenaInfos[1],arenaInfos[2],arenaInfos[3],uid))
     changeCrystal = 0
     oldCrystal = userDbInfo['crystal']
     newCrystal = oldCrystal
@@ -895,16 +886,6 @@ def synData():
             return '{"code":1}'
         newCrystal = baseCrystal+changeCrystal
         userInfoUpdate['crystal'] = newCrystal
-    activityNum = request.form.get("actbuy", 0, type=int)
-    if activityNum>0:
-        UserRankModule.buyActivityNum(0, uid, activityNum)
-    activityData = request.form.get("actdata")
-    if activityData!=None:
-        activityData = json.loads(activityData)
-        UserRankModule.updateActivityState(0, uid, activityData)
-    if 'days' in request.form:
-        days = int(request.form['days'])
-        dailyModule.loginWithDays(uid, days)
     if 'grl' in request.form:
         getRewardList = json.loads(request.form['grl'])
         deleteUserRewards(getRewardList)
@@ -1007,8 +988,7 @@ def nextTownData():
     utype = mdict.get('utype',utid,type=int)
     datas = queryAll("SELECT tid,name,ttype,stars,did,res FROM nozomi_arena_town WHERE aid=%s AND tid!=%s AND ttype!=%s AND stars=0",(aid,tid,utype))
     if datas==None:
-        ret['code'] = 1
-        return json.dumps(ret)
+        return json.dumps(dict(code=0))
     else:
         datas = list(datas)
     random.shuffle(datas)
@@ -1031,6 +1011,7 @@ def nextTownData():
         did = data[4]
         ret['name'] = data[1]
         ret['ttype'] = data[2]
+        ret['utype'] = data[2]
         ret['aid'] = aid
         ret['utid'] = utid
         ret['tid'] = data[0]
@@ -1086,6 +1067,7 @@ def getTownData():
             did = data[4]
             ret['name'] = data[0]
             ret['ttype'] = data[1]
+            ret['utype'] = data[1]
             ret['aid'] = aid
             ret['utid'] = utid
             ret['tid'] = tid
@@ -1283,6 +1265,9 @@ def synArenaBattle2():
                     totalLS += uls
                     ugets.append(uget[3]/10)
                 rewardList.append([user,3,0,reward2,json.dumps(dict(arena2=atypeStr,aresult=aresult,ugets=ugets,ext=rewardExt))])
+                if atype==2 and ugets[2]>0:
+                    UserRankModule.updateRankNormal(user,"arena",ugets[2])
+                    UserRankModule.updateRankNormal(user,"arenaRank",ugets[2])
             if atype==1:
                 rserver.delete("cleader%d_%d" % (aid,ttype+1))
                 if totalLS>0:
@@ -1294,85 +1279,6 @@ def synArenaBattle2():
             cur.executemany("UPDATE nozomi_user SET lscore=lscore+%s WHERE id=%s",lscoreList)
         con.commit()
         rserver.delete("abnum%d" % aid)
-    return json.dumps(dict(code=0))
-
-@app.route("/synArenaBattle", methods=['POST'])
-def synArenaBattle():
-    tid = request.form.get('tid', 0, type=int)
-    aid = request.form.get('aid', 0, type=int)
-    utid = request.form.get('utid', 0, type=int)
-    stars = request.form.get('stars',0,type=int)
-    if tid==0 or aid==0 or utid==0:
-        return json.dumps(dict(code=1))
-    if stars<=1:
-        rserver = getRedisServer()
-        tkey = "town%d_%d" % (aid, tid)
-        rserver.delete(tkey)
-        rserver.delete("atkt%d_%d" % (aid,utid))
-    else:
-        con = getConn()
-        cur = con.cursor()
-        cur.execute("UPDATE nozomi_arena_town SET stars=%s,owner=%s WHERE aid=%s AND tid=%s",(stars,utid,aid,tid))
-        con.commit()
-        #tscore = request.form.get("score",0,type=int)/3
-        #tscore = tscore*stars
-        uid = request.form.get("uid",0,type=int)
-        #update("UPDATE nozomi_user_arena SET pscore=pscore+%s WHERE id=%s", (tscore, uid))
-        cur.execute("SELECT stage,reward,unum,winner FROM nozomi_arena_battle WHERE id=%s", (aid, ))
-        battle = cur.fetchone()
-        if battle==None or battle[3]>0:
-            cur.close()
-            return json.dumps(dict(code=0))
-        cur.execute("SELECT ttype,owner,stars,name,did FROM nozomi_arena_town WHERE aid=%s", (aid,))
-        ltowns = cur.fetchall()
-        tscores = [0]*(battle[2]+1)
-        pinfos  = [0]*battle[2]
-        sscore = 0
-        mscore = 0
-        for ltown in ltowns:
-            tk = 1
-            if ltown[0]>0:
-                if ltown[1]>0:
-                    pinfos[ltown[0]-1] = [ltown[0],0,0,ltown[3],ltown[4]]
-                else:
-                    pinfos[ltown[0]-1] = [ltown[0],3,0,ltown[3],ltown[4]]
-            mscore += 3*tk
-            if ltown[1]>0:
-                tscores[ltown[1]] += ltown[2]*tk
-            else:
-                tscores[0] += 3*tk
-        sscore = tscores[utid]
-        for i in range(battle[2]):
-            pinfos[i][2] = tscores[i+1]
-        pinfos = sorted(pinfos, key = lambda x:x[2], reverse=True)
-        if pinfos[0][2]>pinfos[1][2]+tscores[0]-pinfos[1][1] or tscores[0]==0:
-            lscore = pinfos[0][2]
-            ext = [mscore]
-            fnum = 0
-            for pi in pinfos:
-                ext.append(pi[3])
-                ext.append(pi[2])
-                if pi[2]==lscore:
-                    fnum += 1
-            realwin = 0
-            if fnum>1:
-                battle = list(battle)
-                battle[1] = battle[1]/fnum
-            else:
-                realwin = battle[1]-[10,100,500][battle[0]-1]
-            for pi in pinfos:
-                if pi[2]==lscore:
-                    UserRankModule.updateRankNormal(pi[4],"arena",realwin)
-                    UserRankModule.updateRankNormal(pi[4],"arenaRank",realwin)
-                    cur.execute("UPDATE nozomi_user_arena SET totalwin=totalwin+%s, stage=if(stage>%s,stage,%s), state=0, pwar=0 WHERE id=%s", (realwin, battle[0], battle[0], pi[4]))
-                    cur.execute("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,3,0,%s,%s)", (pi[4],battle[1],json.dumps(dict(arena=1,atype=1))))
-                else:
-                    cur.execute("UPDATE nozomi_user_arena SET state=0, pwar=0 WHERE id=%s", (pi[4],))
-                    cur.execute("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,3,0,0,%s)", (pi[4],json.dumps(dict(arena=1,atype=2,ext=ext))))
-            cur.execute("UPDATE nozomi_arena_battle SET winner=%s WHERE id=%s", (pinfos[0][0],aid))
-        cur.execute("UPDATE nozomi_user_arena SET pscore=%s WHERE id=%s",(sscore,uid))
-        con.commit()
-        cur.close()
     return json.dumps(dict(code=0))
 
 @app.route("/synStageBattle", methods=['POST'])
@@ -1392,7 +1298,7 @@ def updateLevel():
     uid = request.form.get("uid",0,type=int)
     level = request.form.get("level",0,type=int)
     if level==2 or level==5:
-        update("INSERT INTO nozomi_user_gift2 (id,type,etime,num) VALUE (%s,%s,%s,%s)",(uid,level,int(time.time())+3*86400,20))
+        update("INSERT IGNORE INTO nozomi_user_gift2 (id,type,etime,num) VALUE (%s,%s,%s,%s)",(uid,level,int(time.time())+3*86400,20))
     return json.dumps(dict(code=0,ng2=queryAll("SELECT etime,num FROM nozomi_user_gift2 WHERE id=%s",(uid,))))
 
 def isNormal(eid):
@@ -1400,22 +1306,28 @@ def isNormal(eid):
         return False
     return True
 
-def getUserRG(score):
-    rg = 6
-    if score<1200:
-        rg = score/400
-    elif score<3200:
-        rg = (score+400)/600
-    return rg
-
-def updateUserRG(rserver, uid, oscore, nscore):
-    ol = getUserRG(oscore)
-    nl = getUserRG(nscore)
-    if nl!=ol:
-        rserver.zrem("ur%d" % ol, uid)
+def updateUserRG(rserver, uid, nscore):
+    ol = rserver.hget("ugrank", uid)
+    if ol==None:
+        ol = 0
+    else:
+        ol = int(ol)
+    nl2 = 0
+    if nscore>=3200:
+        nl2 = 16
+    elif nscore>=600:
+        nl2 = nscore/200
+    elif nscore>=400:
+        nl2 = nscore/100-3
+    nl = (nl2+2)/3
+    if nl2!=ol:
+        rserver.hset("ugrank", uid, nl2)
+        ol = (ol+2)/3
+        if ol>0 and nl!=ol:
+            rserver.zrem("ur%d" % ol, uid)
     if nl>0:
         rserver.zadd("ur%d" % nl, nscore, uid)
-    return nl
+    return nl2
 
 @app.route("/synBattleData", methods=['POST'])
 def synBattleData():
@@ -1432,19 +1344,18 @@ def synBattleData():
         abort(401)
     baseScore = request.form.get("bscore", 0, type=int)
     ebaseScore = request.form.get("ebscore", 0, type=int)
+    ngrank = 0
     if baseScore>0 and ebaseScore>0:
         curScore = getUserInfos(uid)['score']
         if curScore!=baseScore:
             return json.dumps(dict(code=1, reason="duplicate request"))
         elif incScore!=0:
-            #UserRankModule.newUpdateScore(uid, eid, baseScore-incScore, ebaseScore+incScore, incScore<0)
-            rserver = UserRankModule.getServer()
-            updateUserRG(rserver, uid, baseScore, baseScore-incScore)
+            rserver = getRedisServer()
             baseScore -= incScore
+            ngrank = updateUserRG(rserver, uid, baseScore)
             scores = [[baseScore, uid]]
             rserver.zadd('userRank',baseScore,uid)
             if isNormal(eid):
-                updateUserRG(rserver, eid, ebaseScore, ebaseScore+incScore)
                 ebaseScore += incScore
                 scores.append([ebaseScore, eid])
                 rserver.zadd("userRank",ebaseScore,eid)
@@ -1455,28 +1366,19 @@ def synBattleData():
             cur.executemany("update nozomi_user set score=%s where id=%s", scores)
             con.commit()
             cur.close()
-    if isNormal(eid) and 'isLeague' not in request.form:
+    if isNormal(eid):
         if 'eupdate' in request.form:
-            #print("test_update", request.form['update'])
             up = json.loads(request.form['eupdate'])
             updateUserBuildExtends(eid, up)
         if 'hits' in request.form:
             hits = json.loads(request.form['hits'])
             updateUserBuildHitpoints(eid, hits)
-        #baseScore = getUserInfos(eid)['score']
-        #userInfoUpdate=dict(score=baseScore+incScore)
 
         if 'shieldTime' in request.form:
             t = int(request.form['shieldTime'])
-            #userInfoUpdate['shieldTime'] = t
             setUserShield(eid, t)
             userInfoUpdate=dict(shieldTime=t)
             updateUserInfoById(userInfoUpdate, eid)
-        #updateUserInfoById(userInfoUpdate, eid)
-    #if incScore!=0:
-    #    myScore = getUserInfos(uid)['score']-incScore
-    #    userInfoUpdate=dict(score=myScore)
-    #    updateUserInfoById(userInfoUpdate, uid)
     updateUserState(uid, eid)
     if 'isReverge' in request.form:
         update("UPDATE nozomi_battle_history SET reverged=1 WHERE uid=%s AND eid=%s", (uid, eid))
@@ -1484,20 +1386,13 @@ def synBattleData():
         videoId = 0
         if 'replay' in request.form:
             videoId = insertAndGetId("INSERT INTO nozomi_replay (replay) VALUES(%s)", (request.form['replay']))
-        if 'isLeague' in request.form:
-            lscore = int(request.form.get('lscore', 0))
-            bid = int(request.form.get('bid', 0))
-            cid = int(request.form.get('cid', 0))
-            ecid = int(request.form.get('ecid', 0))
-            ClanModule.changeBattleState(uid, eid, cid, ecid, bid, videoId, lscore)
-        else:
-            history = json.loads(request.form['history'])
-            if len(history)==11:
-                udata = getUserInfos(uid)
-                history.append(udata['totalCrystal'])
-                history.append(udata['level'])
-            update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,0)", (eid, uid, videoId, int(time.mktime(time.localtime())), json.dumps(history)))
-    return json.dumps({'code':0})
+        history = json.loads(request.form['history'])
+        if len(history)==11:
+            udata = getUserInfos(uid)
+            history.append(udata['totalCrystal'])
+            history.append(udata['level'])
+        update("INSERT INTO nozomi_battle_history (uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,0)", (eid, uid, videoId, int(time.mktime(time.localtime())), json.dumps(history)))
+    return json.dumps({'code':0,'ng':ngrank})
 
 testUids = [20163, 20157, 20151, 20165, 20159, 20153, 20167, 20161, 20155, 20181, 20175, 20169, 20183, 20177, 20171, 20185, 20179, 20173, 20199, 20193, 20187, 20201, 20195, 20189, 20203, 20197, 20191, 20219, 20213, 20205, 20221, 20215, 20207, 20223, 20217, 20211, 20237, 20231, 20225, 20239, 20233, 20227, 20243, 20235, 20229, 20257, 20251, 20245, 20259, 20253, 20247, 20261, 20255, 20249, 20275, 20269, 20263, 20277, 20271, 20265, 20279, 20273, 20267, 20293, 20287, 20281, 20295, 20289, 20283, 20297, 20291, 20285, 20311, 20305, 20299, 20313, 20307, 20301, 20315, 20309, 20303]
 testNames = ['Fiona', 'killer machine', 'Bo Ba La', 'Tough girl', 'Dale_!', 'PrIncE.v', 'Manly killer', 'Caroline', 'Shaun ^_^', 'Aida', 'COOL?LEON', 'Bigbang!', 'BulingBuling', 'Clive', "1t's A Dear", 'Azrael?love', 'Vampire walking', 'Paul.W', 'Louise_smith', 'Evil Man', 'Mr Bean', 'Emily', 'Lonely', 'Moon_Star', 'Devil purify', 'Jeremy1E', 'Penalver', 'Nanncy', 'Crazy baby', 'ONLY love', 'Dreams moment', 'Bergr', 'Fleeting timer', 'Prologue', 'MaTT-', 'DaveR', 'Bob cat', 'Broken wings', 'Kiss or hugs', 'Destiny~', 'Lilia!', 'Dusk Taker', 'Emmanuell', 'Tony Moore', 'Amanda', 'Calvin’S', 'Jack|Rose', '*Madman*', 'Adam?Eve', 'Xerxes', 'Pis over!', 'JenniferCE', 'Walking dead Five', '<LEO>', 'Never say die', 'Tracy', 'One piece!', 'Alexander one', 'Frank rain', 'Silver crow', 'StrawberryM', 'Rik_S', 'LuKas mini', 'King | Club*?*', 'Shine', 'Not a hero', 'Baslilon', 'Smiling at me', 'Provence', 'One More', 'Planet Terror', 'Ben.Lucky', 'Black star', 'Saint Soldier', 'Pretty boy', 'Brandy', 'Temptat10n', 'Storm Wyrm', 'Ace killek', 'Megan Boyle', 'Justin baby']
@@ -1580,62 +1475,6 @@ def searchClans():
         return "null"
     return json.dumps(ClanModule.searchClans(text))
 
-@app.route("/findLeagueEnemy", methods=['POST'])
-def findLeagueEnemy():
-    uid = int(request.form.get('uid', 0))
-    cid = int(request.form.get('cid', 0))
-    score = int(request.form.get('score', 0))
-    if not ClanModule.checkFindLeagueAuth(uid, cid):
-        return json.dumps(dict(code=2))
-    clan = ClanModule.getClanInfo(cid)
-    if clan[9]!=0:
-        return json.dumps(dict(code=3,state=clan[9],statetime=clan[10]))
-    elif clan[6]<5:
-        return json.dumps(dict(code=4,member=clan[6]))
-    enemy=ClanModule.findLeagueEnemy(cid, score)
-    if enemy==0:
-        testlogger.info("ClanReady:cid:%d;uid:%d,%d" % (cid,uid,cid))
-    if 'eid' in request.form:
-        eid = int(request.form.get('eid', 0))
-        clan = ClanModule.getClanInfo(eid)
-        if clan!=None and clan[9]==1:
-            ClanModule.resetClanState(eid, 1)
-            testlogger.info("ClanReady2:cid:%d;uid:%d,%d" % (eid,uid,cid))
-    return json.dumps(dict(code=0, enemy=enemy))
-
-@app.route("/cancelFindLeagueEnemy", methods=['POST'])
-def cancelFindLeagueEnemy():
-    cid = int(request.form.get('cid', 0))
-    uid = int(request.form.get('uid', 0))
-    
-    if not ClanModule.checkFindLeagueAuth(uid, cid):
-        return json.dumps(dict(code=2))
-    ret = 1
-    if cid>0:
-        clan = ClanModule.getClanInfo(cid)
-        if clan[9]!=1:
-            return json.dumps(dict(code=3,state=clan[9],statetime=clan[10]))
-        ret = ClanModule.cancelFindLeagueEnemy(cid) 
-    return json.dumps(dict(code=ret))
-
-@app.route("/beginLeagueBattle", methods=['POST'])
-def beginLeagueBattle():
-    cid = int(request.form.get('cid', 0))
-    eid = int(request.form.get('eid', 0))
-    uid = int(request.form.get('uid', 0))
-    
-    if not ClanModule.checkFindLeagueAuth(uid, cid):
-        return json.dumps(dict(code=2))
-    clan = ClanModule.getClanInfo(cid)
-    if clan[9]!=0:
-        return json.dumps(dict(code=3, state=clan[9], statetime=clan[10]))
-    if eid==0:
-        return json.dumps(dict(code=1))
-    clan = ClanModule.getClanInfo(eid)
-    if clan[9]!=1:
-        return json.dumps(dict(code=1))
-    return json.dumps(dict(code=ClanModule.beginLeagueBattle(cid, eid)))
-
 @app.route("/createClan", methods=['POST'])
 def createClan():
     uid = int(request.form.get('uid', 0))
@@ -1689,35 +1528,6 @@ def leaveClan():
         return json.dumps(dict(code=1))
     return json.dumps(dict(code=0, clan=0))
 
-@app.route("/getLeagueBattleInfo", methods=['GET'])
-def getLeagueBattleInfo():
-    cid = int(request.args.get('cid', 0))
-    info = ClanModule.getLeagueBattleInfo(cid)
-    if info!=None:
-        eid = info[1]
-        if eid==cid:
-            eid = info[2]
-        return json.dumps(dict(code=0, info=info, clan=ClanModule.getClanInfo(eid), smembers=ClanModule.getClanMembers(cid), members=ClanModule.getClanMembers(eid)))
-    return json.dumps(dict(code=1))
-
-@app.route("/getLeagueMemberData", methods=['GET'])
-def getLeagueMemberData():
-    uid = int(request.args.get('uid', 0))
-    euid = int(request.args.get('eid', 0))
-    code = ClanModule.checkBattleWithMember(uid, euid)
-    ret = dict(code=code)
-    if code==0:
-        ret = getUserInfos(euid)
-        ret['code'] = 0
-        ret['builds'] = getUserBuilds(euid)
-    return json.dumps(ret)
-
-@app.route("/clearBattleState", methods=['POST'])
-def clearBattleState():
-    eid = int(request.form.get('eid', 0))
-    ClanModule.clearBattleStateAtOnce(eid)
-    return json.dumps(dict(code=0))
-
 @app.route("/getLeagueRank", methods=['GET'])
 def getLeagueRank():
     return json.dumps(ClanModule.getTopClans())
@@ -1726,42 +1536,6 @@ def getLeagueRank():
 def getCaesarsCupRank():
     return json.dumps(ClanModule.getTopClans2())
 
-@app.route("/getZombieChallengeRank", methods=['GET'])
-def getZombieChallengeRank():
-    uid = request.args.get('uid',0,type=int)
-    return json.dumps(UserRankModule.getZombieChallengeRank(0,uid))
-
-@app.route("/synErrorLog", methods=['POST'])
-def synErrorLog():
-    log = request.form.get('log', "")
-    uid = int(request.form.get('uid', 0))
-    if uid>0 and log!="":
-        update("INSERT INTO `nozomi_error_log` (uid, log) VALUES (%s,%s)", (uid, log))
-    return "ok"
-
-@app.route('/checkKeyWord', methods=['GET'])
-def checkKeyWord():
-    word = request.args.get('word', None, type=str)
-    res = filterWord.checkWord(word, filterWord.tree)
-    return jsonify(dict(res=res))
-@app.route('/blockWord', methods=['GET'])
-def blockWord():
-    word = request.args.get('word', None, type=str)
-    word = filterWord.blockWord(word)
-    return jsonify(dict(word=word))
-
-@app.route('/genRecordId', methods=['GET'])
-def genRecordId():
-    uid = request.args.get('uid', None, type=int)
-    kind = request.args.get('kind', None, type=int)
-    invoice = insertAndGetId('insert into record (uid, kind, state) values(%s, %s, %s) ', (uid, kind, 0))
-    return jsonify(dict(invoice=invoice))
-
-@app.route('/checkBuyRecord', methods=['GET'])
-def checkBuyRecord():
-    uid = request.args.get('uid', None, type=int)
-    return jsonify(dict(code=1))
-    
 #client syn the lua error to server
 @app.route("/synLuaError", methods=['POST'])
 def synLuaError():
@@ -1782,20 +1556,6 @@ def reportChat():
             requestGet("http://10.68.55.40:8005/ban", dict(uid=eid,endtime=int(time.mktime(time.localtime()))+2*86400))
         return "success"
     return "fail"
-
-@app.route('/checkAds', methods=['GET'])
-def checkAds():
-    uid = request.args.get('uid', 0, type=int)
-    res = queryOne('select ads from ads where uid = %s', (uid))
-    if res == None:
-        return jsonify(dict(ads=0))
-    return jsonify(dict(ads=res[0]))
-    
-@app.route("/buyAds", methods=['GET'])
-def buyAds():
-    uid = request.args.get('uid', 0, type=int)
-    update('insert into ads (uid, ads) values(%s, 1) on duplicate key update ads=1 ', (uid))
-    return jsonify(dict(code=1))
 
 @app.route("/checkmask", methods=['POST'])
 def checkMask():
