@@ -479,7 +479,7 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [13,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,15]
+settings = [15,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,15]
 newActivitys = [[1416614400,1416787200,"act1",0,8,2419200],[1417219200,1417305600,"act2",30,16,2419200],[1417824000,1417910400,"act3",30,32,2419200],[1418428800,1418515200,"act4",30,64,2419200]]
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -985,7 +985,7 @@ def nextTownData():
     aid = mdict.get("aid",0,type=int)
     utid = mdict.get("utid",0,type=int)
     tid = mdict.get("tid",0,type=int)
-    utype = mdict.get('utype',utid,type=int)
+    utype = mdict.get('utype',0,type=int)
     datas = queryAll("SELECT tid,name,ttype,stars,did,res FROM nozomi_arena_town WHERE aid=%s AND tid!=%s AND ttype!=%s AND stars=0",(aid,tid,utype))
     if datas==None:
         return json.dumps(dict(code=0))
@@ -1011,7 +1011,7 @@ def nextTownData():
         did = data[4]
         ret['name'] = data[1]
         ret['ttype'] = data[2]
-        ret['utype'] = data[2]
+        ret['utype'] = 3-data[2]
         ret['aid'] = aid
         ret['utid'] = utid
         ret['tid'] = data[0]
@@ -1067,7 +1067,7 @@ def getTownData():
             did = data[4]
             ret['name'] = data[0]
             ret['ttype'] = data[1]
-            ret['utype'] = data[1]
+            ret['utype'] = 3-data[1]
             ret['aid'] = aid
             ret['utid'] = utid
             ret['tid'] = tid
