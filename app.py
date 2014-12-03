@@ -1345,7 +1345,7 @@ def synBattleData():
     baseScore = request.form.get("bscore", 0, type=int)
     ebaseScore = request.form.get("ebscore", 0, type=int)
     ngrank = 0
-    if baseScore>0 and ebaseScore>0:
+    if baseScore>=0 and ebaseScore>=0:
         curScore = getUserInfos(uid)['score']
         if curScore!=baseScore:
             return json.dumps(dict(code=1, reason="duplicate request"))
