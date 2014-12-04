@@ -224,13 +224,6 @@ def getUserAllInfos(uid):
         return None
     return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12], ban=r[13], rnum=r[14], mnum=r[15], level=r[16], exp=r[17])
 
-def getUserArena(uid):
-    r = queryOne("SELECT stage,state,pstage,ptime,pwar,pscore,totalwin FROM nozomi_user_arena WHERE id=%s", (uid, ))
-    if r==None:
-        update("INSERT IGNORE INTO nozomi_user_arena (`id`,stage,state,pstage,ptime,pwar,pscore,totalwin) VALUES (%s,0,0,0,0,0,0,0)",(uid,))
-        r = [0,0,0,0,0,0,0]
-    return r
-
 def getBindGameCenter(tempName):
     r = queryOne("SELECT gameCenter FROM `nozomi_gc_bind` WHERE uuid=%s",(tempName))
     if r==None:
@@ -910,47 +903,6 @@ def synData():
     loginlogger.info("%s\t%d\tsynData" % (platform,uid))
     return json.dumps({'code':0})
 
-@app.route("/getArenaNum", methods=['GET'])
-def getArenaNum():
-    uid = request.args.get("uid",0,type=int)
-    ulevel = request.args.get("ulevel", 0, type=int)
-    umin = 0
-    umax = 0
-    if ulevel>=9:
-        umin = 9
-        umax = 20
-    elif ulevel>=7:
-        umin = 7
-        umax = 8
-    elif ulevel==6:
-        umin = 6
-        umax = 6
-    else:
-        umin = 4
-        umax = 5
-    pstage = request.args.get("stage", 0, type=int)
-    ret = queryAll("SELECT ptime,count(*) FROM nozomi_user_arena WHERE state=1 AND pstage=%s AND tlevel>=%s AND tlevel<=%s GROUP BY ptime", (pstage, umin, umax))
-    if ret==None:
-        ret = []
-    return json.dumps(dict(code=0, data=ret))
-
-@app.route("/getArenaData", methods=['GET'])
-def getArenaBattle():
-    uid = int(request.args.get("uid"))
-    arenaInfo = getUserArena(uid)
-    aid = arenaInfo[4]
-    if aid>0:
-        data = queryOne("SELECT endTime,unum,stage,reward,winner FROM nozomi_arena_battle WHERE id=%s",(aid,))
-        ret = dict(endTime=data[0],unum=data[1],reward=data[3],winner=data[4],aid=aid)
-        data = queryAll("SELECT id,pstage,pscore FROM nozomi_user_arena WHERE pwar=%s",(aid,))
-        ret['players'] = data
-        data = queryAll("SELECT name,ttype,stars,owner FROM nozomi_arena_town WHERE aid=%s ORDER BY tid ASC",(aid,))
-        ret['towns'] = data
-        ret['code'] = 0
-    else:
-        ret = dict(code=1, aid=0, rewards=getUserRewardsNew(uid), stage=arenaInfo[0],state=arenaInfo[1])
-    return json.dumps(ret)
-
 @app.route("/getArenaData2", methods=['GET'])
 def getArenaBattle2():
     uid = request.args.get('uid',0,type=int)
@@ -974,7 +926,15 @@ def getArenaBattle2():
         ugets = rserver.get("uget%d_%d" % (aid,uid))
         if ugets!=None:
             ret['uget'] = json.loads(ugets)
-        ret['chance'] = int(rserver.get('abnum%d_%d' % (aid,uid)))
+        chance = rserver.get('abnum%d_%d' % (aid,uid))
+        if chance==None:
+            chance = 5
+            if atype==1:
+                chance = 2
+            rserver.set('abnum%d_%d' % (aid,uid), chance)
+        else:
+            chance = int(chance)
+        ret['chance'] = chance
     else:
         ret = dict(code=1, aid=0, state=0, rewards=getUserRewardsNew(uid))
     return json.dumps(ret)
@@ -1582,8 +1542,7 @@ def getRewards():
         l = queryOne("select lastOffTime from nozomi_user where id=%s", (uid,))
         if l==None:
             return json.dumps(dict(code=1))
-        arenaInfo = getUserArena(uid)
-        return json.dumps(dict(code=0, rewards=getUserRewardsNew(uid), offtime=l[0],stage=arenaInfo[0],state=arenaInfo[1]))
+        return json.dumps(dict(code=0, rewards=getUserRewardsNew(uid), offtime=l[0]))
 
 @app.route("/getMirrorData", methods=['GET'])
 def getMirrorData():
