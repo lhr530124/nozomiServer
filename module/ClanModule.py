@@ -59,19 +59,53 @@ def joinClan(uid, cid):
 
 def leaveClan(uid, cid):
     clan = list(getClanInfo(cid))
-    if clan[9]<2:
-        uinfo = queryOne("SELECT lscore, memberType FROM `nozomi_user` WHERE id=%s", (uid))
-        lscore = uinfo[0]
-        mtype = uinfo[1]
-        clan[6] = clan[6]-1
-        clan[2] = clan[2] - lscore
-        update("UPDATE `nozomi_user` SET clan=0, lscore=0, memberType=0 WHERE id=%s", (uid))
-        if mtype==2 and clan[6]>0:
-            nuid = queryOne("SELECT id FROM `nozomi_user` WHERE clan=%s ORDER BY lscore DESC LIMIT 1", (cid))[0]
-            update("UPDATE `nozomi_user` SET memberType=2 WHERE id=%s", (nuid))
-        state = clan[9]
-        if clan[6]==1:
-            state = 0
-        update("UPDATE `nozomi_clan` SET members=if(members>0,members-1,0), score=score-%s, state=%s WHERE id=%s", (lscore, state, cid))
+    con = getConn()
+    cur = con.cursor()
+    cur.execute("SELECT lscore, memberType, clan FROM `nozomi_user` WHERE id=%s", (uid,))
+    uinfo = cur.fetchone()
+    if uinfo[2]!=cid:
+        cur.close()
         return clan
-    return None
+    lscore = uinfo[0]
+    mtype = uinfo[1]
+    if clan[6]>0:
+        clan[6] = clan[6]-1
+    clan[2] = clan[2] - lscore
+    if clan[2]<0:
+        clan[2] = 0
+    if mtype==2 and clan[6]>0:
+        cur.execute("SELECT id FROM `nozomi_user` WHERE clan=%s AND id!=%s ORDER BY memberType,lscore DESC LIMIT 1", (cid,uid))
+        nuid = cur.fetchone()[0]
+        cur.execute("UPDATE nozomi_user SET memberType=%s WHERE id=%s", (2, nuid))
+    cur.execute("UPDATE nozomi_user SET clan=0, lscore=0, memberType=0 WHERE id=%s", (uid,))
+    cur.execute("UPDATE `nozomi_clan` SET members=if(members>0,members-1,0), score=if(score>%s,score-%s,0) WHERE id=%s", (lscore, lscore, cid))
+    con.commit()
+    cur.close()
+    return clan
+
+def modifyMemberType(uid, targetUid, memberType):
+    con = getConn()
+    cur = con.cursor()
+    cur.execute("SELECT memberType,clan FROM `nozomi_user` WHERE id=%s", (uid,))
+    uinfo = cur.fetchone()
+    error = 0
+    if uinfo==None:
+        error = 2
+    elif uinfo[0]<=1 or (memberType>=2 and uinfo[0]!=2) or memberType==1:
+        error = 1
+    else:
+        cur.execute("SELECT memberType,clan FROM `nozomi_user` WHERE id=%s", (targetUid,))
+        tinfo = cur.fetchone()
+        if tinfo==None:
+            error = 2
+        elif tinfo[0]==2 or (tinfo[0]==3 and uinfo[0]!=2) or (tinfo[0]==1 and uinfo[0]<2):
+            error = 1
+        elif tinfo[0]==memberType or tinfo[1]!=uinfo[1]:
+            error = 2
+        else:
+            cur.execute("UPDATE nozomi_user SET memberType=%s WHERE id=%s",(memberType, targetUid))
+            if memberType==2:
+                cur.execute("UPDATE nozomi_user SET memberType=%s WHERE id=%s",(3, uid))
+            con.commit()
+    cur.close()
+    return error

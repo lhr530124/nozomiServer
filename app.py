@@ -770,7 +770,7 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
 def synData():
     uid = int(request.form.get("uid", 0))
     if uid==0:
-        return json.dumps({'code':401})
+        return json.dumps({'code':2})
     if 'req' in request.form:
         rserver = getRedisServer()
         rid = rserver.get("utoken%d" % uid)
@@ -778,13 +778,18 @@ def synData():
             rid = int(rid)
             nrid = request.form.get('req',0,type=int)
             if nrid>rid or nrid<rid-1:
-                return json.dumps({'code':401})
+                print("token error, may be login in two device", uid)
+                return json.dumps({'code':2,'subcode':1})
             elif nrid==rid-1:
-                return json.dumps(dict(code=0))
+                print("token the same, may be syn data twice", uid)
+                return json.dumps(dict(code=0,subcode=0))
             else:
                 rid += 1
                 rserver.set("utoken%d" % uid, rid)
                 rserver.expire("utoken%d" % uid, 7200)
+        else:
+            print("token out date",uid)
+            return json.dumps({'code':2})
     platform = "ios"
     if 'platform' in request.form:
         platform = request.form['platform']
@@ -793,7 +798,7 @@ def synData():
         stime = request.form.get('servertime', 0, type=int)
         ctime = int(time.mktime(time.localtime()))
         if stime<ctime-600 or stime>ctime+600:
-            return '{"code":1}'
+            return '{"code":2}'
     accTimes = 0
     if 'crystal' in request.form:
         ls = json.loads(request.form['crystal'])
@@ -1050,6 +1055,21 @@ def prepareArena():
     con = getConn()
     cur = con.cursor()
     atype = request.form.get('atype',0,type=int)
+    rserver = getRedisServer()
+    lkakey = "lock%d_%d" % (sid,atype)
+    alock = rserver.incr(lkakey)
+    rserver.expire(lkakey,20)
+    lktick = 10
+    while alock>1 and lktick>0:
+        rserver.decr(lkakey)
+        print("lock tick", lktick)
+        time.sleep(0.5)
+        lktick -= 1
+        alock = rserver.incr(lkakey)
+    if lktick==0:
+        print("death alock?")
+        rserver.set(ldakey, 1)
+        rserver.expire(ldakey, 20)
     cur.execute("SELECT aid,btime FROM nozomi_arena_prepare WHERE id=%s AND atype=%s",(sid,atype))
     res = cur.fetchone()
     if res!=None:
@@ -1057,24 +1077,24 @@ def prepareArena():
             ret['aid'] = res[0]
         ret['atime'] = res[1]
     else:
+        eid = 0
+        prepareTime = 3600
+        if atype==1:
+            prepareTime = 86400
+        btime = ctime+prepareTime
         tlevel = request.form.get('ulevel',0,type=int)
         crystal = request.form.get('crystal',0,type=int)
-        rserver = getRedisServer()
         lkkey = "lock%d_%d_%d" % (atype,tlevel,crystal)
         rdkey = "ready%d_%d_%d" % (atype,tlevel,crystal)
         lktick = 10
         alock = rserver.incr(lkkey)
         while alock>1 and lktick>0:
             rserver.decr(lkkey)
+            print("lock tick", lktick)
             time.sleep(0.5)
             lktick -= 1
             alock = rserver.incr(lkkey)
-        eid = 0
-        prepareTime = 3600
-        if atype==1:
-            prepareTime = 86400
-        btime = ctime+prepareTime
-        if lkkey>0:
+        if lktick>0:
             readyed = rserver.get(rdkey)
             if readyed!=None:
                 rserver.delete(rdkey)
@@ -1098,17 +1118,18 @@ def prepareArena():
             ret['crystal'] = crystal
             cur.execute("INSERT INTO nozomi_reward_new (id,uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s,%s)",(ret['ccid'],uid,0,0,-crystal,''))
         if eid==0:
-            cur.execute("INSERT INTO nozomi_arena_prepare (id,atype,state,btime,aid,ttype,name,battlers) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",(sid,atype,1,btime,0,0,'',''))
+            cur.execute("INSERT INTO nozomi_arena_prepare (id,atype,state,btime,aid,ttype,name,battlers,rduid) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",(sid,atype,1,btime,0,0,'','',uid))
             rserver.set("pcost%d_%d" % (atype,sid), "%d_%d" % (uid,crystal))
         else:
             rserver.delete("pcost%d_%d" % (atype,eid))
             aid = rserver.incr("arenaBattle")
-            cur.execute("INSERT INTO nozomi_arena_prepare (id,atype,state,btime,aid,ttype,name,battlers) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",(sid,atype,2,btime,aid,0,'',''))
+            cur.execute("INSERT INTO nozomi_arena_prepare (id,atype,state,btime,aid,ttype,name,battlers,rduid) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",(sid,atype,2,btime,aid,0,'','',uid))
             cur.execute("UPDATE nozomi_arena_prepare SET state=%s,aid=%s WHERE id=%s AND atype=%s",(2,aid,eid,atype))
             cur.execute("INSERT INTO nozomi_arena_battle (id,endTime,unum,stage,reward,winner,atype) VALUES (%s,%s,%s,%s,%s,%s,%s)",(aid,btime+86400,0,tlevel,reward,0,atype))
             ret['aid'] = aid
         con.commit()
         ret['atime'] = btime
+    rserver.decr(lkakey)
     cur.close()
     return json.dumps(ret)
 
@@ -1138,7 +1159,8 @@ def synArenaBattle2():
     rserver.delete("atkt%d_%d" % (aid,utid))
     rnum = rserver.decr("abnum%d_%d" % (aid,uid))
     if rnum<0:
-        rserver.delete("abnum%d_%d" % (aid,uid))
+        rserver.incr("abnum%d_%d" % (aid,uid))
+        rserver.expire("abnum%d_%d" % (aid,uid), 86400)
         return json.dumps(dict(code=0))
     con = getConn()
     cur = con.cursor()
@@ -1164,7 +1186,7 @@ def synArenaBattle2():
         ltowns = cur.fetchall()
         tscores = []
         for i in range(battle[1]):
-            tscores.append([0,0,[],0])
+            tscores.append([0,0,[],0,0])
         umap = dict()
         for ltown in ltowns:
             ttype = ltown[1]-1
@@ -1175,12 +1197,13 @@ def synArenaBattle2():
             if ltown[3]>0:
                 ttype = umap[ltown[2]]
                 tscores[ttype][0] += ltown[3]
-        cur.execute("SELECT ttype,id,name FROM nozomi_arena_prepare WHERE aid=%s",(aid,))
+        cur.execute("SELECT ttype,id,name,rduid FROM nozomi_arena_prepare WHERE aid=%s",(aid,))
         sinfoRet = cur.fetchall()
         rewardExt = []
         for sinfo in sinfoRet:
             ttype = sinfo[0]-1
             tscores[ttype][3] = sinfo[1]
+            tscores[ttype][4] = sinfo[3]
             rewardExt.append(sinfo[2])
             rewardExt.append(tscores[ttype][0])
         aresult = 1
@@ -1199,7 +1222,9 @@ def synArenaBattle2():
         atypeStr = "Arena"
         if atype==1:
             atypeStr = "LWar"
-            rwdUid = int(rserver.get("cleader%d_%d" % (aid,winner)))
+            rwdUid = tscores[winner-1][4]
+            if rwdUid==0:
+                rwdUid = int(rserver.get("cleader%d_%d" % (aid,winner)))
         else:
             rwdUid = tscores[winner-1][3]
         for ttype in range(battle[1]):
@@ -1487,6 +1512,17 @@ def leaveClan():
     if ret==None:
         return json.dumps(dict(code=1))
     return json.dumps(dict(code=0, clan=0))
+
+@app.route("/modifyClanUser", methods=['POST'])
+def modifyClanUser():
+    uid = request.form.get('uid',0,type=int)
+    tuid = request.form.get('tuid',0,type=int)
+    mtype = request.form.get('mtype',0,type=int)
+    errorCode = ClanModule.modifyMemberType(uid, tuid, mtype)
+    if errorCode==0:
+        return json.dumps(dict(code=0))
+    else:
+        return json.dumps(dict(code=1,subcode=errorCode))
 
 @app.route("/getLeagueRank", methods=['GET'])
 def getLeagueRank():
