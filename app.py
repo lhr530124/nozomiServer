@@ -219,10 +219,10 @@ def getUserMask(uid):
         return r[0]
 
 def getUserAllInfos(uid):
-    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime, registerTime, ban, rewardNums, magic,level,exp FROM nozomi_user WHERE id=%s", (uid))
+    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime, registerTime, ban, rewardNums, magic,level,exp,cmask FROM nozomi_user WHERE id=%s", (uid))
     if r==None:
         return None
-    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12], ban=r[13], rnum=r[14], mnum=r[15], level=r[16], exp=r[17])
+    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12], ban=r[13], rnum=r[14], mnum=r[15], level=r[16], exp=r[17], cmask=r[18])
 
 def getBindGameCenter(tempName):
     r = queryOne("SELECT gameCenter FROM `nozomi_gc_bind` WHERE uuid=%s",(tempName))
@@ -473,7 +473,7 @@ def login():
 
 updateUrls = dict()
 settings = [15,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,15]
-newActivitys = [[1416614400,1416787200,"act1",0,8,2419200],[1417219200,1417305600,"act2",30,16,2419200],[1417824000,1417910400,"act3",30,32,2419200],[1418428800,1418515200,"act4",30,64,2419200]]
+newActivitys = [[1416614400,1416787200,"act1",0,8,2419200],[1417219200,1417305600,"act2",30,16,2419200],[1417824000,1417910400,"act3",30,32,2419200],[1418428800,1418515200,"act4",30,64,2419200],[1417824000,1417996800,"act6",20,256,0]]
 @app.route("/getData", methods=['GET'])
 def getData():
     uid = int(request.args.get("uid"))
@@ -489,30 +489,24 @@ def getData():
         if 'language' in request.args:
             language = request.args['language']
         sversion = request.args.get("scriptVersion",1,type=int)
+        lang = request.args.get("lang","US")
+        cc = request.args.get("cc","")
         if sversion<settings[4]:
             stitle = "New Version!"
             stext = "Big update of Nozomi, tap Close and relogin game please!"
             sbut = "Close"
-            if "lang" in request.args:
-                lang = request.args.get("lang")
-                if lang=="CN":
-                    stitle = "新版本来啦！"
-                    stext = "希望号升级了许多新功能，请点击关闭重启游戏以进行更新！"
-                    sbut = "关闭"
-                elif lang=="HK":
-                    stitle = "新版本來啦！"
-                    stext = "希望號升級了許多新功能，請點擊關閉重啓遊戲以進行更新！"
-                    sbut = "關閉"
+            if lang=="CN":
+                stitle = "新版本来啦！"
+                stext = "希望号升级了许多新功能，请点击关闭重启游戏以进行更新！"
+                sbut = "关闭"
+            elif lang=="HK":
+                stitle = "新版本來啦！"
+                stext = "希望號升級了許多新功能，請點擊關閉重啓遊戲以進行更新！"
+                sbut = "關閉"
             return json.dumps(dict(serverError=1, title=stitle, content=stext, button=sbut))
         ret = None
         shouldDebug = False
         if 'v2' not in request.args:
-            #checkVersion = request.args.get("checkVersion", 0, type=int)
-            #if platform=="android_our":
-            #    checkVersion = checkVersion-1
-            #if (platform=="ios" and checkVersion>settings[0]) or platform=="ios_cn":
-            #    shouldDebug = True
-            #if checkVersion<settings[0]:
             country = request.args.get('country',"us").lower()
             if country=="":
                 country = "us"
@@ -531,21 +525,70 @@ def getData():
                 ret['url'] = "https://play.google.com/store/apps/details?id=com.caesars.nozomi"
             else:
                 ret['url'] = "https://itunes.apple.com/app/id608847384?mt=8&uo=4"
-                #if platform=="ios_cn":
-                #    ret['url'] = ret['url'].replace("608847384","666289981")
-            #if settings[2]==True and platform.find("ios")==0:
             ret['forceUpdate']=1
             return json.dumps(ret)
         else:
             checkVersion = request.args.get("checkVersion", 0, type=int)
-            if checkVersion>settings[0]:
+            if checkVersion>settings[0] and request.args.get("cc")!="com.caesars.zclash":
                 shouldDebug = True
+        data = getUserAllInfos(uid)
+        if data==None or data['ban']!=0:
+            ret = dict(serverError=1)
+            if lang=="CN":
+                ret['title'] = "你被封禁了！"
+                ret['content'] = "你因为修改数据而被封禁了账号！请联系feedback@caesarsgame.com进行解封！"
+                ret['button'] = "关闭"
+            elif lang=="HK":
+                ret['title'] = "你被封禁了！"
+                ret['content'] = "你因爲修改數據而被封禁了賬號！請聯系feedback@caesarsgame.com進行解封！"
+                ret['button'] = "關閉"
+            else:
+                ret['title'] = "You are banned!"
+                ret['content'] = "You are banned because of the hacked data! Please contact feedback@caesarsgame.com to unban your account!"
+                ret['button'] = "Close"
+            return json.dumps(ret)
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
-        data = getUserAllInfos(uid)
-        if data==None or data['ban']!=0:
-            return json.dumps(dict(serverError=1, title="You are banned!", content="You are banned because of the hacked data!", button="Close"))
+        if data['cmask']>0:
+            ret = dict(serverUpdate=1)
+            forceUpdate = False
+            if cc.find("com.caesars.empire")==0:
+                ret['url'] = "https://itunes.apple.com/app/id915963054?mt=8&uo=4"
+                forceUpdate = True
+            elif cc.find("com.caesars.nozomi")==0:
+                ret['url'] = "https://play.google.com/store/apps/details?id=com.caesars.zclash"
+                forceUpdate = True
+            elif data['cmask']>1:
+                update("UPDATE nozomi_user SET cmask=1 WHERE id=%s",(uid,))
+                info = dict(nos=1)
+                if lang=="CN":
+                    info['title'] = "感谢你的更新！"
+                    info['text'] = "感谢你更新了新版本！我们给予了你100水晶作为奖励！"
+                elif lang=="HK":
+                    info['title'] = "感謝你的更新！"
+                    info['text'] = "感謝你更新了新版本！我們給予了你100水晶作爲獎勵！"
+                else:
+                    info['title'] = "Thanks for update!"
+                    info['text'] = "Thanks for update our new version! We send you 100 crystals as reward!"
+                update("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",(uid,3,0,100,json.dumps(info)))
+            if forceUpdate:
+                ret['forceUpdate'] = 1
+                ret['button2'] = ""
+                ret['cmask'] = cmask
+                if lang=="CN":
+                    ret['title'] = "请更新版本！"
+                    ret['content'] = "十分抱歉，由于服务器原因，需要您下载版本。您的数据将不会改变，进入新版本后您将获得100水晶补偿。"
+                    ret['button1'] = "下载"
+                elif lang=="HK":
+                    ret['title'] = "請更新版本！"
+                    ret['content'] = "十分抱歉，由于服務器原因，需要您下載版本。您的數據將不會改變，進入新版本後您將獲得100水晶補償。"
+                    ret['button1'] = "下載"
+                else:
+                    ret['title'] = "Update New Version!"
+                    ret['content'] = "Sorry, you need download a new version because of server's problem. Your data won't be changed and you will get 100 Crystals as compensation."
+                    ret['button1'] = "Download"
+                return json.dumps(ret)
         if ret!=None:
             data.update(ret)
         t = int(time.mktime(time.localtime()))
@@ -1079,8 +1122,8 @@ def prepareArena():
     else:
         eid = 0
         prepareTime = 3600
-        if atype==1:
-            prepareTime = 86400
+        #if atype==1:
+        #    prepareTime = 86400
         btime = ctime+prepareTime
         tlevel = request.form.get('ulevel',0,type=int)
         crystal = request.form.get('crystal',0,type=int)

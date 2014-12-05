@@ -6,7 +6,7 @@ import sys
 sys.path.append('..')
 import config
 import util
-
+import json
 #clan's state 0 means free, 1 means wait to battle, 2 means in battle.
 
 def getRandomClans(score):
@@ -61,11 +61,19 @@ def leaveClan(uid, cid):
     clan = list(getClanInfo(cid))
     con = getConn()
     cur = con.cursor()
+    cur.execute("SELECT state,battlers FROM nozomi_arena_prepare WHERE id=%s AND atype=1",(cid,))
+    cbinfo = cur.fetchone()
+    if cbinfo!=None:
+        if (cbinfo[0]==1 or cbinfo[1]=="") and clan[6]<5:
+            cur.close()
+            return None
+        elif cbinfo[0]==2 and cbinfo[1]!="":
+            battlers = json.loads(cbinfo[1])
+            if uid in battlers:
+                cur.close()
+                return None
     cur.execute("SELECT lscore, memberType, clan FROM `nozomi_user` WHERE id=%s", (uid,))
     uinfo = cur.fetchone()
-    if uinfo[2]!=cid:
-        cur.close()
-        return clan
     lscore = uinfo[0]
     mtype = uinfo[1]
     if clan[6]>0:
