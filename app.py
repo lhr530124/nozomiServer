@@ -1367,7 +1367,7 @@ def synBattleData():
     updateUserState(uid, eid)
     if 'isReverge' in request.form:
         update("UPDATE nozomi_battle_history SET reverged=1 WHERE uid=%s AND eid=%s", (uid, eid))
-    if eid>1:
+    if isNormal(eid):
         videoId = 0
         if 'replay' in request.form:
             videoId = insertAndGetId("INSERT INTO nozomi_replay (replay) VALUES(%s)", (request.form['replay']))

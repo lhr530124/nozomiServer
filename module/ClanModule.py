@@ -91,7 +91,7 @@ def modifyMemberType(uid, targetUid, memberType):
     error = 0
     if uinfo==None:
         error = 2
-    elif uinfo[0]<=1 or (memberType>=2 and uinfo[0]!=2) or memberType==1:
+    elif uinfo[0]<=1 or (memberType>=2 and uinfo[0]!=2):
         error = 1
     else:
         cur.execute("SELECT memberType,clan FROM `nozomi_user` WHERE id=%s", (targetUid,))
