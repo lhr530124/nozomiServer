@@ -572,6 +572,7 @@ def getData():
                     info['title'] = "Thanks for update!"
                     info['text'] = "Thanks for update our new version! We send you 100 crystals as reward!"
                 update("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",(uid,3,0,100,json.dumps(info)))
+                ret = None
             if forceUpdate:
                 ret['forceUpdate'] = 1
                 ret['button2'] = ""
