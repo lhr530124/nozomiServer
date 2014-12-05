@@ -575,7 +575,7 @@ def getData():
             if forceUpdate:
                 ret['forceUpdate'] = 1
                 ret['button2'] = ""
-                ret['cmask'] = cmask
+                ret['cmask'] = data['cmask']
                 if lang=="CN":
                     ret['title'] = "请更新版本！"
                     ret['content'] = "十分抱歉，由于服务器原因，需要您下载版本。您的数据将不会改变，进入新版本后您将获得100水晶补偿。"
