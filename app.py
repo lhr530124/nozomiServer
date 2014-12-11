@@ -1134,8 +1134,8 @@ def prepareArena():
         alock = rserver.incr(lkakey)
     if lktick==0:
         print("death alock?")
-        rserver.set(ldakey, 1)
-        rserver.expire(ldakey, 20)
+        rserver.set(lkakey, 1)
+        rserver.expire(lkakey, 20)
     cur.execute("SELECT aid,btime FROM nozomi_arena_prepare WHERE id=%s AND atype=%s",(sid,atype))
     res = cur.fetchone()
     if res!=None:
@@ -1164,7 +1164,7 @@ def prepareArena():
         for tglevel in range(len(keygroup)-1):
             if keygroup[tglevel+1]>=tlevel:
                 tgroup[0] = keygroup[tglevel]
-                tgroup[1] = [tglevel+1]
+                tgroup[1] = keygroup[tglevel+1]
                 lkkey = "glock%d_%d" % (tkey, tglevel)
                 break
         btime = ctime+prepareTime
@@ -1180,7 +1180,9 @@ def prepareArena():
         if lktick>0:
             cutTime = ctime+60
             if tkey==1:
-                cur.execute("SELECT id,btime,atype FROM nozomi_arena_prepare WHERE atype>1 AND id!=%s AND ttype>%s AND ttype<=%s AND aid=0 AND btime>%s LIMIT 1", (uid,tgroup[0],tgroup[1],curTime))
+                print (uid,tgroup[0],tgroup[1],cutTime)
+                print "SELECT id,btime,atype FROM nozomi_arena_prepare WHERE atype>1 AND id!=%s AND ttype>%s AND ttype<=%s AND aid=0 AND btime>%s LIMIT 1" % (uid,tgroup[0],tgroup[1],cutTime)
+                cur.execute("SELECT id,btime,atype FROM nozomi_arena_prepare WHERE atype>1 AND id!=%s AND ttype>%s AND ttype<=%s AND aid=0 AND btime>%s LIMIT 1", (uid,tgroup[0],tgroup[1],cutTime))
             else:
                 cur.execute("SELECT id,btime,atype FROM nozomi_arena_prepare WHERE atype=1 AND ttype>%s AND ttype<=%s AND aid=0 AND btime>%s LIMIT 1", (tgroup[0],tgroup[1],cutTime))
             rds = cur.fetchone()
@@ -1218,10 +1220,13 @@ def prepareArena():
 def getArenaState():
     sid = request.args.get('sid',0,type=int)
     atype = request.args.get('atype',0,type=int)
+    uid = request.args.get("uid",0,type=int)
     r = queryOne("SELECT state,btime,battlers,aid FROM nozomi_arena_prepare WHERE id=%s AND atype=%s",(sid,atype))
     ret = dict(code=0,atype=atype)
     if r!=None:
         ret['arena'] = r
+    else:
+        ret['rewards'] = getUserRewardsNew(uid)
     return json.dumps(ret)
 
 @app.route("/synArenaBattle2",methods=['POST'])
