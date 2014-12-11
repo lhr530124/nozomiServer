@@ -343,7 +343,7 @@ def addOurAds(uid, platform, data):
                 data['adsCode'] = adsCode
                 data['adsUrl'] = adsUrl
 
-dailyGiftReward = [[1,1000],[1,1500],[0,10],[1,2000],[1,2500],[1,3000],[0,50],[1,3500],[1,4000],[1,4500],[1,5000],[1,6500],[1,7000],[1,8000],[0,100],[1,9000],[1,10000],[1,11000],[1,12000],[1,13000],[1,14000],[1,15000],[1,17000],[1,19000],[1,21000],[1,23000],[1,25000],[1,27000],[1,30000],[0,500]]
+dailyGiftReward = [[1,1000],[1,1500],[0,5],[1,2000],[1,2500],[1,3000],[3,5],[1,3500],[1,4000],[0,10],[1,5000],[1,6500],[1,7000],[1,8000],[3,10],[1,9000],[1,10000],[1,11000],[1,12000],[0,30],[1,14000],[1,15000],[1,17000],[1,19000],[3,50],[1,23000],[1,25000],[1,27000],[1,30000],[0,50]]
 def newUserLogin(uid):
     today = datetime.date.today()
     ret = queryOne("SELECT regDate,loginDate,loginDays,maxLDays,curLDays,lottery,lotterySeed FROM `nozomi_login_new` WHERE `id`=%s", (uid))
@@ -461,7 +461,7 @@ def login():
         if uid==0:
             timelogger.info("new user %s %d " % (username, uid))
             uid = initUser(username, '', plat)
-            loginlogger.info("%s\t%d\treg" % (plat,uid))
+            loginlogger.info("%s\t%d\treg\t%s" % (plat,uid,tempname))
             achieveModule.initAchieves(uid)
             ret['uid'] = uid
         return json.dumps(ret)
@@ -532,6 +532,18 @@ def getData():
             if checkVersion>settings[0] and request.args.get("cc")!="com.caesars.zclash":
                 shouldDebug = True
         data = getUserAllInfos(uid)
+        outid = None
+        deviceId = ""
+        if 'cdev' in request.args:
+            deviceId = request.args['cdev']
+            account = request.args.get("cacc","")
+            fbLogin = (request.args.get("cfb",0,type=int)==1)
+            cuid = request.args.get("cuid",0,type=int)
+            if fbLogin and (data==None or data['ban']!=0):
+                update("DELETE FROM nozomi_channel_bind WHERE uid=%s",(uid,))
+                outid = cuid
+                uid = cuid
+                data = getUserAllInfos(uid)
         if data==None or data['ban']!=0:
             ret = dict(serverError=1)
             if lang=="CN":
@@ -550,13 +562,16 @@ def getData():
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
+        if outid>0:
+            data['fbout'] = 1
+            data['outid'] = outid
         if data['cmask']>0:
             ret = dict(serverUpdate=1)
             forceUpdate = False
             if cc.find("com.caesars.empire")==0:
                 ret['url'] = "https://itunes.apple.com/app/id915963054?mt=8&uo=4"
                 forceUpdate = True
-            elif cc.find("com.caesars.nozomi")==0:
+            elif cc.find("com.caesars.nozomi")==0 or cc.find("com.caesars.caesars")==0:
                 ret['url'] = "https://play.google.com/store/apps/details?id=com.caesars.zclash"
                 forceUpdate = True
             elif data['cmask']>1:
@@ -564,32 +579,34 @@ def getData():
                 info = dict(nos=1)
                 if lang=="CN":
                     info['title'] = "感谢你的更新！"
-                    info['text'] = "感谢你更新了新版本！我们给予了你100水晶作为奖励！"
+                    info['text'] = "感谢你更新了新版本！我们给予了你500水晶作为奖励！"
                 elif lang=="HK":
                     info['title'] = "感謝你的更新！"
-                    info['text'] = "感謝你更新了新版本！我們給予了你100水晶作爲獎勵！"
+                    info['text'] = "感謝你更新了新版本！我們給予了你500水晶作爲獎勵！"
                 else:
                     info['title'] = "Thanks for update!"
-                    info['text'] = "Thanks for update our new version! We send you 100 crystals as reward!"
-                update("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",(uid,3,0,100,json.dumps(info)))
-                ret = None
+                    info['text'] = "Thanks for update our new version! We send you 500 crystals as reward!"
+                update("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",(uid,3,0,500,json.dumps(info)))
             if forceUpdate:
                 ret['forceUpdate'] = 1
                 ret['button2'] = ""
                 ret['cmask'] = data['cmask']
                 if lang=="CN":
                     ret['title'] = "请更新版本！"
-                    ret['content'] = "十分抱歉，由于服务器原因，需要您下载版本。您的数据将不会改变，进入新版本后您将获得100水晶补偿。"
+                    ret['content'] = "十分抱歉，由于服务器原因，需要您下载版本。您的数据将不会改变，进入新版本后您将获得500水晶补偿。"
                     ret['button1'] = "下载"
                 elif lang=="HK":
                     ret['title'] = "請更新版本！"
-                    ret['content'] = "十分抱歉，由于服務器原因，需要您下載版本。您的數據將不會改變，進入新版本後您將獲得100水晶補償。"
+                    ret['content'] = "十分抱歉，由于服務器原因，需要您下載版本。您的數據將不會改變，進入新版本後您將獲得500水晶補償。"
                     ret['button1'] = "下載"
                 else:
                     ret['title'] = "Update New Version!"
-                    ret['content'] = "Sorry, you need download a new version because of server's problem. Your data won't be changed and you will get 100 Crystals as compensation."
+                    ret['content'] = "Sorry, you need download a new version because of server's problem. Your data won't be changed and you will get 500 Crystals as compensation."
                     ret['button1'] = "Download"
+                testlogger.info("%s\t%d\tlogin\t%s\t%s" % (platform,uid,cc,deviceId))
                 return json.dumps(ret)
+            else:
+                ret = None
         if ret!=None:
             data.update(ret)
         t = int(time.mktime(time.localtime()))
@@ -650,7 +667,7 @@ def getData():
         data['treq'] = rid
         rserver.set("utoken%d" % uid, rid)
         rserver.expire("utoken%d" % uid, 3600)
-        loginlogger.info("%s\t%d\tlogin\t%d" % (platform,uid,rid))
+        loginlogger.info("%s\t%d\tlogin\t%d\t%s" % (platform,uid,rid,deviceId))
     else:
         data = getUserInfos(uid)
     if data==None:
@@ -1020,7 +1037,10 @@ def nextTownData():
         did = data[4]
         ret['name'] = data[1]
         ret['ttype'] = data[2]
-        ret['utype'] = 3-data[2]
+        if utype>0:
+            ret['utype'] = utype
+        else:
+            ret['utype'] = 3-data[2]
         ret['aid'] = aid
         ret['utid'] = utid
         ret['tid'] = data[0]
@@ -1090,6 +1110,8 @@ def getTownData():
                 ret['builds'] = getUserBuilds(did)
     return json.dumps(ret)
 
+ArenaGroups = [[0,6,8,10],[0,55,65,75,100]]
+
 @app.route("/prepareArena", methods=['POST'])
 def prepareArena():
     uid = request.form.get('uid',0,type=int)
@@ -1121,15 +1143,32 @@ def prepareArena():
             ret['aid'] = res[0]
         ret['atime'] = res[1]
     else:
+        tlevel = request.form.get('ulevel',0,type=int)
         eid = 0
         prepareTime = 3600
-        #if atype==1:
-        #    prepareTime = 86400
+        battleTime = 86400
+        lkkey = "lock"
+        tgroup = [0,0]
+        tkey = 1
+        if atype!=1:
+            prepareTime = 1800
+            battleTime = 21600
+        else:
+            tkey = 2
+            tlevel = rserver.get("cllv%d" % sid)
+            if tlevel==None:
+                tlevel = 0
+            else:
+                tlevel = int(tlevel)
+        keygroup = ArenaGroups[tkey-1]
+        for tglevel in range(len(keygroup)-1):
+            if keygroup[tglevel+1]>=tlevel:
+                tgroup[0] = keygroup[tglevel]
+                tgroup[1] = [tglevel+1]
+                lkkey = "glock%d_%d" % (tkey, tglevel)
+                break
         btime = ctime+prepareTime
-        tlevel = request.form.get('ulevel',0,type=int)
         crystal = request.form.get('crystal',0,type=int)
-        lkkey = "lock%d_%d_%d" % (atype,tlevel,crystal)
-        rdkey = "ready%d_%d_%d" % (atype,tlevel,crystal)
         lktick = 10
         alock = rserver.incr(lkkey)
         while alock>1 and lktick>0:
@@ -1139,22 +1178,19 @@ def prepareArena():
             lktick -= 1
             alock = rserver.incr(lkkey)
         if lktick>0:
-            readyed = rserver.get(rdkey)
-            if readyed!=None:
-                rserver.delete(rdkey)
-                rds = readyed.split("_")
-                btime = int(rds[1])
-                if btime<ctime+60:
-                    btime = ctime+prepareTime
-                else:
-                    eid = int(rds[0])
+            cutTime = ctime+60
+            if tkey==1:
+                cur.execute("SELECT id,btime,atype FROM nozomi_arena_prepare WHERE atype>1 AND id!=%s AND ttype>%s AND ttype<=%s AND aid=0 AND btime>%s LIMIT 1", (uid,tgroup[0],tgroup[1],curTime))
+            else:
+                cur.execute("SELECT id,btime,atype FROM nozomi_arena_prepare WHERE atype=1 AND ttype>%s AND ttype<=%s AND aid=0 AND btime>%s LIMIT 1", (tgroup[0],tgroup[1],cutTime))
+            rds = cur.fetchone()
+            if rds!=None:
+                btime = rds[1]
+                eid = rds[0]
+                tkey = rds[2]
         else:
             print("death lock?")
             rserver.set(lkkey, 1)
-        if eid==0:
-            rserver.set(rdkey, "%d_%d" % (sid, btime))
-            rserver.expire(rdkey, prepareTime-3*60)
-        rserver.decr(lkkey)
         reward = 0
         if crystal>0:
             reward = crystal+crystal*4/5
@@ -1162,16 +1198,17 @@ def prepareArena():
             ret['crystal'] = crystal
             cur.execute("INSERT INTO nozomi_reward_new (id,uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s,%s)",(ret['ccid'],uid,0,0,-crystal,''))
         if eid==0:
-            cur.execute("INSERT INTO nozomi_arena_prepare (id,atype,state,btime,aid,ttype,name,battlers,rduid) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",(sid,atype,1,btime,0,0,'','',uid))
+            cur.execute("INSERT INTO nozomi_arena_prepare (id,atype,state,btime,aid,ttype,name,battlers,rduid) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",(sid,atype,1,btime,0,tlevel,'','',uid))
             rserver.set("pcost%d_%d" % (atype,sid), "%d_%d" % (uid,crystal))
         else:
             rserver.delete("pcost%d_%d" % (atype,eid))
             aid = rserver.incr("arenaBattle")
-            cur.execute("INSERT INTO nozomi_arena_prepare (id,atype,state,btime,aid,ttype,name,battlers,rduid) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",(sid,atype,2,btime,aid,0,'','',uid))
-            cur.execute("UPDATE nozomi_arena_prepare SET state=%s,aid=%s WHERE id=%s AND atype=%s",(2,aid,eid,atype))
-            cur.execute("INSERT INTO nozomi_arena_battle (id,endTime,unum,stage,reward,winner,atype) VALUES (%s,%s,%s,%s,%s,%s,%s)",(aid,btime+86400,0,tlevel,reward,0,atype))
+            cur.execute("INSERT INTO nozomi_arena_prepare (id,atype,state,btime,aid,ttype,name,battlers,rduid) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",(sid,atype,2,btime,aid,tlevel,'','',uid))
+            cur.execute("UPDATE nozomi_arena_prepare SET state=%s,aid=%s WHERE id=%s AND atype=%s",(2,aid,eid,tkey))
+            cur.execute("INSERT INTO nozomi_arena_battle (id,endTime,unum,stage,reward,winner,atype) VALUES (%s,%s,%s,%s,%s,%s,%s)",(aid,btime+battleTime,0,tlevel,reward,0,atype))
             ret['aid'] = aid
         con.commit()
+        rserver.decr(lkkey)
         ret['atime'] = btime
     rserver.decr(lkakey)
     cur.close()
@@ -1195,6 +1232,7 @@ def synArenaBattle2():
     stars = request.form.get('stars',0,type=int)
     atype = request.form.get('atype',0,type=int)
     uid = request.form.get('uid',0,type=int)
+    chance = request.form.get("chance",1,type=int)
     if tid==0 or aid==0 or utid==0:
         return json.dumps(dict(code=1))
     rserver = getRedisServer()
@@ -1202,7 +1240,7 @@ def synArenaBattle2():
     rserver.delete(tkey)
     rserver.delete("atkt%d_%d" % (aid,utid))
     rnum = rserver.decr("abnum%d_%d" % (aid,uid))
-    if rnum<0:
+    if rnum<chance-1:
         rserver.incr("abnum%d_%d" % (aid,uid))
         rserver.expire("abnum%d_%d" % (aid,uid), 86400)
         return json.dumps(dict(code=0))
@@ -1443,8 +1481,8 @@ def findEnemy():
             btnums = rserver.incr("btnum%d" % selfUid)
             if btnums==1:
                 rserver.expire("btnum%d" % selfUid, 7200)
-            if btnums%2==1 and btnums<19:
-                tuoid = (blevel-2)*9+(btnums/2)%9+1
+            if btnums%4==3 and btnums<36:
+                tuoid = (blevel-2)*9+(btnums/4)%9+1
                 uid = testUids[tuoid-1]
                 if tuoid%3==1:
                     r1p = 70
