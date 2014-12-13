@@ -61,9 +61,9 @@ def findAMatch(uid, score, scoreOff):
         else:
             maxScore = rscore+50
             minScore = rscore-50
-            if minScore<300:
-                minScore = 300
-                maxScore = 650
+            if minScore<100:
+                minScore = 100
+                maxScore = 250
             ids = queryOne("SELECT MIN(uid), MAX(uid) FROM nozomi_user_state WHERE score>%s AND score<%s", (minScore, maxScore))
             if ids!=None:
                 minId = ids[0]
