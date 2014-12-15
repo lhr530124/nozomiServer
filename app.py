@@ -443,7 +443,7 @@ def addInviteRewards():
     level = request.form.get("level",0,type=int)
     con = getConn()
     cur = con.cursor()
-    cur.execute("SELECT rlv, rnum FROM nozomi_invite_stat WHERE id=%s",(uid,))
+    cur.execute("SELECT rlv, tr FROM nozomi_invite_stat WHERE id=%s",(uid,))
     res = cur.fetchone()
     rserver = getRedisServer()
     ret = dict(code=0, level=level)
@@ -480,30 +480,40 @@ def inviteUser():
     ret = dict(code=0)
     con = getConn()
     cur = con.cursor()
-    ctime = int(getAbsToday())
+    nt = time.localtime()
+    ctime = int(time.mktime((nt.tm_year, nt.tm_mon, nt.tm_mday, 0, 0, 0, 0, 0, 0 )))
     cur.execute("SELECT itime FROM nozomi_invite_record WHERE sid=%s AND itime>=%s LIMIT 1",(uid,ctime))
     res = cur.fetchone()
     if res==None:
-        cur.execute("SELECT ts FROM nozomi_invite_stat WHERE id=%s",(uid,))
+        errorCode = 0
+        cur.execute("SELECT id,name,ban FROM nozomi_user WHERE id=%s",(rid,))
         res = cur.fetchone()
         if res==None:
-            cur.execute("INSERT INTO nozomi_invite_stat (id,ts,tg,tr,rlv,rnum) VALUES (%s,1,0,0,0,0) ON DUPLICATE KEY update ts=ts+1",(uid,))
+            errorCode = 2
         else:
-            cur.execute("UPDATE nozomi_invite_stat SET ts=%s WHERE id=%s",(res[0]+1,uid))
-        cur.execute("SELECT tr FROM nozomi_invite_stat WHERE id=%s",(rid,))
-        res = cur.fetchone()
-        if res==None:
-            cur.execute("INSERT INTO nozomi_invite_stat (id,ts,tg,tr,rlv,rnum) VALUES (%s,0,0,1,0,0) ON DUPLICATE KEY update tr=tr+1",(rid,))
+            cur.execute("SELECT itime FROM nozomi_invite_record WHERE sid=%s AND rid=%s",(uid,rid))
+            res = cur.fetchone()
+            if res!=None:
+                errorCode = 3
+        if errorCode==0:
+            cur.execute("SELECT ts FROM nozomi_invite_stat WHERE id=%s",(uid,))
+            res = cur.fetchone()
+            if res==None:
+                cur.execute("INSERT INTO nozomi_invite_stat (id,ts,tg,tr,rlv) VALUES (%s,1,0,0,0) ON DUPLICATE KEY update ts=ts+1",(uid,))
+            else:
+                cur.execute("UPDATE nozomi_invite_stat SET ts=ts+1 WHERE id=%s",(uid,))
+            cur.execute("SELECT tr FROM nozomi_invite_stat WHERE id=%s",(rid,))
+            res = cur.fetchone()
+            if res==None:
+                cur.execute("INSERT INTO nozomi_invite_stat (id,ts,tg,tr,rlv) VALUES (%s,0,0,1,0) ON DUPLICATE KEY update tr=tr+1",(rid,))
+            else:
+                cur.execute("UPDATE nozomi_invite_stat SET tr=tr+1 WHERE id=%s",(rid,))
+            ctime = int(time.mktime(nt))
+            cur.execute("INSERT INTO nozomi_invite_record (sid,rid,itime) VALUES (%s,%s,%s)",(uid,rid,ctime))
+            con.commit()
+            ret['ltime'] = ctime
         else:
-            cur.execute("UPDATE nozomi_invite_stat SET tg=tg+1 WHERE id=%s",(rid,))
-        cur.execute("SELECT itime FROM nozomi_invite_record WHERE sid=%s AND rid=%s LIMIT 1",(uid,rid))
-        res = cur.fetchone()
-        if res==None:
-            cur.execute("UPDATE nozomi_invite_stat SET rnum=rnum+1 WHERE id=%s",(rid,))
-        ctime = int(time.time())
-        cur.execute("INSERT INTO nozomi_invite_record (sid,rid,itime) VALUES (%s,%s,%s)",(uid,rid,ctime))
-        con.commit()
-        ret['ltime'] = ctime
+            ret['subcode'] = errorCode
     else:
         ret['ltime'] = res[0]
         ret['subcode'] = 1
@@ -515,12 +525,13 @@ def getInviteRecord():
     uid = request.args.get("uid",0,type=int)
     con = getConn()
     cur = con.cursor()
-    cur.execute("SELECT ts, tg, tr, rlv, rnum FROM nozomi_invite_stat WHERE id=%s",(uid,))
+    cur.execute("SELECT ts, tg, tr, rlv FROM nozomi_invite_stat WHERE id=%s",(uid,))
     res = cur.fetchone()
     if res==None:
         res = [0,0,0,0,0]
     ret = dict(code=0, stat=res, one=InviteRewards[0], levels=InviteRewards[1:])
-    ctime = int(getAbsToday())
+    nt = time.localtime()
+    ctime = int(time.mktime((nt.tm_year, nt.tm_mon, nt.tm_mday, 0, 0, 0, 0, 0, 0 )))
     if res[0]>0:
         cur.execute("SELECT itime FROM nozomi_invite_record WHERE sid=%s AND itime>=%s LIMIT 1",(uid,ctime))
         res2 = cur.fetchone()
@@ -528,15 +539,11 @@ def getInviteRecord():
             ret['ltime'] = ctime-1
         else:
             ret['ltime'] = res2[0]
-    if res[1]<res[2]:
-        lnum = res[2]-res[1]
-        if lnum>4:
-            lnum = 4
-        cur.execute("SELECT u.name,u.level,u.totalCrystal,r.itime FROM nozomi_user AS u, nozomi_invite_record AS r WHERE r.rid=%s AND r.sid=u.id ORDER BY r.itime DESC LIMIT %s",(uid,lnum))
-        ret['news'] = cur.fetchall()
     if res[2]>0:
-        cur.execute("SELECT u.name,u.level,u.totalCrystal,MIN(r.itime) FROM nozomi_user AS u, nozomi_invite_record AS r WHERE r.rid=%s AND r.sid=u.id GROUP BY u.id", (uid,))
+        cur.execute("SELECT u.name,u.level,u.totalCrystal,r.itime FROM nozomi_user AS u, nozomi_invite_record AS r WHERE r.rid=%s AND r.sid=u.id ORDER BY r.itime DESC LIMIT 20", (uid,))
         ret['records'] = cur.fetchall()
+        cur.execute("SELECT u.name,u.level,u.totalCrystal,r.itime FROM nozomi_user AS u, nozomi_invite_record AS r WHERE r.sid=%s AND r.rid=u.id ORDER BY r.itime DESC LIMIT 20", (uid,))
+        ret['srecords'] = cur.fetchall()
     cur.close()
     return json.dumps(ret)
 
@@ -579,7 +586,7 @@ def login():
 
 updateUrls = dict()
 settings = [15,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,15]
-newActivitys = [[1416614400,1416787200,"act1",0,8,2419200],[1417219200,1417305600,"act2",30,16,2419200],[1417824000,1417910400,"act3",30,32,2419200],[1418428800,1418515200,"act4",30,64,2419200],[1417824000,1417996800,"act6",20,256,0]]
+newActivitys = [[1419033600,1419206400,"act1",0,8,1814400],[1419638400,1419724800,"act2",30,16,1814400],[1418428800,1418515200,"act3",10,32,1814400]]
 @app.route("/getData", methods=['GET'])
 def getData():
     uid = int(request.args.get("uid"))
@@ -1050,7 +1057,7 @@ def synData():
     if 'cc' in request.form:
         baseCrystal = request.form.get('bs',0,type=int)
         changeCrystal = request.form.get('cc',0,type=int)
-        if baseCrystal>oldCrystal+100 or changeCrystal>100000:
+        if baseCrystal>oldCrystal+100 or changeCrystal>500000:
             return '{"code":1}'
         newCrystal = baseCrystal+changeCrystal
         userInfoUpdate['crystal'] = newCrystal
@@ -1246,7 +1253,7 @@ def buyArena():
             if rwds!=None:
                 ret['rewards'] = rwds
     cur.close()
-    return json,dumps(ret)
+    return json.dumps(ret)
 
 ArenaGroups = [[0,6,8,10],[0,55,65,75,100]]
 
@@ -1388,14 +1395,15 @@ def synArenaBattle2():
     con = getConn()
     cur = con.cursor()
     if stars>=1:
+        nuget = json.loads(request.form['uget'])
+        if atype==2:
+            cur.execute("UPDATE nozomi_arena_town SET res=if(res>%s,res-%s,0) WHERE aid=%s AND tid=%s",(nuget[0],nuget[0],aid,tid))
         cur.execute("UPDATE nozomi_arena_town SET stars=%s,owner=%s WHERE aid=%s AND tid=%s AND stars<%s",(stars,utid,aid,tid,stars))
         con.commit()
         uget = rserver.get("uget%d_%d" % (aid,uid))
-        nuget = request.form['uget']
         if uget==None:
-            rserver.set("uget%d_%d" % (aid,uid), nuget)
+            rserver.set("uget%d_%d" % (aid,uid), json.dumps(nuget))
         else:
-            nuget = json.loads(nuget)
             uget = json.loads(uget)
             rserver.set("uget%d_%d" % (aid,uid), json.dumps([uget[0]+nuget[0],uget[1]+nuget[1],uget[2]+nuget[2],uget[3]+nuget[3]]))
     cur.execute("SELECT reward,unum,winner,atype FROM nozomi_arena_battle WHERE id=%s", (aid, ))
@@ -1638,15 +1646,13 @@ def findEnemy():
             if btnums%4==3 and btnums<36:
                 tuoid = (blevel-2)*9+(btnums/4)%9+1
                 uid = testUids[tuoid-1]
+                r1p = 10
                 if tuoid%3==1:
-                    r1p = 70
                     r2p = 10
                 elif tuoid%3==2:
-                    r1p = 40
-                    r2p = 40
+                    r2p = 25
                 else:
-                    r1p = 10
-                    r2p = 70
+                    r2p = 50
     if uid==0:
         uid = findAMatch(selfUid, int(request.args.get('baseScore', 0)), 200)
     #uid = 29
