@@ -29,7 +29,7 @@ def editClan(cid, icon, ltype, name, desc, minScore):
     return 0
 
 def getClanMembers(cid):
-    rets = queryAll("SELECT `id`, score, lscore, name, memberType FROM `nozomi_user` WHERE clan=%s", (cid))
+    rets = queryAll("SELECT `id`, score, lscore, name, memberType, level, totalCrystal FROM `nozomi_user` WHERE clan=%s", (cid))
     return rets
 
 def getClanInfo(cid):
@@ -87,6 +87,7 @@ def leaveClan(uid, cid):
         cur.execute("UPDATE nozomi_user SET memberType=%s WHERE id=%s", (2, nuid))
     cur.execute("UPDATE nozomi_user SET clan=0, lscore=0, memberType=0 WHERE id=%s", (uid,))
     cur.execute("UPDATE `nozomi_clan` SET members=if(members>0,members-1,0), score=if(score>%s,score-%s,0) WHERE id=%s", (lscore, lscore, cid))
+    cur.execute("DELETE FROM nozomi_league_boss_member WHERE id=%s",(uid,))
     con.commit()
     cur.close()
     return clan
