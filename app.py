@@ -576,7 +576,7 @@ def getClanBossData():
     ret = dict(code=0)
     if cid>0:
         ret['cbe'] = getClanBoss(cid)
-        ret['rusers'] = queryAll("SELECT u.id,u.name,cu.hp,u.score,cu.chance FROM nozomi_user AS u,nozomi_league_boss_members AS cu WHERE cu.id=u.id AND u.clan=%s",(cid,))
+        ret['rusers'] = queryAll("SELECT u.id,u.name,if(cu.hp is NULL,0,cu.hp),u.score,if(cu.chance is NULL,%s,cu.chance) FROM nozomi_user AS u LEFT JOIN nozomi_league_boss_member AS cu ON cu.id=u.id WHERE u.clan=%s ORDER BY u.score DESC",(3,cid))
     return json.dumps(ret)
 
 @app.route("/challengeBoss", methods=['POST'])
@@ -602,7 +602,7 @@ def challengeClanBoss():
         ret['sid'] = cdata[4]
     if ret['code']==0:
         ret['hp'] = lhp
-    return son.dumps(ret)
+    return json.dumps(ret)
 
 @app.route("/synBossBattle", methods=['POST'])
 def synBossBattle():
@@ -658,7 +658,7 @@ def login():
 
 updateUrls = dict()
 settings = [16,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,15]
-newActivitys = [[1419033600,1419206400,"act1",0,8,1814400],[1419638400,1419724800,"act2",30,16,1814400],[1418428800,1418515200,"act4",30,64,1814400],[1419465600,1419724800,"act6",20,256,0]]
+newActivitys = [[1419033600,1419206400,"act1",0,8,1814400],[1419638400,1419724800,"act2",30,16,1814400],[1418428800,1418515200,"act4",30,64,1814400],[1419465600,1419832800,"act6",20,256,0]]
 @app.route("/getData", methods=['GET'])
 def getData():
     uid = int(request.args.get("uid"))
@@ -1357,7 +1357,7 @@ def buyHeroNum():
     cur.close()
     return json.dumps(ret)
 
-ArenaGroups = [[0,6,8,10],[0,55,65,75,100]]
+ArenaGroups = [[0,5,6,7,8,9,10],[0,55,65,75,100]]
 
 @app.route("/prepareArena", methods=['POST'])
 def prepareArena():
