@@ -547,7 +547,7 @@ def getInviteRecord():
     cur.close()
     return json.dumps(ret)
 
-cbTimes = [86400, 7*86400,3,1419379200,1419638400]
+cbTimes = [82800, 86400,3,1419644150]
 def getClanBoss(cid):
     ret = None
     if cid>0:
@@ -555,17 +555,10 @@ def getClanBoss(cid):
     tt = cbTimes[0]
     if ret==None:
         t = int(time.time())
-        m = len(cbTimes)
-        i = cbTimes[2]
-        while cbTimes[i]<t:
-            cbTimes[i] += cbTimes[1]
-            i = (i-2)%(m-3)+3
-            cbTimes[2] = i
-        t1 = cbTimes[i]
-        i = (i-2)%(m-3)+3
-        t2 = cbTimes[i]
-        while t1>t2:
-            t2 += cbTimes[1]
+        while cbTimes[3]<t:
+            cbTimes[3] += cbTimes[1]
+        t1 = cbTimes[3]
+        t2 = cbTimes[3]+cbTimes[1]
         ret = [t1,t2,0,0,0]
         update("INSERT IGNORE INTO nozomi_league_boss (id,n1time,n2time,mstage,cstage,chp) VALUES (%s,%s,%s,0,0,0)",(cid,t1,t2))
     return [ret[0],ret[0]+tt,ret[1],ret[2],ret[3],ret[4]]
@@ -1768,6 +1761,7 @@ def findEnemy():
     if uid != 0:
         if tuoid>0:
             data = getTuoUserInfos(tuoid-1)
+            data['score'] = request.args.get('baseScore',data['score'],type=int)
             data['r1p'] = r1p
             data['r2p'] = r2p
         else:
@@ -1804,12 +1798,13 @@ def getClanDetails():
     if cid==0:
         return json.dumps(dict(code=1))
     else:
-        return json.dumps(dict(code=0, cid=cid, info=ClanModule.getClanInfo(cid), members=ClanModule.getClanMembers(cid)))
+        clanInfo = ClanModule.getClanInfo(cid)
+        return json.dumps(dict(code=0, cid=cid, info=clanInfo, members=ClanModule.getClanMembers(cid)))
 
 @app.route("/getLeagueAds", methods=['GET'])
 def getLeagueAds():
     t = int(time.time())
-    return json.dumps(queryAll("SELECT cid, name, text, btime FROM nozomi_league_ads WHERE etime>=%s ORDER BY btime DESC",(t,)))
+    return json.dumps(queryAll("SELECT c.id, c.name, a.text, a.btime, a.etime, c.score2 FROM nozomi_clan as c, nozomi_league_ads as a WHERE a.etime>=%s AND c.id=a.cid AND c.members>0 ORDER BY a.etime ASC LIMIT 5",(t,)))
 
 @app.route("/sendLeagueAd", methods=['POST'])
 def sendLeagueAd():
@@ -1819,16 +1814,31 @@ def sendLeagueAd():
     text = request.form['text']
     cost = request.form.get("crystal",0,type=int)
     t = int(time.time())
-
+    ret = dict(code=0)
     con = getConn()
     cur = con.cursor()
     rserver = getRedisServer()
-    ccid = rserver.incr("rwdServer")
-    cur.execute("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",(uid,4,0,-cost,''))
-    cur.execute("REPLACE INTO nozomi_league_ads (cid,name,text,btime,etime,adnum) VALUES (%s,%s,%s,%s,%s,%s)", (cid,name,text,t,t+3*3600,0))
-    con.commit()
-
-    return json.dumps(dict(crystal=cost,ccid=ccid,ad=[cid,name,text,t]))
+    ccd = rserver.incr("ladCD%d" % cid)
+    if ccd==1:
+        nt = time.localtime()
+        ctime = int(time.mktime((nt.tm_year, nt.tm_mon, nt.tm_mday, 0, 0, 0, 0, 0, 0 )))+86400
+        rserver.expire("ladCD%d" % cid, ctime-t)
+        cur.execute("SELECT etime FROM nozomi_league_ads WHERE etime>%s ORDER BY etime DESC LIMIT 5",(t,))
+        ets = cur.fetchall()
+        if ets!=None and len(ets)==5:
+            ret['delay'] = ets[4][0]-t
+            t = ets[4][0]
+        ccid = rserver.incr("rwdServer")
+        cur.execute("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",(uid,4,0,-cost,''))
+        cur.execute("REPLACE INTO nozomi_league_ads (cid,name,text,btime,etime,adnum) VALUES (%s,%s,%s,%s,%s,%s)", (cid,name,text,t,t+3600,0))
+        con.commit()
+        ret['crystal'] = cost
+        ret['ccid'] = ccid
+        ret['ad'] = [cid,name,text,t,t+3600]
+    else:
+        ret["code"] = 1
+    cur.close()
+    return json.dumps(ret)
 
 @app.route("/getRandomClans", methods=['GET'])
 def getRandomClans():

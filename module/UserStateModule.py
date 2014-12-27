@@ -45,7 +45,7 @@ def findAMatch(uid, score, scoreOff):
     tryTime = 0
     while tryTime<3:
         tryTime = tryTime+1
-        rscore = score+score*random.randint(-100,100)/400
+        rscore = score+score*random.randint(-50,100)/400
         if rscore>highScore:
             maxScore = 10000
             minScore = rscore-100
