@@ -1667,11 +1667,15 @@ def synBattleData():
         elif incScore!=0:
             rserver = getRedisServer()
             baseScore -= incScore
+            if baseScore<0:
+                baseScore = 0
             ngrank = updateUserRG(rserver, uid, baseScore)
             scores = [[baseScore, uid]]
             rserver.zadd('userRank',baseScore,uid)
             if isNormal(eid):
                 ebaseScore += incScore
+                if ebaseScore<0:
+                    ebaseScore = 0
                 scores.append([ebaseScore, eid])
                 rserver.zadd("userRank",ebaseScore,eid)
             con = getConn()
@@ -1712,10 +1716,11 @@ def synBattleData():
 testUids = [20163, 20157, 20151, 20165, 20159, 20153, 20167, 20161, 20155, 20181, 20175, 20169, 20183, 20177, 20171, 20185, 20179, 20173, 20199, 20193, 20187, 20201, 20195, 20189, 20203, 20197, 20191, 20219, 20213, 20205, 20221, 20215, 20207, 20223, 20217, 20211, 20237, 20231, 20225, 20239, 20233, 20227, 20243, 20235, 20229, 20257, 20251, 20245, 20259, 20253, 20247, 20261, 20255, 20249, 20275, 20269, 20263, 20277, 20271, 20265, 20279, 20273, 20267, 20293, 20287, 20281, 20295, 20289, 20283, 20297, 20291, 20285, 20311, 20305, 20299, 20313, 20307, 20301, 20315, 20309, 20303]
 testNames = ['Fiona', 'killer machine', 'Bo Ba La', 'Tough girl', 'Dale_!', 'PrIncE.v', 'Manly killer', 'Caroline', 'Shaun ^_^', 'Aida', 'COOL?LEON', 'Bigbang!', 'BulingBuling', 'Clive', "1t's A Dear", 'Azrael?love', 'Vampire walking', 'Paul.W', 'Louise_smith', 'Evil Man', 'Mr Bean', 'Emily', 'Lonely', 'Moon_Star', 'Devil purify', 'Jeremy1E', 'Penalver', 'Nanncy', 'Crazy baby', 'ONLY love', 'Dreams moment', 'Bergr', 'Fleeting timer', 'Prologue', 'MaTT-', 'DaveR', 'Bob cat', 'Broken wings', 'Kiss or hugs', 'Destiny~', 'Lilia!', 'Dusk Taker', 'Emmanuell', 'Tony Moore', 'Amanda', 'Calvin’S', 'Jack|Rose', '*Madman*', 'Adam?Eve', 'Xerxes', 'Pis over!', 'JenniferCE', 'Walking dead Five', '<LEO>', 'Never say die', 'Tracy', 'One piece!', 'Alexander one', 'Frank rain', 'Silver crow', 'StrawberryM', 'Rik_S', 'LuKas mini', 'King | Club*?*', 'Shine', 'Not a hero', 'Baslilon', 'Smiling at me', 'Provence', 'One More', 'Planet Terror', 'Ben.Lucky', 'Black star', 'Saint Soldier', 'Pretty boy', 'Brandy', 'Temptat10n', 'Storm Wyrm', 'Ace killek', 'Megan Boyle', 'Justin baby']
 testLevels = [3,2,4,4,3,4,3,5,5,11,7,11,8,10,10,9,10,11,12,13,15,15,14,18,15,17,18,27,19,20,24,23,26,23,25,28,30,27,39,39,29,26,36,33,44,50,48,49,43,43,35,51,50,52,55,57,70,43,12,45,70,70,63,83,79,64,65,49,65,80,92,86,79,80,65,92,75,64,71,92,97]
-testScores = [100,200,400,400,500,500,600,700,800,800,900,1000,1000,1200,1400,1200,1400,1600,1300,1500,1700,1400,1600,1800,1500,1800,2000]
+testScores = [150,120,100,300,240,200,600,480,400,600,480,400,750,600,500,750,600,500,900,720,600,1050,840,700,1200,960,800,1200,960,800,1350,1080,900,1500,1200,1000,1500,1200,1000,1800,1440,1200,2100,1680,1400,1800,1440,1200,2100,1680,1400,2400,1920,1600,1950,1560,1300,2250,1800,1500,2550,2040,1700,2100,1680,1400,2400,1920,1600,2700,2160,1800,2250,1800,1500,2700,2160,1800,3000,2400,2000]
+testPercents = [[25,20],[40,5],[50,5],[15,30],[15,30],[15,30],[5,40],[5,40],[5,35]]
 def getTuoUserInfos(tid):
     data = dict(name=testNames[tid], clan=0, mtype=0, totalCrystal=0, userId=1)
-    data['score'] = testScores[tid/3]
+    data['score'] = testScores[tid]
     data['level'] = testLevels[tid]
     data['builds'] = json.loads(queryOne("SELECT builds FROM nozomi_town_builds WHERE id=%s",(20000+tid,))[0])
     if data['level']>=70:
@@ -1732,6 +1737,7 @@ def findEnemy():
     r1p = 0
     r2p = 0
     blevel = request.args.get("blevel",0,type=int)
+    bscore = request.args.get('baseScore',0,type=int)
     if isAdmin!=None:
         uid = findSpecial(selfUid, blevel)
     else:
@@ -1740,20 +1746,13 @@ def findEnemy():
             btnums = rserver.incr("btnum%d" % selfUid)
             if btnums==1:
                 rserver.expire("btnum%d" % selfUid, 7200)
-            if btnums%4==3 and btnums<36:
+            if btnums%4==3 and btnums<72:
                 tuoid = (blevel-2)*9+(btnums/4)%9+1
                 uid = 1
-                if tuoid%3==1:
-                    r1p = 5
-                    r2p = 10
-                elif tuoid%3==2:
-                    r1p = 10
-                    r2p = 20
-                else:
-                    r1p = 15
-                    r2p = 30
+                r1p = testPercents[(tuoid-1)%9][0]
+                r2p = testPercents[(tuoid-1)%9][1]
     if uid==0:
-        uid = findAMatch(selfUid, int(request.args.get('baseScore', 0)), 200)
+        uid = findAMatch(selfUid, bscore, 200)
     #uid = 29
     if uid==0:
         uid = 1
@@ -1761,9 +1760,10 @@ def findEnemy():
     if uid != 0:
         if tuoid>0:
             data = getTuoUserInfos(tuoid-1)
-            data['score'] = request.args.get('baseScore',data['score'],type=int)
             data['r1p'] = r1p
             data['r2p'] = r2p
+            if data['score']>bscore+10 and bscore>=20:
+                data['score'] = bscore+10
         else:
             data = getUserInfos(uid)
             if data['clan']>0:
