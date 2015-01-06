@@ -207,10 +207,10 @@ dataBuilds = [
               ]
 
 def getUserInfos(uid):
-    r = queryOne("SELECT name, score, clan, memberType, level, totalCrystal FROM nozomi_user WHERE id=%s", (uid))
+    r = queryOne("SELECT name, score, clan, memberType, level, totalCrystal, uglevel FROM nozomi_user WHERE id=%s", (uid))
     if r==None:
         return None
-    return dict(name=r[0], score=r[1], clan=r[2], mtype=r[3], level=r[4], totalCrystal=r[5])
+    return dict(name=r[0], score=r[1], clan=r[2], mtype=r[3], level=r[4], totalCrystal=r[5], ug=r[6])
 
 def getUserMask(uid):
     r = queryOne("SELECT mask FROM nozomi_user_mask WHERE id=%s", (uid,))
@@ -220,10 +220,10 @@ def getUserMask(uid):
         return r[0]
 
 def getUserAllInfos(uid):
-    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime, registerTime, ban, rewardNums, magic,level,exp,cmask,hnum FROM nozomi_user WHERE id=%s", (uid))
+    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime, registerTime, ban, rewardNums, magic,level,exp,cmask,hnum,uglevel FROM nozomi_user WHERE id=%s", (uid,))
     if r==None:
         return None
-    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12], ban=r[13], rnum=r[14], mnum=r[15], level=r[16], exp=r[17], cmask=r[18], hnum=r[19])
+    return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12], ban=r[13], rnum=r[14], mnum=r[15], level=r[16], exp=r[17], cmask=r[18], hnum=r[19], ug=r[20])
 
 def getBindGameCenter(tempName):
     r = queryOne("SELECT gameCenter FROM `nozomi_gc_bind` WHERE uuid=%s",(tempName))
@@ -722,6 +722,7 @@ def getData():
                 outid = cuid
                 uid = cuid
                 data = getUserAllInfos(uid)
+                print "log out account", data, outid, uid
         if data==None or data['ban']!=0:
             ret = dict(serverError=1)
             if lang=="CN":
@@ -838,12 +839,6 @@ def getData():
             data['ng2'] = queryAll("SELECT etime,num FROM nozomi_user_gift2 WHERE id=%s",(uid,))
         rserver = getRedisServer()
         rid = random.randint(0, 1000000) 
-        ug = rserver.hget("ugrank", uid)
-        if ug==None:
-            ug = 0
-        else:
-            ug = int(ug)
-        data['ug'] = ug
         data['treq'] = rid
         rserver.set("utoken%d" % uid, rid)
         rserver.expire("utoken%d" % uid, 3600)
@@ -1621,12 +1616,7 @@ def updateLevel():
 def isNormal(eid):
     return eid!=1
 
-def updateUserRG(rserver, uid, nscore):
-    ol = rserver.hget("ugrank", uid)
-    if ol==None:
-        ol = 0
-    else:
-        ol = int(ol)
+def updateUserRG(rserver, uid, nscore, cur, ol):
     nl2 = 0
     if nscore>=3200:
         nl2 = 16
@@ -1636,7 +1626,7 @@ def updateUserRG(rserver, uid, nscore):
         nl2 = nscore/100-3
     nl = (nl2+2)/3
     if nl2!=ol:
-        rserver.hset("ugrank", uid, nl2)
+        cur.execute("UPDATE nozomi_user SET uglevel=%s WHERE id=%s",(nl2, uid))
         ol = (ol+2)/3
         if ol>0 and nl!=ol:
             rserver.zrem("ur%d" % ol, uid)
@@ -1661,15 +1651,18 @@ def synBattleData():
     ebaseScore = request.form.get("ebscore", 0, type=int)
     ngrank = 0
     if baseScore>=0 and ebaseScore>=0:
-        curScore = getUserInfos(uid)['score']
+        uinfos = getUserInfos(uid)
+        curScore = uinfos['score']
         if curScore!=baseScore:
             return json.dumps(dict(code=1, reason="duplicate request"))
         elif incScore!=0:
+            con = getConn()
+            cur = con.cursor()
             rserver = getRedisServer()
             baseScore -= incScore
             if baseScore<0:
                 baseScore = 0
-            ngrank = updateUserRG(rserver, uid, baseScore)
+            ngrank = updateUserRG(rserver, uid, baseScore, cur, uinfos['ug'])
             scores = [[baseScore, uid]]
             rserver.zadd('userRank',baseScore,uid)
             if isNormal(eid):
@@ -1678,8 +1671,6 @@ def synBattleData():
                     ebaseScore = 0
                 scores.append([ebaseScore, eid])
                 rserver.zadd("userRank",ebaseScore,eid)
-            con = getConn()
-            cur = con.cursor()
             cur.executemany("update nozomi_rank set score=%s where uid=%s", scores)
             cur.executemany("update nozomi_user_state set score=%s where uid=%s", scores)
             cur.executemany("update nozomi_user set score=%s where id=%s", scores)
