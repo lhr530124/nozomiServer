@@ -650,8 +650,9 @@ def login():
         #pass
 
 updateUrls = dict()
-settings = [16,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,15]
+settings = [17,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,15]
 newActivitys = [[1419033600,1419206400,"act1",0,8,1814400],[1419638400,1419724800,"act2",30,16,1814400],[1418428800,1418515200,"act4",30,64,1814400],[1419465600,1419832800,"act6",20,256,0]]
+newActivitys2 = [[1420848000,1420934400,"act3",30,32,86400*14],[1420848000,1420934400,"act1",0,8,86400*14,1],[1420848000,1420934400,"act4",30,64,86400*14],[1420848000,1420934400,"act8",10,1024,86400*7],[1420848000,1421020800,"act9",0,2048,0]]
 @app.route("/getData", methods=['GET'])
 def getData():
     uid = int(request.args.get("uid"))
@@ -707,7 +708,7 @@ def getData():
             return json.dumps(ret)
         else:
             checkVersion = request.args.get("checkVersion", 0, type=int)
-            if checkVersion>settings[0] and request.args.get("cc")!="com.caesars.zclash" and request.args.get("cc")!="com.caesars.nozomi3":
+            if checkVersion>settings[0]:
                 shouldDebug = True
         data = getUserAllInfos(uid)
         outid = None
@@ -817,6 +818,8 @@ def getData():
                 nact[0] += nact[5]
                 nact[1] += nact[5]
         data['nacts'] = newActivitys
+        if sversion>=17:
+            data['nacts'] = newActivitys2
         objs = queryOne("SELECT objs FROM nozomi_user_objs WHERE id=%s AND id2=0",(uid,))
         if objs==None:
             objs = []
@@ -935,7 +938,7 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
                         break
                     countMap[oldBuild[2]] = countMap[oldBuild[2]]-1
                     countMap[build[2]] = countMap.get(build[2],0)+1
-                elif build[2]<7000 and build[3]>oldBuild[3] and build[2]!=3006:
+                elif build[2]<6000 and build[3]>oldBuild[3] and build[2]!=3006:
                     dis = build[3]-oldBuild[3]
                     if oldBuild[3]<=3:
                         dis -= (3-oldBuild[3])
@@ -1395,6 +1398,16 @@ def prepareArena():
                 tlevel = 20
             else:
                 tlevel = int(tlevel)
+            cur.execute("SELECT members FROM nozomi_clan WHERE id=%s",(sid,))
+            mnum = cur.fetchone()
+            if mnum!=None:
+                mnum = mnum[0]
+            else:
+                mnum = 10
+            if mnum>15:
+                tlevel = tlevel/2+50
+            else:
+                tlevel = tlevel/2
         keygroup = ArenaGroups[tkey-1]
         for tglevel in range(len(keygroup)-1):
             if keygroup[tglevel+1]>=tlevel:
@@ -1602,7 +1615,27 @@ def synStageBattle():
     if uid==0 or sid==0 or lres<0 or stars<0 or stars>3:
         return json.dumps(dict(code=1))
     else:
-        update("INSERT INTO nozomi_stages (id,sid,stars,lres) VALUES (%s,%s,%s,%s) ON DUPLICATE KEY UPDATE stars=if(stars>VALUES(stars),stars,VALUES(stars)), lres=if(lres<VALUES(lres),lres,VALUES(lres))",(uid,sid,stars,lres))
+        con = getConn()
+        cur = con.cursor()
+        cur.execute("SELECT sid FROM nozomi_stages WHERE id=%s ORDER BY sid",(uid,))
+        curStages = cur.fetchall()
+        if curStages==None:
+            curStages = []
+        lnum = len(curStages)
+        if sid>lnum+1:
+            print("fix type 1",uid,sid,stars,lres)
+            sid = lnum+1
+        lsid = 0
+        for nsid in curStages:
+            lsid += 1
+            if nsid[0]!=lsid:
+                print("fix type 2",uid,sid,stars,lres)
+                cur.execute("UPDATE nozomi_stages SET sid=%s WHERE id=%s AND sid=%s",(lsid+1, uid, curStages[lnum-1][0]))
+                break
+        cur.execute("INSERT INTO nozomi_stages (id,sid,stars,lres) VALUES (%s,%s,%s,%s) ON DUPLICATE KEY UPDATE stars=if(stars>VALUES(stars),stars,VALUES(stars)), lres=if(lres<VALUES(lres))",(uid,sid,stars,lres))
+        con.commit()
+        cur.close()
+        #update("INSERT INTO nozomi_stages (id,sid,stars,lres) VALUES (%s,%s,%s,%s) ON DUPLICATE KEY UPDATE stars=if(stars>VALUES(stars),stars,VALUES(stars)), lres=if(lres<VALUES(lres),lres,VALUES(lres))",(uid,sid,stars,lres))
         return json.dumps(dict(code=0))
 
 @app.route("/updateLevel", methods=['POST'])

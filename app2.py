@@ -89,20 +89,12 @@ redisPool = redis.ConnectionPool(host="127.0.0.1")
 def getServer():
     return redis.StrictRedis(connection_pool=redisPool)
 
-@app.route('/v2/rank')
+sqls = ["SELECT u.id,%s,0,u.name,u.level,u.totalCrystal,c.icon,c.name FROM nozomi_user AS u LEFT JOIN `nozomi_clan` AS c ON u.clan=c.id WHERE u.id=%s", "SELECT u.id,%s,0,u.name,u.level,u.totalCrystal,u.uglevel,c.icon,c.name FROM nozomi_user AS u LEFT JOIN `nozomi_clan` AS c ON u.clan=c.id WHERE u.id=%s"]
+@app.route('/v2/rank', methods=['GET'])
 def getRank():
     rankMode = str(request.args['mode'])
     uid = int(request.args['uid'])
     num = 100
-    pos = rankMode.find("week")
-    if pos!=-1:
-        level = int(request.args['level'])
-        lstage = 1
-        if level>8:
-            lstage = 3
-        elif level>6:
-            lstage = 2
-        rankMode = "%s%d" % (rankMode[:pos], lstage)
     if uid>0 and num>0:
         rserver = getServer()
         srank = rserver.zrevrank(rankMode, uid)
@@ -110,7 +102,9 @@ def getRank():
         cur = con.cursor()
         allUsers = []
         uids = rserver.zrevrange(rankMode, 0, num-1, True)
-        sql = "SELECT u.id,%s,0,u.name,u.level,u.totalCrystal,c.icon,c.name FROM nozomi_user AS u LEFT JOIN `nozomi_clan` AS c ON u.clan=c.id WHERE u.id=%s"
+        sql = sqls[0]
+        if 'withug' in request.args:
+            sql = sqls[1]
         for uid in uids:
             cur.execute(sql,(int(uid[1]), int(uid[0])))
             allUsers.append(cur.fetchone())
