@@ -649,8 +649,8 @@ def login():
         #测试timeout
         #pass
 
-updateUrls = dict()
-settings = [17,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,15]
+updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.zclash': 'https://play.google.com/store/apps/details?id=com.caesars.zclash', 'com.caesars.nozomi': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.caesars': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.clashzombie': 'https://itunes.apple.com/app/id915963054', 'com.caesars.empire': 'https://itunes.apple.com/app/id608847384'}
+settings = [17,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,17]
 newActivitys = [[1419033600,1419206400,"act1",0,8,1814400],[1419638400,1419724800,"act2",30,16,1814400],[1418428800,1418515200,"act4",30,64,1814400],[1419465600,1419832800,"act6",20,256,0]]
 newActivitys2 = [[1420848000,1420934400,"act3",30,32,86400*14],[1420848000,1420934400,"act1",0,8,86400*14,1],[1420848000,1420934400,"act4",30,64,86400*14],[1420848000,1420934400,"act8",10,1024,86400*7],[1420848000,1421020800,"act9",0,2048,0]]
 @app.route("/getData", methods=['GET'])
@@ -670,19 +670,6 @@ def getData():
         sversion = request.args.get("scriptVersion",1,type=int)
         lang = request.args.get("lang","US")
         cc = request.args.get("cc","")
-        if sversion<settings[4]:
-            stitle = "New Version!"
-            stext = "Big update of Nozomi, tap Close and relogin game please!"
-            sbut = "Close"
-            if lang=="CN":
-                stitle = "新版本来啦！"
-                stext = "希望号升级了许多新功能，请点击关闭重启游戏以进行更新！"
-                sbut = "关闭"
-            elif lang=="HK":
-                stitle = "新版本來啦！"
-                stext = "希望號升級了許多新功能，請點擊關閉重啓遊戲以進行更新！"
-                sbut = "關閉"
-            return json.dumps(dict(serverError=1, title=stitle, content=stext, button=sbut))
         ret = None
         shouldDebug = False
         if 'v2' not in request.args:
@@ -710,6 +697,44 @@ def getData():
             checkVersion = request.args.get("checkVersion", 0, type=int)
             if checkVersion>settings[0]:
                 shouldDebug = True
+            elif checkVersion<settings[0]:
+                stitle = "New Version!"
+                stext = "A big update is coming! New heroes, new features are waiting for you!"
+                sbut1 = "Update Now"
+                sbut2 = "Later"
+                if lang=="CN":
+                    stitle = "新版本来啦！"
+                    stext = "一个大更新版本来啦！新英雄，新功能在等着你！"
+                    sbut1 = "现在更新"
+                    sbut2 = "以后更新"
+                elif lang=="HK":
+                    stitle = "新版本來啦！"
+                    stext = "壹個大更新版本來啦！新英雄，新功能在等著你！"
+                    sbut1 = "現在更新"
+                    sbut2 = "以後更新"
+                ret = dict(serverUpdate=1, title=stitle, content=stext, button1=sbut1, button2=sbut2)
+                if cc!="":
+                    ret['url'] = updateUrls[cc.strip("0123456789")]
+                elif platform.find("android")==0:
+                    ret['url'] = "https://play.google.com/store/apps/details?id=com.caesars.nozomi"
+                else:
+                    ret['url'] = "https://itunes.apple.com/app/id608847384?mt=8&uo=4"
+                if settings[2]:
+                    ret['forceUpdate'] = 1
+                    return json.dumps(ret)
+        if sversion<settings[4]:
+            stitle = "New Version!"
+            stext = "Big update of Nozomi, tap Close and relogin game please!"
+            sbut = "Close"
+            if lang=="CN":
+                stitle = "新版本来啦！"
+                stext = "希望号升级了许多新功能，请点击关闭重启游戏以进行更新！"
+                sbut = "关闭"
+            elif lang=="HK":
+                stitle = "新版本來啦！"
+                stext = "希望號升級了許多新功能，請點擊關閉重啓遊戲以進行更新！"
+                sbut = "關閉"
+            return json.dumps(dict(serverError=1, title=stitle, content=stext, button=sbut))
         data = getUserAllInfos(uid)
         outid = None
         deviceId = ""
@@ -1630,9 +1655,9 @@ def synStageBattle():
             lsid += 1
             if nsid[0]!=lsid:
                 print("fix type 2",uid,sid,stars,lres)
-                cur.execute("UPDATE nozomi_stages SET sid=%s WHERE id=%s AND sid=%s",(lsid+1, uid, curStages[lnum-1][0]))
+                cur.execute("UPDATE nozomi_stages SET sid=%s WHERE id=%s AND sid=%s",(lsid, uid, curStages[lnum-1][0]))
                 break
-        cur.execute("INSERT INTO nozomi_stages (id,sid,stars,lres) VALUES (%s,%s,%s,%s) ON DUPLICATE KEY UPDATE stars=if(stars>VALUES(stars),stars,VALUES(stars)), lres=if(lres<VALUES(lres))",(uid,sid,stars,lres))
+        cur.execute("INSERT INTO nozomi_stages (id,sid,stars,lres) VALUES (%s,%s,%s,%s) ON DUPLICATE KEY UPDATE stars=if(stars>VALUES(stars),stars,VALUES(stars)), lres=if(lres<VALUES(lres),lres,VALUES(lres))",(uid,sid,stars,lres))
         con.commit()
         cur.close()
         #update("INSERT INTO nozomi_stages (id,sid,stars,lres) VALUES (%s,%s,%s,%s) ON DUPLICATE KEY UPDATE stars=if(stars>VALUES(stars),stars,VALUES(stars)), lres=if(lres<VALUES(lres),lres,VALUES(lres))",(uid,sid,stars,lres))
