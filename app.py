@@ -1730,9 +1730,12 @@ def synBattleData():
             scores = [[baseScore, uid]]
             rserver.zadd('userRank',baseScore,uid)
             if isNormal(eid):
-                ebaseScore += incScore
+                einfos = getUserInfos(eid)
+                ebaseScore = einfos['score']+incScore
                 if ebaseScore<0:
                     ebaseScore = 0
+                if einfos['ug']>0:
+                    updateUserRG(rserver, eid, ebaseScore, cur, einfos['ug'])
                 scores.append([ebaseScore, eid])
                 rserver.zadd("userRank",ebaseScore,eid)
             cur.executemany("update nozomi_rank set score=%s where uid=%s", scores)
