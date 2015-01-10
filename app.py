@@ -1261,6 +1261,10 @@ def nextTownData():
         ret['code'] = 1
     return json.dumps(ret)
 
+@app.route("/clearBattleState", methods=['POST'])
+def clearBattleState():
+    return ""
+
 @app.route("/getTownData", methods=['GET','POST'])
 def getTownData():
     mdict = None
@@ -1270,49 +1274,47 @@ def getTownData():
         isScout = True
     else:
         mdict = request.form
-
     aid = mdict.get("aid",0,type=int)
     utid = mdict.get("utid",0,type=int)
     tid = mdict.get("tid",0,type=int)
     data = queryOne("SELECT name,ttype,stars,owner,did,res FROM nozomi_arena_town WHERE aid=%s AND tid=%s",(aid,tid))
     ret = dict(code=0)
-    if data[2]>0:
-        ret['code'] = 1
-        ret['atker'] = data[3]
-        ret['star'] = data[2]
-    else:
-        if not isScout:
-            rserver = getRedisServer()
-            tkey = "town%d_%d" % (aid, tid)
-            tvalue = rserver.get(tkey)
-            if tvalue!=None and int(tvalue)!=utid:
-                ret['code'] = 2
-                ret['atker'] = int(tvalue)
-            else:
-                tkey2 = "atkt%d_%d" % (aid, utid)
-                tvalue2 = rserver.get(tkey2)
-                if tvalue2!=None:
-                    rserver.delete("town%d_%d" % (aid, int(tvalue2)))
-                rserver.set(tkey2, str(tid))
-                rserver.expire(tkey2, 360)
-                rserver.set(tkey, str(utid))
-                rserver.expire(tkey, 360)
-        if ret['code']==0:
-            did = data[4]
-            ret['name'] = data[0]
-            ret['ttype'] = data[1]
-            ret['utype'] = 3-data[1]
-            ret['aid'] = aid
-            ret['utid'] = utid
-            ret['tid'] = tid
-            ret['stars'] = data[2]
-            ret['res'] = data[5]
-            if data[1]==0:
-                ret['builds'] = json.loads(queryOne("SELECT builds FROM nozomi_town_builds WHERE id=%s",(did,))[0])
-            elif did<0:
-                ret['builds'] = json.loads(queryOne("SELECT builds FROM nozomi_town_builds WHERE id=%s",(-did,))[0])
-            else:
-                ret['builds'] = getUserBuilds(did)
+    if not isScout:
+        rserver = getRedisServer()
+        tkey = "town%d_%d" % (aid, tid)
+        tvalue = rserver.get(tkey)
+        if data[2]==3:
+            ret['code'] = 1
+            ret['atker'] = data[3]
+            ret['star'] = data[2]
+        elif tvalue!=None and int(tvalue)!=utid:
+            ret['code'] = 2
+            ret['atker'] = int(tvalue)
+        else:
+            tkey2 = "atkt%d_%d" % (aid, utid)
+            tvalue2 = rserver.get(tkey2)
+            if tvalue2!=None:
+                rserver.delete("town%d_%d" % (aid, int(tvalue2)))
+            rserver.set(tkey2, str(tid))
+            rserver.expire(tkey2, 360)
+            rserver.set(tkey, str(utid))
+            rserver.expire(tkey, 360)
+    if ret['code']==0:
+        did = data[4]
+        ret['name'] = data[0]
+        ret['ttype'] = data[1]
+        ret['utype'] = 3-data[1]
+        ret['aid'] = aid
+        ret['utid'] = utid
+        ret['tid'] = tid
+        ret['stars'] = data[2]
+        ret['res'] = data[5]
+        if data[1]==0:
+            ret['builds'] = json.loads(queryOne("SELECT builds FROM nozomi_town_builds WHERE id=%s",(did,))[0])
+        elif did<0:
+            ret['builds'] = json.loads(queryOne("SELECT builds FROM nozomi_town_builds WHERE id=%s",(-did,))[0])
+        else:
+            ret['builds'] = getUserBuilds(did)
     return json.dumps(ret)
 
 @app.route("/buyArena", methods=['POST'])
@@ -1667,7 +1669,7 @@ def synStageBattle():
 def updateLevel():
     uid = request.form.get("uid",0,type=int)
     level = request.form.get("level",0,type=int)
-    if level==2 or level==5:
+    if level==2:
         update("INSERT IGNORE INTO nozomi_user_gift2 (id,type,etime,num) VALUE (%s,%s,%s,%s)",(uid,level,int(time.time())+3*86400,20))
     return json.dumps(dict(code=0,ng2=queryAll("SELECT etime,num FROM nozomi_user_gift2 WHERE id=%s",(uid,))))
 
@@ -1685,6 +1687,10 @@ def updateUserRG(rserver, uid, nscore, cur, ol):
     nl = (nl2+2)/3
     if nl2!=ol:
         cur.execute("UPDATE nozomi_user SET uglevel=%s WHERE id=%s",(nl2, uid))
+        if ol>0 and nl2!=ol:
+            rserver.zrem("urn%d" % ol, uid)
+        if nl2>0:
+            rserver.zadd("urn%d" % nl2, nscore, uid)
         ol = (ol+2)/3
         if ol>0 and nl!=ol:
             rserver.zrem("ur%d" % ol, uid)
