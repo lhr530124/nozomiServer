@@ -1082,7 +1082,10 @@ def synData():
             deleteBuilds = []
     updateBuilds = request.form.get("update")
     if updateBuilds!=None:
-        updateBuilds = json.loads(updateBuilds)
+        try:
+            updateBuilds = json.loads(updateBuilds)
+        except:
+            return '{"code":2}'
         if checkBuilds(uid,updateBuilds,deleteBuilds,accTimes):
             return '{"code":1}'
     userDbInfo = getUserAllInfos(uid)
@@ -1375,7 +1378,7 @@ def buyHeroNum():
     cur.close()
     return json.dumps(ret)
 
-ArenaGroups = [[0,5,6,7,8,9,10],[0,55,65,75,100]]
+ArenaGroups = [[0,5,6,7,8,9,10],[0,27,32,37,50,77,82,87,100]]
 
 @app.route("/prepareArena", methods=['POST'])
 def prepareArena():
