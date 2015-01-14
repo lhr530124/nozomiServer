@@ -295,11 +295,17 @@ def updateUserBuildHitpoints(uid, datas):
         params.append([data[1], uid, data[0]])
     executemany("UPDATE nozomi_build SET hitpoints=%s WHERE id=%s AND buildIndex=%s", params, util.getDBID(uid))
 
-def updateUserBuildExtends(uid, datas):
+def updateUserBuildExtends(uid, datas, fixv):
     params = []
+    others = []
     for data in datas:
-        params.append([data[1], uid, data[0]])
+        if data[1].find("etime")==-1 or fixv>0:
+            params.append([data[1], uid, data[0]])
+        else:
+            others.append([data[1], uid, data[0],"%\"type\":1%"])
     executemany("UPDATE nozomi_build SET extend=%s WHERE id=%s AND buildIndex=%s", params, util.getDBID(uid))
+    if fixv==0 and len(others)>0:
+        executemany("UPDATE nozomi_build SET extend=%s WHERE id=%s AND buildIndex=%s AND extend NOT LIKE %s", others, util.getDBID(uid))
 
 def getUidByName(account):
     ret = queryOne("SELECT id FROM nozomi_user WHERE account=%s", (account))
@@ -903,7 +909,7 @@ def getData():
     if len(repairDatas)>0:
         testlogger.info("repair data %d:%s" % (uid, json.dumps(repairDatas)))
         if 'login' in request.args:
-            updateUserBuildExtends(uid, repairDatas)
+            updateUserBuildExtends(uid, repairDatas,1)
     data['builds']=builds
     return json.dumps(data)
 
@@ -1749,7 +1755,7 @@ def synBattleData():
     if isNormal(eid):
         if 'eupdate' in request.form:
             up = json.loads(request.form['eupdate'])
-            updateUserBuildExtends(eid, up)
+            updateUserBuildExtends(eid, up, request.form.get("fixv",0,type=int))
         if 'hits' in request.form:
             hits = json.loads(request.form['hits'])
             updateUserBuildHitpoints(eid, hits)
