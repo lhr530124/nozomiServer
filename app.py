@@ -558,6 +558,8 @@ def getClanBoss(cid):
     ret = None
     if cid>0:
         ret = queryOne("SELECT n1time,n2time,mstage,cstage,chp FROM nozomi_league_boss WHERE id=%s",(cid,))
+    else:
+        return None
     tt = cbTimes[0]
     if ret==None:
         t = int(time.time())
@@ -586,7 +588,10 @@ def challengeClanBoss():
     cdata = getClanBoss(cid)
     lhp = 0
     ret = dict(code=0, cbe=cdata, sid=sid)
-    if cdata[4]==0:
+    if cdata==None:
+        ret['code'] = 1
+        ret['sid'] = 0
+    elif cdata[4]==0:
         bhps = [1000000,5000000,22500000,50000000]
         lhp = bhps[sid-1]
         update("UPDATE nozomi_league_boss SET cstage=%s, chp=%s WHERE id=%s",(sid,lhp,cid))
@@ -657,8 +662,8 @@ def login():
 
 updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.zclash': 'https://play.google.com/store/apps/details?id=com.caesars.zclash', 'com.caesars.nozomi': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.caesars': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.clashzombie': 'https://itunes.apple.com/app/id915963054', 'com.caesars.empire': 'https://itunes.apple.com/app/id608847384'}
 settings = [17,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,17]
-newActivitys = [[1419033600,1419206400,"act1",0,8,1814400],[1419638400,1419724800,"act2",30,16,1814400],[1418428800,1418515200,"act4",30,64,1814400],[1419465600,1419832800,"act6",20,256,0]]
-newActivitys2 = [[1420848000,1420934400,"act3",30,32,86400*14],[1420848000,1420934400,"act1",0,8,86400*14,1],[1420848000,1420934400,"act4",30,64,86400*14],[1420848000,1420934400,"act8",10,1024,86400*7],[1420848000,1421020800,"act9",0,2048,0]]
+newActivitys2 = [[1420848000,1420934400,"act4",30,64,86400*14],[1420848000,1420934400,"act1",0,8,86400*14,1],[1420848000,1420934400,"act3",30,32,86400*14],[1420848000,1420934400,"act8",10,1024,86400*7]]
+newActivitys3 = [[1421452800,1421539200,"act2",30,16,86400*14],[1421452800,1421539200,"act1",0,8,86400*14,0],[1421452800,1421539200,"act4",30,64,86400*14,"special"],[1421452800,1421539200,"act8",10,1024,86400*7]]
 @app.route("/getData", methods=['GET'])
 def getData():
     uid = int(request.args.get("uid"))
@@ -844,13 +849,7 @@ def getData():
         stages = queryAll("SELECT stars,lres FROM nozomi_stages WHERE id=%s ORDER BY sid",(uid,))
         if stages!=None:
             data['stages'] = stages
-        for nact in newActivitys:
-            while nact[1]<t and nact[5]>0:
-                nact[0] += nact[5]
-                nact[1] += nact[5]
-        data['nacts'] = newActivitys
-        if sversion>=17:
-            data['nacts'] = newActivitys2
+        data['nacts'] = newActivitys3
         objs = queryOne("SELECT objs FROM nozomi_user_objs WHERE id=%s AND id2=0",(uid,))
         if objs==None:
             objs = []
