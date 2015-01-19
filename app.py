@@ -1461,11 +1461,11 @@ def prepareArena():
             lktick -= 1
             alock = rserver.incr(lkkey)
         if lktick>0:
-            cutTime = ctime+60
+            cutTime = ctime+120
             if tkey==1:
                 cur.execute("SELECT id,btime,atype FROM nozomi_arena_prepare WHERE atype>1 AND id!=%s AND ttype>%s AND ttype<=%s AND aid=0 AND btime>%s AND crystal=%s LIMIT 1", (uid,tgroup[0],tgroup[1],cutTime,crystal))
             else:
-                cur.execute("SELECT id,btime,atype FROM nozomi_arena_prepare WHERE atype=1 AND ttype>%s AND ttype<=%s AND aid=0 AND btime>%s AND crystal=%s LIMIT 1", (tgroup[0],tgroup[1],cutTime,crystal))
+                cur.execute("SELECT nap.id,nap.btime,nap.atype FROM nozomi_arena_prepare AS nap LEFT JOIN nozomi_clan_cold AS ncc ON ncc.coldKey=nap.id+%s WHERE ncc.coldKey is NULL AND nap.atype=1 AND nap.ttype>%s AND nap.ttype<=%s AND nap.aid=0 AND nap.btime>%s AND nap.crystal=%s LIMIT 1", (sid,tgroup[0],tgroup[1],cutTime,crystal))
             rds = cur.fetchone()
             if rds!=None:
                 btime = rds[1]
@@ -1637,6 +1637,8 @@ def synArenaBattle2():
         cur.executemany("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",rewardList)
         if atype==1 and len(lscoreList)>0:
             cur.executemany("UPDATE nozomi_user SET lscore=lscore+%s WHERE id=%s",lscoreList)
+        if atype==1:
+            cur.execute("REPLACE INTO nozomi_clan_cold (coldKey,coldTime) VALUES (%s,%s)",(tscores[0][3]+tscores[1][3],int(time.time())+2*86400))
         con.commit()
         rserver.delete("abnum%d" % aid)
     return json.dumps(dict(code=0))
