@@ -350,7 +350,7 @@ def addOurAds(uid, platform, data):
                 data['adsCode'] = adsCode
                 data['adsUrl'] = adsUrl
 
-dailyGiftReward = [[1,1000],[1,1500],[0,5],[1,2000],[1,2500],[1,3000],[3,5],[1,3500],[1,4000],[0,10],[1,5000],[1,6500],[1,7000],[1,8000],[3,10],[1,9000],[1,10000],[1,11000],[1,12000],[0,30],[1,14000],[1,15000],[1,17000],[1,19000],[3,50],[1,23000],[1,25000],[1,27000],[1,30000],[0,50]]
+dailyGiftReward = [[1,1000],[1,1500],[0,5],[1,2000],[1,2500],[1,3000],[0,10],[1,3500],[1,4000],[0,15],[1,5000],[1,6500],[1,7000],[1,8000],[0,20],[1,9000],[1,10000],[1,11000],[1,12000],[0,30],[1,14000],[1,15000],[1,17000],[1,19000],[0,40],[1,23000],[1,25000],[1,27000],[1,30000],[0,50]]
 def newUserLogin(uid):
     today = datetime.date.today()
     ret = queryOne("SELECT regDate,loginDate,loginDays,maxLDays,curLDays,lottery,lotterySeed FROM `nozomi_login_new` WHERE `id`=%s", (uid))
@@ -662,9 +662,9 @@ def login():
 
 updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.zclash': 'https://play.google.com/store/apps/details?id=com.caesars.zclash', 'com.caesars.nozomi': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.caesars': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.clashzombie': 'https://itunes.apple.com/app/id915963054', 'com.caesars.empire': 'https://itunes.apple.com/app/id608847384'}
 settings = [17,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,17]
-newActivitys2 = [[1420848000,1420934400,"act4",30,64,86400*14],[1420848000,1420934400,"act1",0,8,86400*14,1],[1420848000,1420934400,"act3",30,32,86400*14],[1420848000,1420934400,"act8",10,1024,86400*7]]
+newActivitys2 = [[1422057600,1422144000,"act4",30,64,86400*14],[1422057600,1422144000,"act1",0,8,86400*14,1],[1422057600,1422144000,"act3",30,32,86400*14],[1422057600,1422144000,"act8",10,1024,86400*7],[1422057600,1422230400,"act6",20,256,0]]
 newActivitys3 = [[1421452800,1421539200,"act2",30,16,86400*14],[1421452800,1421539200,"act1",0,8,86400*14,0],[1421452800,1421539200,"act4",30,64,86400*14,"special"],[1421452800,1421539200,"act8",10,1024,86400*7]]
-stours = [[1,1,1,2,1421625600,604800,1800,432000,489600,547200],[2,1,1,3,1422230400,604800,1800,432000,489600,547200]]
+stours = [[1,1,0,2,1421625600,604800,1800,432000,489600,547200],[2,1,1,3,1422230400,604800,1800,432000,489600,547200]]
 @app.route("/getData", methods=['GET'])
 def getData():
     uid = int(request.args.get("uid"))
@@ -1501,6 +1501,8 @@ def synTourBattle():
     stars = request.form.get("stars",0,type=int)
     tid = request.form.get("tid",0,type=int)
     replay = request.form.get("replay")
+    if uid==0 or eid==0 or stars<0 or stars>3 or replay==None:
+        return json.dumps(dict(code=0))
     con = getConn()
     cur = con.cursor()
     rserver = getRedisServer()
