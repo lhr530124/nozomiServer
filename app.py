@@ -664,6 +664,7 @@ updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.
 settings = [17,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,17]
 newActivitys2 = [[1420848000,1420934400,"act4",30,64,86400*14],[1420848000,1420934400,"act1",0,8,86400*14,1],[1420848000,1420934400,"act3",30,32,86400*14],[1420848000,1420934400,"act8",10,1024,86400*7]]
 newActivitys3 = [[1421452800,1421539200,"act2",30,16,86400*14],[1421452800,1421539200,"act1",0,8,86400*14,0],[1421452800,1421539200,"act4",30,64,86400*14,"special"],[1421452800,1421539200,"act8",10,1024,86400*7]]
+stours = [[1,1,1,2,1421625600,604800,1800,432000,489600,547200],[2,1,1,3,1422230400,604800,1800,432000,489600,547200]]
 @app.route("/getData", methods=['GET'])
 def getData():
     uid = int(request.args.get("uid"))
@@ -849,7 +850,9 @@ def getData():
         stages = queryAll("SELECT stars,lres FROM nozomi_stages WHERE id=%s ORDER BY sid",(uid,))
         if stages!=None:
             data['stages'] = stages
-        data['nacts'] = newActivitys3
+        data['nacts'] = newActivitys2
+        data['tours'] = stours
+        data['utours'] = queryAll("SELECT tid,tstage,trank,ttype,star FROM nozomi_user_tour WHERE id=%s",(uid,))
         objs = queryOne("SELECT objs FROM nozomi_user_objs WHERE id=%s AND id2=0",(uid,))
         if objs==None:
             objs = []
@@ -1208,8 +1211,6 @@ def getArenaBattle2():
         chance = rserver.get('abnum%d_%d' % (aid,uid))
         if chance==None:
             chance = 5
-            if atype==1:
-                chance = 3
             rserver.set('abnum%d_%d' % (aid,uid), chance)
         else:
             chance = int(chance)
@@ -1382,6 +1383,146 @@ def buyHeroNum():
                 ret['rewards'] = rwds
     cur.close()
     return json.dumps(ret)
+
+@app.route("/prepareTour", methods=['POST'])
+def prepareTour():
+    uid = request.form.get("uid",0,type=int)
+    tid = request.form.get("tid",0,type=int)
+    if uid==0 or tid==0:
+        return json.dumps(dict(code=1))
+    t = int(time.time())
+    tour = None
+    for stour in stours:
+        if stour[0]==tid:
+            tour=stour
+            break
+    if tour==None or tour[4]+tour[7]<=t:
+        return json.dumps(dict(code=1))
+    update("REPLACE INTO nozomi_user_tour (id,tid,tstage,trank,ttype,star) VALUES (%s,%s,%s,%s,%s,%s)",(uid,tid,0,0,1,0))
+    return json.dumps(dict(code=0,tour=[tid,0,0,1,0]))
+
+@app.route("/getTourBattleData", methods=['GET'])
+def getTourBattleData():
+    uid = request.args.get("uid",0,type=int)
+    tid = request.args.get("tid",0,type=int)
+    if uid==0 or tid==0:
+        return json.dumps(dict(code=1))
+    con = getConn()
+    cur = con.cursor()
+    cur.execute("SELECT tid,tstage,trank,ttype,star,tbid FROM nozomi_user_tour WHERE id=%s AND tid=%s",(uid,tid))
+    tour = cur.fetchone()
+    if tour==None:
+        cur.close()
+        return json.dumps(dict(code=1))
+    cur.execute("SELECT b.id,b.star,u.name,u.level,u.totalCrystal,u.uglevel,b.atk,b.def,b.rid,c.icon,c.name FROM nozomi_tour_battle AS b, nozomi_user AS u LEFT JOIN nozomi_clan AS c ON u.clan=c.id WHERE u.id=b.id AND b.tbid=%s",(tour[5],))
+    members = cur.fetchall()
+    cur.close()
+    return json.dumps(dict(code=0,utour=tour[:5],members=members))
+
+@app.route("/getTourEnemy", methods=['GET'])
+def getTourEnemy():
+    uid = request.args.get("uid",0,type=int)
+    tid = request.args.get("tid",0,type=int)
+    eid = request.args.get("eid",0,type=int)
+    tstage = request.args.get("tstage",0,type=int)
+    if uid==0 or tid==0 or tstage==0 or eid==0:
+        return json.dumps(dict(code=1))
+    con = getConn()
+    cur = con.cursor()
+    cur.execute("SELECT tbid FROM nozomi_user_tour WHERE id=%s AND tid=%s", (uid,tid))
+    tbid = cur.fetchone()
+    if tbid==None:
+        cur.close()
+        return json.dumps(dict(code=1))
+    else:
+        tbid = tbid[0]
+    cur.execute("SELECT id,rid FROM nozomi_tour_battle WHERE tbid=%s AND id=%s",(tbid,eid))
+    ebinfo = cur.fetchone()
+    ret = dict(code=0)
+    if ebinfo==None:
+        ret["code"] = 1
+    elif ebinfo[1]>0:
+        ret["code"] = 2
+        ret["subcode"] = 3
+    else:
+        t = int(time.time())
+        tour = None
+        for stour in stours:
+            if stour[0]==tid:
+                tour=stour
+                break
+        if tour!=None:
+            tidx = 5
+            if tstage<3:
+                tidx = 7+tstage
+            if t>tour[4]+tour[tidx]-tour[6]:
+                ret["code"] = 2
+                ret["subcode"] = 1
+        else:
+            ret["code"] = 1
+    if ret["code"]==0:
+        cur.execute("SELECT rid FROM nozomi_tour_cold WHERE tbid=%s AND uid=%s AND eid=%s",(tbid,uid,eid))
+        check = cur.fetchone()
+        if check!=None:
+            ret["code"] = 2
+            ret["subcode"] = 4
+    if ret["code"]==0:
+        rserver = getRedisServer()
+        ekey = "tour%d_%d" % (tbid,eid)
+        ukey = "attb%d_%d" % (tbid,uid)
+        tvalue = rserver.get(ekey)
+        if tvalue!=None and int(tvalue)!=uid:
+            ret["code"] = 2
+            ret["subcode"] = 2
+        else:
+            tvalue2 = rserver.get(ukey)
+            if tvalue2!=None:
+                rserver.delete("tour%d_%d" % (tbid, int(tvalue2)))
+            rserver.set(ukey, str(eid))
+            rserver.expire(ukey, 360)
+            rserver.set(ekey, str(uid))
+            rserver.expire(ekey, 360)
+            ret = getUserInfos(eid)
+            ret['code'] = 0
+            if ret['clan']>0:
+                ret["clanInfo"] = ClanModule.getClanInfo(ret["clan"])
+            ret["builds"] = getUserBuilds(eid) 
+            ret["userId"] = eid
+            ret["tbid"] = tbid
+            ret["tid"] = tid
+    cur.close()
+    return json.dumps(ret)
+
+@app.route("/synTourBattle",methods=["POST"])
+def synTourBattle():
+    uid = request.form.get("uid",0,type=int)
+    tbid = request.form.get("tbid",0,type=int)
+    eid = request.form.get("eid",0,type=int)
+    stars = request.form.get("stars",0,type=int)
+    tid = request.form.get("tid",0,type=int)
+    replay = request.form.get("replay")
+    con = getConn()
+    cur = con.cursor()
+    rserver = getRedisServer()
+    rserver.delete("attb%d_%d" % (tbid,uid))
+    rserver.delete("tour%d_%d" % (tbid,eid))
+    addStar = 1
+    addUid = eid
+    if stars>0:
+        addStar = stars*2-1
+        addUid = uid
+        cur.execute("UPDATE nozomi_tour_battle SET atk=atk+%s,star=star+%s WHERE tbid=%s AND id=%s",(1,addStar,tbid,uid))
+        rid = rserver.incr("videoServer")
+        cur.execute("INSERT INTO nozomi_replay (id,replay) VALUES (%s,%s)",(rid,replay))
+        cur.execute("UPDATE nozomi_tour_battle SET rid=%s WHERE tbid=%s AND id=%s",(rid,tbid,eid))
+    else:
+        cur.execute("UPDATE nozomi_tour_battle SET def=def+%s,star=star+%s WHERE tbid=%s AND id=%s",(1,1,tbid,eid))
+        cur.execute("INSERT IGNORE INTO nozomi_tour_cold (tbid,uid,eid,rid) VALUES (%s,%s,%s,%s)",(tbid,uid,eid,0))
+    cur.execute("UPDATE nozomi_user_tour SET star=star+%s WHERE id=%s AND tid=%s",(addStar,addUid,tid))
+    rserver.zincrby("utour%d" % tid, addUid, addStar)
+    con.commit()
+    cur.close()
+    return json.dumps(dict(code=0))
 
 ArenaGroups = [[0,5,6,7,8,9,10],[0,27,32,37,50,77,82,87,100]]
 
@@ -1699,13 +1840,8 @@ def updateUserRG(rserver, uid, nscore, cur, ol):
         cur.execute("UPDATE nozomi_user SET uglevel=%s WHERE id=%s",(nl2, uid))
         if ol>0 and nl2!=ol:
             rserver.zrem("urn%d" % ol, uid)
-        if nl2>0:
-            rserver.zadd("urn%d" % nl2, nscore, uid)
-        ol = (ol+2)/3
-        if ol>0 and nl!=ol:
-            rserver.zrem("ur%d" % ol, uid)
-    if nl>0:
-        rserver.zadd("ur%d" % nl, nscore, uid)
+    if nl2>0:
+        rserver.zadd("urn%d" % nl2, nscore, uid)
     return nl2
 
 @app.route("/synBattleData", methods=['POST'])
