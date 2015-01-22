@@ -153,7 +153,7 @@ app.logger.addHandler(mailLogger)
 def user_not_login(error):
     return redirect(url_for('login'))
 
-platformIds = dict(ios=0,android=1,android_mm=2,android_dx=3,android_daqin=4)
+platformIds = dict(ios=0,android=1,android_mm=2,android_dx=3,android_daqin=4,ios_vshare=5)
 
 dataBuilds = [
               [1, 170018, 1, 1, 0, 1500, "{\"oil\":1000,\"food\":1000}"],
@@ -224,18 +224,6 @@ def getUserAllInfos(uid):
     if r==None:
         return None
     return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12], ban=r[13], rnum=r[14], mnum=r[15], level=r[16], exp=r[17], cmask=r[18], hnum=r[19], ug=r[20])
-
-def getBindGameCenter(tempName):
-    r = queryOne("SELECT gameCenter FROM `nozomi_gc_bind` WHERE uuid=%s",(tempName))
-    if r==None:
-        return tempName
-    else:
-        return r[0]
-
-def bindGameCenter(gc,uuid):
-    r = update("INSERT IGNORE INTO `nozomi_gc_bind` (gameCenter, uuid) VALUES (%s,%s)", (gc,uuid))
-    if r==1:
-        update("UPDATE IGNORE `nozomi_user` SET account=%s WHERE account=%s",(gc,uuid))
 
 def updateUserInfoById(params, uid):
     sql = "UPDATE nozomi_user SET "
@@ -619,7 +607,44 @@ def synBossBattle():
 
 codeNames = {20151:"2a1",20153:"2a2",20155:"2a3",20157:"2b1",20159:"2b2",20161:"2b3",20163:"2c1",20165:"2c2",20167:"2c3",20169:"3a2",20171:"3a1",20173:"3a3",20175:"3b1",20177:"3b2",20179:"3b3",20181:"3c1",20183:"3c2",20185:"3c3",20187:"4a1",20189:"4a2",20191:"4b1",20193:"4a3",20195:"4b2",20197:"4b3",20199:"4c1",20201:"4c2",20203:"4c3",20205:"5a3",20207:"5a1",20211:"5a2",20213:"5b1",20215:"5b2",20217:"5b3",20219:"5c1",20221:"5c2",20223:"5c3",20225:"6a2",20227:"6a1",20229:"6c1",20231:"6b3",20233:"6a3",20235:"6b1",20237:"6c2",20239:"6b2",20243:"6c3",20245:"7a3",20247:"7b1",20249:"7b2",20251:"7a2",20253:"7c1",20255:"7a1",20257:"7b3",20259:"7c3",20261:"7c2",20263:"8a3",20265:"8b1",20267:"8b3",20269:"8a2",20271:"8b2",20273:"8a1",20275:"8c3",20277:"8c2",20279:"8c1",20281:"9b3",20283:"9c1",20285:"9a3",20287:"9a2",20289:"9a1",20291:"9b1",20293:"9b2",20295:"9c3",20297:"9c2",20299:"10b2",20301:"10b3",20303:"10a2",20305:"10c2",20307:"10a3",20309:"10a1",20311:"10b1",20313:"10c1",20315:"10c3",20317:"2c1",20319:"2b1",20321:"2a1",20323:"2c2",20325:"2b2",20327:"2a2",20329:"2c3",20331:"2b3",20333:"2a3",20335:"3c1",20337:"3b1",20339:"3a2",20341:"3c2",20343:"3b2",20345:"3a1",20347:"3c3",20349:"3b3",20351:"3a3",20353:"4c1",20355:"4a3",20357:"4a1",20359:"4c2",20361:"4b2",20363:"4a2",20365:"4c3",20367:"4b3",20369:"4b1",20371:"5c1",20375:"5b1",20377:"5a3",20379:"5c2",20381:"5b2",20383:"5a1",20385:"5c3",20387:"5b3",20389:"5a2",20391:"6c2",20393:"6b3",20395:"6a2",20397:"6b2",20399:"6a3",20401:"6a1",20403:"6c3",20405:"6b1",20407:"6c1",20409:"7b3",20411:"7a2",20413:"7a3",20415:"7c3",20417:"7c1",20419:"7b1",20421:"7c2",20423:"7a1",20425:"7b2",20427:"8c3",20429:"8a2",20431:"8a3",20433:"8c2",20435:"8b2",20437:"8b1",20439:"8c1",20441:"8a1",20443:"8b3",20445:"9b2",20447:"9a2",20449:"9b3",20451:"9c3",20453:"9a1",20455:"9c1",20457:"9c2",20459:"9b1",20461:"9a3",20463:"10b1",20465:"10c2",20467:"10b2",20469:"10c1",20471:"10a3",20473:"10b3",20475:"10c3",20477:"10a1",20479:"10a2"}
 
-@app.route("/login", methods=['POST', 'GET'])
+def redisLock(rserver, lk):
+    lv = rserver.incr(lk)
+    rserver.expire(lk,20)
+    lktick = 10
+    while lv>1 and lktick>0:
+        rserver.decr(lk)
+        time.sleep(0.5)
+        lktick -= 1
+        lv = rserver.incr(lk)
+    if lktick==0:
+        print("death lock in key:%s?" % lk)
+        testlogger.info("death lock in key:%s?" % lk)
+        rserver.setex(lk,20,1)
+
+def redisUnlock(rserver, lk):
+    rserver.decr(lk)
+
+def getNewUserId():
+    rserver = getRedisServer()
+    nuid = rserver.incr("newUid")
+    return nuid
+
+def fixNewUserId(cur):
+    rserver = getRedisServer()
+    redisLock(rserver,"lockNewUid")
+    cur.execute("SELECT max(id) FROM nozomi_raw_user")
+    muid = cur.fetchone()[0]
+    ouid = rserver.get("newUid")
+    if ouid==None or ouid=="":
+        ouid = 0
+    else:
+        ouid = int(ouid)
+    if muid>ouid:
+        rserver.set("newUid",muid)
+    redisUnlock(rserver,"lockNewUid")
+
+#兼容旧版本的老接口；分服以后要换到V2接口上去
+@app.route("/login", methods=['POST'])
 def login():
     tempname = None
     if 'tempname' in request.form:
@@ -627,7 +652,6 @@ def login():
     username = None
     if 'username' in request.form:
         username = request.form['username']
-    servertest = False
     plat = "ios"
     if 'platform' in request.form:
         plat = request.form['platform']
@@ -639,26 +663,65 @@ def login():
                 uinfos[i] = [uinfo[0], codeNames[uinfo[0]]]
         ret = dict(code=0, uinfos=uinfos)
         return json.dumps(ret)
-    if tempname!=None:
-        if username==None:
-            username = getBindGameCenter(tempname)
-        else:
-            bindGameCenter(username, tempname)
-    if username!=None:
-        uid = getUidByName(username)
-        ret = dict(code=0, uid=uid)
-        if uid==0:
-            timelogger.info("new user %s %d " % (username, uid))
-            uid = initUser(username, '', plat)
-            loginlogger.info("%s\t%d\treg\t%s" % (plat,uid,tempname))
-            achieveModule.initAchieves(uid)
-            ret['uid'] = uid
-        return json.dumps(ret)
-    else:
-        #time.sleep(209) 
+    if username==None and tempname==None:
         return "{'code':401}"
-        #测试timeout
-        #pass
+    shouldBindGC = False
+    uid = 0
+    con = getConn()
+    cur = con.cursor()
+    if username!=None:
+        shouldBindGC = True
+        cur.execute("SELECT uid FROM nozomi_channel_bind WHERE channel=%s AND account=%s",(1,username))
+        user = cur.fetchone()
+        if user!=None:
+            uid = user[0]
+            shouldBindGC = False
+    if uid==0 and tempname!=None:
+        cur.execute("SELECT id FROM nozomi_raw_user WHERE device=%s",(tempname,))
+        user = cur.fetchone()
+        if user!=None:
+            uid = user[0]
+            if shouldBindGC:
+                cur.execute("SELECT account FROM nozomi_channel_bind WHERE channel=%s AND uid=%s",(1,uid))
+                bacc = cur.fetchone()
+                if bacc!=None:
+                    uid = 0
+                    tempname = None
+    while uid==0:
+        uid = getNewUserId()
+        if tempname==None:
+            tempname = "VDEV-%d" % (8000000+uid)
+        try:
+            cur.execute("INSERT INTO nozomi_raw_user (id,device,server,state) VALUES (%s,%s,%s,%s)",(uid,tempname,0,0))
+            con.commit()
+        except:
+            uid = 0
+            if tempname.find("VDEV")==0:
+                tempname = None
+            fixNewUserId(cur)
+    if shouldBindGC:
+        cur.execute("INSERT INTO nozomi_channel_bind (channel,account,uid) VALUES (%s,%s,%s)",(1,username,uid))
+        con.commit()
+    cur.close()
+    return json.dumps(dict(code=0, uid=uid))
+
+def newInitUser(uid,plat,device,curTime):
+    con = getConn()
+    cur = con.cursor()
+
+    platformId = platformIds.get(plat, 0)
+    cur.execute("INSERT INTO nozomi_user (id, account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime, magic, level) VALUES(%s, %s, %s, %s, %s, 0, %s, 0, %s, %s, 100, 1)", (uid, "%d-%d-%s" % (uid,platformId,device), curTime, "", curTime, 500, platformId, curTime))
+    cur.execute("INSERT INTO nozomi_rank (uid, score) VALUES (%s, %s)",(uid, 0))
+    cur.execute("INSERT INTO nozomi_research (id, research) VALUES(%s, '[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]')", (uid,))
+    cur.execute("INSERT INTO nozomi_user_state (uid, score, shieldTime, onlineTime, attackTime) VALUES (%s, %s, 0, 0, 0)", (uid, 0))
+    params = []
+    for i in range(1, 23):
+        params.append([uid, i])
+    cur.executemany("INSERT IGNORE INTO nozomi_achievement (uid, achieve, level, num) VALUES (%s,%s,1,0)",params)
+    con.commit()
+    cur.close()
+    updateUserBuilds(uid, dataBuilds)
+    loginlogger.info("%s\t%d\treg\t%s" % (plat,uid,device))
 
 updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.zclash': 'https://play.google.com/store/apps/details?id=com.caesars.zclash', 'com.caesars.nozomi': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.caesars': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.clashzombie': 'https://itunes.apple.com/app/id915963054', 'com.caesars.empire': 'https://itunes.apple.com/app/id608847384'}
 settings = [17,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,17]
@@ -748,20 +811,14 @@ def getData():
                 sbut = "關閉"
             return json.dumps(dict(serverError=1, title=stitle, content=stext, button=sbut))
         data = getUserAllInfos(uid)
-        outid = None
         deviceId = ""
+        t = int(time.mktime(time.localtime()))
         if 'cdev' in request.args:
             deviceId = request.args['cdev']
-            account = request.args.get("cacc","")
-            fbLogin = (request.args.get("cfb",0,type=int)==1)
-            cuid = request.args.get("cuid",0,type=int)
-            if fbLogin and (data==None or data['ban']!=0):
-                update("DELETE FROM nozomi_channel_bind WHERE uid=%s",(uid,))
-                outid = cuid
-                uid = cuid
-                data = getUserAllInfos(uid)
-                print "log out account", data, outid, uid
-        if data==None or data['ban']!=0:
+        if data==None:
+            newInitUser(uid,platform,deviceId,t)
+            data = getUserAllInfos(uid)
+        elif data['ban']!=0:
             ret = dict(serverError=1)
             if lang=="CN":
                 ret['title'] = "你被封禁了！"
@@ -779,9 +836,6 @@ def getData():
         state = getUserState(uid)
         if 'attackTime' in state:
             return json.dumps(state)
-        if outid>0:
-            data['fbout'] = 1
-            data['outid'] = outid
         if data['cmask']>0:
             ret = dict(serverUpdate=1)
             forceUpdate = False
@@ -826,7 +880,6 @@ def getData():
                 ret = None
         if ret!=None:
             data.update(ret)
-        t = int(time.mktime(time.localtime()))
         data['serverTime'] = t
         if shouldDebug:
             data['payDebug'] = 1
@@ -1049,16 +1102,15 @@ def synData():
         if rid!=None:
             rid = int(rid)
             nrid = request.form.get('req',0,type=int)
-            if nrid>rid or nrid<rid-1:
+            if nrid>rid or nrid<rid-3:
                 print("token error, may be login in two device", uid)
                 return json.dumps({'code':2,'subcode':1})
-            elif nrid==rid-1:
+            elif nrid<rid:
                 print("token the same, may be syn data twice", uid)
                 return json.dumps(dict(code=0,subcode=0))
             else:
                 rid += 1
-                rserver.set("utoken%d" % uid, rid)
-                rserver.expire("utoken%d" % uid, 7200)
+                rserver.setex("utoken%d" % uid, 7200, rid)
         else:
             print("token out date",uid)
             return json.dumps({'code':2})
@@ -1244,10 +1296,8 @@ def nextTownData():
         tvalue2 = rserver.get(tkey2)
         if tvalue2!=None:
             rserver.delete("town%d_%d" % (aid, int(tvalue2)))
-        rserver.set(tkey2, str(data[0]))
-        rserver.expire(tkey2, 360)
-        rserver.set(tkey, str(utid))
-        rserver.expire(tkey, 360)
+        rserver.setex(tkey2, 360, str(data[0]))
+        rserver.set(tkey, 360, str(utid))
         did = data[4]
         ret['name'] = data[1]
         ret['ttype'] = data[2]
