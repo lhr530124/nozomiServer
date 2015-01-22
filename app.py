@@ -929,8 +929,7 @@ def getData():
         rserver = getRedisServer()
         rid = random.randint(0, 1000000) 
         data['treq'] = rid
-        rserver.set("utoken%d" % uid, rid)
-        rserver.expire("utoken%d" % uid, 3600)
+        rserver.setex("utoken%d" % uid, 3600, rid)
         loginlogger.info("%s\t%d\tlogin\t%d\t%s" % (platform,uid,rid,deviceId))
     else:
         data = getUserInfos(uid)
@@ -1297,7 +1296,7 @@ def nextTownData():
         if tvalue2!=None:
             rserver.delete("town%d_%d" % (aid, int(tvalue2)))
         rserver.setex(tkey2, 360, str(data[0]))
-        rserver.set(tkey, 360, str(utid))
+        rserver.setex(tkey, 360, str(utid))
         did = data[4]
         ret['name'] = data[1]
         ret['ttype'] = data[2]
@@ -1354,10 +1353,8 @@ def getTownData():
             tvalue2 = rserver.get(tkey2)
             if tvalue2!=None:
                 rserver.delete("town%d_%d" % (aid, int(tvalue2)))
-            rserver.set(tkey2, str(tid))
-            rserver.expire(tkey2, 360)
-            rserver.set(tkey, str(utid))
-            rserver.expire(tkey, 360)
+            rserver.setex(tkey2, 360, str(tid))
+            rserver.setex(tkey, 360, str(utid))
     if ret['code']==0:
         did = data[4]
         ret['name'] = data[0]
@@ -1528,10 +1525,8 @@ def getTourEnemy():
             tvalue2 = rserver.get(ukey)
             if tvalue2!=None:
                 rserver.delete("tour%d_%d" % (tbid, int(tvalue2)))
-            rserver.set(ukey, str(eid))
-            rserver.expire(ukey, 360)
-            rserver.set(ekey, str(uid))
-            rserver.expire(ekey, 360)
+            rserver.setex(ukey, 360, str(eid))
+            rserver.setex(ekey, 360, str(uid))
             ret = getUserInfos(eid)
             ret['code'] = 0
             if ret['clan']>0:
@@ -1600,8 +1595,7 @@ def prepareArena():
         alock = rserver.incr(lkakey)
     if lktick==0:
         print("death alock?")
-        rserver.set(lkakey, 1)
-        rserver.expire(lkakey, 20)
+        rserver.setex(lkakey, 20, 1)
     cur.execute("SELECT aid,btime FROM nozomi_arena_prepare WHERE id=%s AND atype=%s",(sid,atype))
     res = cur.fetchone()
     if res!=None:
