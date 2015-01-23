@@ -338,7 +338,8 @@ def addOurAds(uid, platform, data):
                 data['adsCode'] = adsCode
                 data['adsUrl'] = adsUrl
 
-dailyGiftReward = [[1,1000],[1,1500],[0,5],[1,2000],[1,2500],[1,3000],[0,10],[1,3500],[1,4000],[0,15],[1,5000],[1,6500],[1,7000],[1,8000],[0,20],[1,9000],[1,10000],[1,11000],[1,12000],[0,30],[1,14000],[1,15000],[1,17000],[1,19000],[0,40],[1,23000],[1,25000],[1,27000],[1,30000],[0,50]]
+dailyGiftReward = [[1,1000],[1,1500],[0,5],[1,2000],[1,2500],[1,3000],[3,5],[1,3500],[1,4000],[0,10],[1,5000],[1,6500],[1,7000],[1,8000],[3,10],[1,9000],[1,10000],[1,11000],[1,12000],[0,30],[1,14000],[1,15000],[1,17000],[1,19000],[3,50],[1,23000],[1,25000],[1,27000],[1,30000],[0,50]]
+#dailyGiftReward = [[1,1000],[1,1500],[0,5],[1,2000],[1,2500],[1,3000],[0,10],[1,3500],[1,4000],[0,15],[1,5000],[1,6500],[1,7000],[1,8000],[0,20],[1,9000],[1,10000],[1,11000],[1,12000],[0,30],[1,14000],[1,15000],[1,17000],[1,19000],[0,40],[1,23000],[1,25000],[1,27000],[1,30000],[0,50]]
 def newUserLogin(uid):
     today = datetime.date.today()
     ret = queryOne("SELECT regDate,loginDate,loginDays,maxLDays,curLDays,lottery,lotterySeed FROM `nozomi_login_new` WHERE `id`=%s", (uid))
@@ -711,9 +712,9 @@ def newInitUser(uid,plat,device,curTime):
 
     platformId = platformIds.get(plat, 0)
     cur.execute("INSERT INTO nozomi_user (id, account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime, magic, level) VALUES(%s, %s, %s, %s, %s, 0, %s, 0, %s, %s, 100, 1)", (uid, "%d-%d-%s" % (uid,platformId,device), curTime, "", curTime, 500, platformId, curTime))
-    cur.execute("INSERT INTO nozomi_rank (uid, score) VALUES (%s, %s)",(uid, 0))
-    cur.execute("INSERT INTO nozomi_research (id, research) VALUES(%s, '[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]')", (uid,))
-    cur.execute("INSERT INTO nozomi_user_state (uid, score, shieldTime, onlineTime, attackTime) VALUES (%s, %s, 0, 0, 0)", (uid, 0))
+    cur.execute("REPLACE INTO nozomi_rank (uid, score) VALUES (%s, %s)",(uid, 0))
+    cur.execute("REPLACE INTO nozomi_research (id, research) VALUES(%s, '[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]')", (uid,))
+    cur.execute("REPLACE INTO nozomi_user_state (uid, score, shieldTime, onlineTime, attackTime) VALUES (%s, %s, 0, 0, 0)", (uid, 0))
     params = []
     for i in range(1, 23):
         params.append([uid, i])
@@ -725,9 +726,9 @@ def newInitUser(uid,plat,device,curTime):
 
 updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.zclash': 'https://play.google.com/store/apps/details?id=com.caesars.zclash', 'com.caesars.nozomi': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.caesars': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.clashzombie': 'https://itunes.apple.com/app/id915963054', 'com.caesars.empire': 'https://itunes.apple.com/app/id608847384'}
 settings = [17,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,17]
-newActivitys2 = [[1422057600,1422144000,"act4",30,64,86400*14],[1422057600,1422144000,"act1",0,8,86400*14,1],[1422057600,1422144000,"act3",30,32,86400*14],[1422057600,1422144000,"act8",10,1024,86400*7],[1422057600,1422230400,"act6",20,256,0]]
+newActivitys2 = [[1422057600,1422144000,"act4",30,64,86400*14],[1422057600,1422144000,"act1",0,8,86400*14,1],[1422057600,1422144000,"act3",30,32,86400*14],[1422057600,1422144000,"act8",10,1024,86400*7]]
 newActivitys3 = [[1421452800,1421539200,"act2",30,16,86400*14],[1421452800,1421539200,"act1",0,8,86400*14,0],[1421452800,1421539200,"act4",30,64,86400*14,"special"],[1421452800,1421539200,"act8",10,1024,86400*7]]
-stours = [[1,1,0,2,1421625600,604800,1800,432000,489600,547200],[2,1,1,3,1422230400,604800,1800,432000,489600,547200]]
+stours = [[1,1,0,2,1422230400,604800,1800,432000,489600,547200]]
 @app.route("/getData", methods=['GET'])
 def getData():
     uid = int(request.args.get("uid"))
