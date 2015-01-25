@@ -338,8 +338,7 @@ def addOurAds(uid, platform, data):
                 data['adsCode'] = adsCode
                 data['adsUrl'] = adsUrl
 
-dailyGiftReward = [[1,1000],[1,1500],[0,5],[1,2000],[1,2500],[1,3000],[3,5],[1,3500],[1,4000],[0,10],[1,5000],[1,6500],[1,7000],[1,8000],[3,10],[1,9000],[1,10000],[1,11000],[1,12000],[0,30],[1,14000],[1,15000],[1,17000],[1,19000],[3,50],[1,23000],[1,25000],[1,27000],[1,30000],[0,50]]
-#dailyGiftReward = [[1,1000],[1,1500],[0,5],[1,2000],[1,2500],[1,3000],[0,10],[1,3500],[1,4000],[0,15],[1,5000],[1,6500],[1,7000],[1,8000],[0,20],[1,9000],[1,10000],[1,11000],[1,12000],[0,30],[1,14000],[1,15000],[1,17000],[1,19000],[0,40],[1,23000],[1,25000],[1,27000],[1,30000],[0,50]]
+dailyGiftReward = [[1,1000],[1,1500],[0,5],[1,2000],[1,2500],[1,3000],[0,10],[1,3500],[1,4000],[0,15],[1,5000],[1,6500],[1,7000],[1,8000],[0,20],[1,9000],[1,10000],[1,11000],[1,12000],[0,30],[1,14000],[1,15000],[1,17000],[1,19000],[0,40],[1,23000],[1,25000],[1,27000],[1,30000],[0,50]]
 def newUserLogin(uid):
     today = datetime.date.today()
     ret = queryOne("SELECT regDate,loginDate,loginDays,maxLDays,curLDays,lottery,lotterySeed FROM `nozomi_login_new` WHERE `id`=%s", (uid))
@@ -724,6 +723,8 @@ def newInitUser(uid,plat,device,curTime):
     updateUserBuilds(uid, dataBuilds)
     loginlogger.info("%s\t%d\treg\t%s" % (plat,uid,device))
 
+    return dict(name="", score=0, clan=0, guide=0, crystal=500, lastSynTime=curTime, shieldTime=0, zombieTime=0, obstacleTime=0, mtype=0, totalCrystal=0, lastOffTime=curTime, registerTime=curTime, ban=0, rnum=0, mnum=100, level=1, exp=0, cmask=0, hnum=0, ug=0)
+
 updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.zclash': 'https://play.google.com/store/apps/details?id=com.caesars.zclash', 'com.caesars.nozomi': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.caesars': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.clashzombie': 'https://itunes.apple.com/app/id915963054', 'com.caesars.empire': 'https://itunes.apple.com/app/id608847384'}
 settings = [17,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,17]
 newActivitys2 = [[1422057600,1422144000,"act4",30,64,86400*14],[1422057600,1422144000,"act1",0,8,86400*14,1],[1422057600,1422144000,"act3",30,32,86400*14],[1422057600,1422144000,"act8",10,1024,86400*7]]
@@ -771,7 +772,7 @@ def getData():
             return json.dumps(ret)
         else:
             checkVersion = request.args.get("checkVersion", 0, type=int)
-            if checkVersion>settings[0]:
+            if checkVersion>settings[0] and platform.find("android")==-1:
                 shouldDebug = True
             elif checkVersion<settings[0]:
                 stitle = "New Version!"
@@ -817,8 +818,7 @@ def getData():
         if 'cdev' in request.args:
             deviceId = request.args['cdev']
         if data==None:
-            newInitUser(uid,platform,deviceId,t)
-            data = getUserAllInfos(uid)
+            data = newInitUser(uid,platform,deviceId,t)
         elif data['ban']!=0:
             ret = dict(serverError=1)
             if lang=="CN":
@@ -834,9 +834,10 @@ def getData():
                 ret['content'] = "You are banned because of the hacked data! Please contact feedback@caesarsgame.com to unban your account!"
                 ret['button'] = "Close"
             return json.dumps(ret)
-        state = getUserState(uid)
-        if 'attackTime' in state:
-            return json.dumps(state)
+        else:
+            state = getUserState(uid)
+            if 'attackTime' in state:
+                return json.dumps(state)
         if data['cmask']>0:
             ret = dict(serverUpdate=1)
             forceUpdate = False
