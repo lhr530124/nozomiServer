@@ -339,15 +339,17 @@ def addOurAds(uid, platform, data):
                 data['adsUrl'] = adsUrl
 
 dailyGiftReward = [[1,1000],[1,1500],[0,5],[1,2000],[1,2500],[1,3000],[0,10],[1,3500],[1,4000],[0,15],[1,5000],[1,6500],[1,7000],[1,8000],[0,20],[1,9000],[1,10000],[1,11000],[1,12000],[0,30],[1,14000],[1,15000],[1,17000],[1,19000],[0,40],[1,23000],[1,25000],[1,27000],[1,30000],[0,50]]
+dailyTaskInfos = [1,5,100,500,1,100000,1,1,1,10,1]
 def newUserLogin(uid):
     today = datetime.date.today()
-    ret = queryOne("SELECT regDate,loginDate,loginDays,maxLDays,curLDays,lottery,lotterySeed FROM `nozomi_login_new` WHERE `id`=%s", (uid))
+    ret = queryOne("SELECT regDate,loginDate,loginDays,maxLDays,curLDays,lottery,lotterySeed,dailyTask FROM `nozomi_login_new` WHERE `id`=%s", (uid))
     newGift = 0
     newLogin = False
     loginDays = 1
     curLDays = 1
     lt = 0
     lts = random.randint(10000,20000)
+    dailyTasks = None
     if ret!=None:
         timedelta = (today-ret[1]).days
         if timedelta>0:
@@ -359,12 +361,16 @@ def newUserLogin(uid):
                 if curLDays>maxLDays:
                     maxLDays = curLDays
             newGift = curLDays
-            update("UPDATE `nozomi_login_new` SET loginDate=%s,loginDays=%s,maxLDays=%s,curLDays=%s,lottery=0,lotterySeed=%s WHERE `id`=%s",(today,loginDays,maxLDays,curLDays,lts,uid))
+            dailyTasks = [loginDays%2, loginDays%3+2, loginDays%3+6]
+            update("UPDATE `nozomi_login_new` SET loginDate=%s,loginDays=%s,maxLDays=%s,curLDays=%s,lottery=0,lotterySeed=%s,dailyTask=%s WHERE `id`=%s",(today,loginDays,maxLDays,curLDays,lts,json.dumps(dailyTasks),uid))
+            update("DELETE FROM `nozomi_user_daily_task` WHERE id=%s",(uid,))
         else:
             loginDays = ret[2]
             curLDays = ret[4]
             lt = ret[5]
             lts = ret[6]
+            if ret[7]!="":
+                dailyTasks = json.loads(ret[7])
     else:
         newGift = 1
         newLogin = True
@@ -373,7 +379,20 @@ def newUserLogin(uid):
         reward = dailyGiftReward[(newGift-1)%30]
         update("DELETE FROM `nozomi_reward_new` WHERE uid=%s AND `type`=%s", (uid,1))
         update("INSERT INTO `nozomi_reward_new` (uid,`type`,`rtype`,`rvalue`,`info`) VALUES(%s,%s,%s,%s,%s)", (uid,1,reward[0],reward[1],json.dumps(dict(day=newGift))))
-    return [0, loginDays, curLDays, newLogin, lt, lts]
+    if dailyTasks!=None:
+        taskDict = dict()
+        taskList = []
+        for i in range(len(dailyTasks)):
+            tid = dailyTasks[i]
+            taskList.append([tid,0,dailyTaskInfos[tid]])
+            taskDict[tid] = i
+        if not newLogin:
+            tasks = queryAll("SELECT tid,num FROM `nozomi_user_daily_task` WHERE id=%s",(uid,))
+            if tasks!=None:
+                for task in tasks:
+                    taskList[taskDict[task[0]]][1] = task[1]
+        dailyTasks = taskList
+    return [0, loginDays, curLDays, newLogin, lt, lts, dailyTasks]
 
 def getUserRewardsNew(uid):
     allRewards = queryAll("SELECT `id`,`type`,`rtype`,`rvalue`,`info` FROM `nozomi_reward_new` WHERE uid=%s", (uid))
@@ -897,6 +916,7 @@ def getData():
             data['newlogin'] = 1
         data['lt'] = loginResult[4]
         data['lts'] = loginResult[5]
+        data['dtasks'] = loginResult[6]
         data['newRewards'] = getUserRewardsNew(uid)
         data['mask'] = getUserMask(uid)
         zdc = queryOne("SELECT chance,stage,etime FROM nozomi_zombie_challenge WHERE id=%s",(uid,))
@@ -1194,6 +1214,11 @@ def synData():
     if 'lts' in request.form:
         lts = json.loads(request.form['lts'])
         update("UPDATE nozomi_login_new SET lottery=%s, lotterySeed=%s WHERE id=%s",(lts[0],lts[1],uid))
+    if 'dtp' in request.form:
+        params = [[uid,r[0],r[1]] for r in json.loads(request.form['dtp'])]
+        executemany("REPLACE INTO nozomi_user_daily_task (id,tid,num) VALUES (%s,%s,%s)",params)
+    if 'dtg' in request.form:
+        update("UPDATE nozomi_login_new SET dailyTask=%s WHERE id=%s",("",uid))
     if 'irn' in request.form:
         update("UPDATE nozomi_invite_stat SET tg=tg+%s WHERE id=%s",(request.form.get("irn",0,type=int), uid))
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
@@ -1907,6 +1932,9 @@ def synBattleData():
         abort(401)
     baseScore = request.form.get("bscore", 0, type=int)
     ebaseScore = request.form.get("ebscore", 0, type=int)
+    if incScore>60 or incScore<-60 or (baseScore>ebaseScore and incScore<-30) or (baseScore<ebaseScore and incScore>30):
+        testlogger.info("banType 20:%d" % uid)
+        abort(401)
     ngrank = 0
     if baseScore>=0 and ebaseScore>=0:
         uinfos = getUserInfos(uid)
