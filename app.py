@@ -247,26 +247,29 @@ def getJsonObj(string):
         return json.loads(string)
     
 def getUserBuilds(uid):
-    builds = queryAll("SELECT buildIndex, grid, bid, level, time, hitpoints, extend FROM nozomi_build WHERE id=%s AND state=0", (uid), util.getDBID(uid))
+    tableName = "nozomi_build_%d" % (uid%100)
+    builds = queryAll("SELECT buildIndex, grid, bid, level, time, hitpoints, extend FROM " + tableName + " WHERE id=%s AND state=0", (uid,), util.getDBID(uid))
     if builds==None or len(builds)==0:
-        update("UPDATE nozomi_build SET state=0 WHERE id=%s AND (bid<4000 or bid>=5000)",(uid,),util.getDBID(uid))
-        builds = queryAll("SELECT buildIndex, grid, bid, level, time, hitpoints, extend FROM nozomi_build WHERE id=%s AND state=0", (uid), util.getDBID(uid))
+        update("UPDATE " + tableName + " SET state=0 WHERE id=%s AND (bid<4000 or bid>=5000)",(uid,),util.getDBID(uid))
+        builds = queryAll("SELECT buildIndex, grid, bid, level, time, hitpoints, extend FROM " + tableName + " WHERE id=%s AND state=0", (uid,), util.getDBID(uid))
     if builds==None or len(builds)==0:
         builds = dataBuilds
         updateUserBuilds(uid, dataBuilds)
     return builds
 
 def deleteUserBuilds(uid, buildIndexes):
+    tableName = "nozomi_build_%d" % (uid%100)
     params = []
     for bindex in buildIndexes:
         params.append([uid, bindex])
-    executemany("UPDATE nozomi_build SET state=1 WHERE id=%s AND buildIndex=%s", params, dbID=util.getDBID(uid))
+    executemany("UPDATE " + tableName + " SET state=1 WHERE id=%s AND buildIndex=%s", params, dbID=util.getDBID(uid))
 
 def updateUserBuilds(uid, datas):
+    tableName = "nozomi_build_%d" % (uid%100)
     params = []
     for data in datas:
         params.append([uid, data[0], data[1], data[2], data[3], data[4], data[5], data[6]])
-    executemany("INSERT INTO nozomi_build (id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend) VALUES(%s,%s,%s,0,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE grid=VALUES(grid),state=0,bid=VALUES(bid),level=VALUES(level),`time`=VALUES(time),hitpoints=VALUES(hitpoints),extend=VALUES(extend);", params, util.getDBID(uid))
+    executemany("INSERT INTO " + tableName + " (id, buildIndex, grid, state, bid, level, `time`, hitpoints, extend) VALUES(%s,%s,%s,0,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE grid=VALUES(grid),state=0,bid=VALUES(bid),level=VALUES(level),`time`=VALUES(time),hitpoints=VALUES(hitpoints),extend=VALUES(extend);", params, util.getDBID(uid))
 
 def getUserResearch(uid):
     researches = queryOne("SELECT research FROM nozomi_research WHERE id=%s", (uid))
@@ -278,12 +281,14 @@ def updateUserResearch(uid, researches):
     update("REPLACE INTO nozomi_research (id,research) VALUES (%s,%s)", (uid, json.dumps(researches)))
     
 def updateUserBuildHitpoints(uid, datas):
+    tableName = "nozomi_build_%d" % (uid%100)
     params = []
     for data in datas:
         params.append([data[1], uid, data[0]])
-    executemany("UPDATE nozomi_build SET hitpoints=%s WHERE id=%s AND buildIndex=%s", params, util.getDBID(uid))
+    executemany("UPDATE " + tableName + " SET hitpoints=%s WHERE id=%s AND buildIndex=%s", params, util.getDBID(uid))
 
 def updateUserBuildExtends(uid, datas, fixv):
+    tableName = "nozomi_build_%d" % (uid%100)
     params = []
     others = []
     for data in datas:
@@ -291,52 +296,7 @@ def updateUserBuildExtends(uid, datas, fixv):
             params.append([data[1], uid, data[0]])
         else:
             others.append([data[1], uid, data[0],"%\"type\":1%"])
-    executemany("UPDATE nozomi_build SET extend=%s WHERE id=%s AND buildIndex=%s", params, util.getDBID(uid))
-    if fixv==0 and len(others)>0:
-        executemany("UPDATE nozomi_build SET extend=%s WHERE id=%s AND buildIndex=%s AND extend NOT LIKE %s", others, util.getDBID(uid))
-
-def getUidByName(account):
-    ret = queryOne("SELECT id FROM nozomi_user WHERE account=%s", (account))
-    if ret==None:
-        return 0
-    else:
-        return ret[0]
-
-def updateCrystal(uid, crystal):
-    update("UPDATE `nozomi_user` SET crystal=crystal+%s WHERE id=%s", (crystal, uid))
-
-def checkUserReward(uid, ln=0):
-    remark = "remark"
-    if ln==1:
-        remark = "remark_cn"
-    allRewards = queryAll("SELECT reward, "+remark+" FROM `nozomi_reward` WHERE uid=%s", (uid))
-    if allRewards!=None and len(allRewards)>0:
-        sumReward = 0
-        for rewardItem in allRewards:
-            sumReward = sumReward+rewardItem[0]
-        updateCrystal(uid, sumReward)
-        update("DELETE FROM `nozomi_reward` WHERE uid=%s",(uid))
-        return [sumReward, allRewards]
-    else:
-        return None
-
-def addOurAds(uid, platform, data):
-    curTime = data["serverTime"]
-    if platform=="android_our":
-        adsCode = 1
-        adsUrl = "https://play.google.com/store/apps/details?id=com.caesars.flyGame"
-        if curTime<1392940800:
-            needAds = False
-            ret = queryOne("SELECT code, lastTime FROM nozomi_ads_check WHERE id=%s", (uid))
-            if ret==None:
-                needAds = True
-                update("INSERT INTO nozomi_ads_check (id,code,lastTime) VALUES (%s,%s,%s)", (uid, adsCode, curTime))
-            elif ret[0]!=adsCode or ret[1]<curTime-86400:
-                needAds = True
-                update("UPDATE nozomi_ads_check SET code=%s, lastTime=%s WHERE id=%s", (adsCode,curTime,uid))
-            if needAds:
-                data['adsCode'] = adsCode
-                data['adsUrl'] = adsUrl
+    executemany("UPDATE " + tableName + " SET extend=%s WHERE id=%s AND buildIndex=%s", params, util.getDBID(uid))
 
 dailyGiftReward = [[1,1000],[1,1500],[0,5],[1,2000],[1,2500],[1,3000],[0,10],[1,3500],[1,4000],[0,15],[1,5000],[1,6500],[1,7000],[1,8000],[0,20],[1,9000],[1,10000],[1,11000],[1,12000],[0,30],[1,14000],[1,15000],[1,17000],[1,19000],[0,40],[1,23000],[1,25000],[1,27000],[1,30000],[0,50]]
 def newUserLogin(uid):
@@ -392,20 +352,6 @@ def updatePurchaseCrystal(uid, crystal, ctype):
         update("UPDATE `nozomi_user` SET totalCrystal=totalCrystal+%s WHERE id=%s", (crystal, uid))
 
 platformIds = dict(ios=0, android=1, android_our=2, android_german=3, ios_cn=4)
-
-def initUser(username, nickname, platform):
-    print "initUser", username, nickname
-    regTime = int(time.mktime(time.localtime()))
-    platformId = platformIds.get(platform, 0)
-    initScore = 0
-    initCrystal = 500
-    #uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform) VALUES(%s, %s, %s, %s, 500, 497, 0, %s)", (username, regTime, nickname, util.getTime(), platformId))
-    uid = insertAndGetId("INSERT INTO nozomi_user (account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime, magic, level) VALUES(%s, %s, %s, %s, 0, %s, 0, %s, %s, 100, 1)", (username, regTime, "", util.getTime(), initCrystal, platformId, regTime))
-
-    module.UserRankModule.initUserScore(uid, initScore)
-
-    updateUserBuilds(uid, dataBuilds)
-    return uid
 
 def updateUserState(uid, eid):
     updateUserOnline(uid)
@@ -624,96 +570,15 @@ def redisLock(rserver, lk):
 def redisUnlock(rserver, lk):
     rserver.decr(lk)
 
-def getNewUserId():
-    rserver = getRedisServer()
-    nuid = rserver.incr("newUid")
-    return nuid
-
-def fixNewUserId(cur):
-    rserver = getRedisServer()
-    redisLock(rserver,"lockNewUid")
-    cur.execute("SELECT max(id) FROM nozomi_raw_user")
-    muid = cur.fetchone()[0]
-    ouid = rserver.get("newUid")
-    if ouid==None or ouid=="":
-        ouid = 0
-    else:
-        ouid = int(ouid)
-    if muid>ouid:
-        rserver.set("newUid",muid)
-    redisUnlock(rserver,"lockNewUid")
-
-#兼容旧版本的老接口；分服以后要换到V2接口上去
-@app.route("/login", methods=['POST'])
-def login():
-    tempname = None
-    if 'tempname' in request.form:
-        tempname = request.form['tempname']
-    username = None
-    if 'username' in request.form:
-        username = request.form['username']
-    plat = "ios"
-    if 'platform' in request.form:
-        plat = request.form['platform']
-    if 'admin' in request.form:
-        uinfos = list(queryAll("SELECT t.id, u.name FROM nozomi_test_users as t, nozomi_user as u where t.id=u.id and t.state=0 order by t.id"))
-        for i in range(len(uinfos)):
-            uinfo = uinfos[i]
-            if uinfo[0] in codeNames:
-                uinfos[i] = [uinfo[0], codeNames[uinfo[0]]]
-        ret = dict(code=0, uinfos=uinfos)
-        return json.dumps(ret)
-    if username==None and tempname==None:
-        return "{'code':401}"
-    shouldBindGC = False
-    uid = 0
-    con = getConn()
-    cur = con.cursor()
-    if username!=None:
-        shouldBindGC = True
-        cur.execute("SELECT uid FROM nozomi_channel_bind WHERE channel=%s AND account=%s",(1,username))
-        user = cur.fetchone()
-        if user!=None:
-            uid = user[0]
-            shouldBindGC = False
-    if uid==0 and tempname!=None:
-        cur.execute("SELECT id FROM nozomi_raw_user WHERE device=%s",(tempname,))
-        user = cur.fetchone()
-        if user!=None:
-            uid = user[0]
-            if shouldBindGC:
-                cur.execute("SELECT account FROM nozomi_channel_bind WHERE channel=%s AND uid=%s",(1,uid))
-                bacc = cur.fetchone()
-                if bacc!=None:
-                    uid = 0
-                    tempname = None
-    while uid==0:
-        uid = getNewUserId()
-        if tempname==None:
-            tempname = "VDEV-%d" % (8000000+uid)
-        try:
-            cur.execute("INSERT INTO nozomi_raw_user (id,device,server,state) VALUES (%s,%s,%s,%s)",(uid,tempname,0,0))
-            con.commit()
-        except:
-            uid = 0
-            if tempname.find("VDEV")==0:
-                tempname = None
-            fixNewUserId(cur)
-    if shouldBindGC:
-        cur.execute("INSERT INTO nozomi_channel_bind (channel,account,uid) VALUES (%s,%s,%s)",(1,username,uid))
-        con.commit()
-    cur.close()
-    return json.dumps(dict(code=0, uid=uid))
-
 def newInitUser(uid,plat,device,curTime):
     con = getConn()
     cur = con.cursor()
 
     platformId = platformIds.get(plat, 0)
-    cur.execute("INSERT INTO nozomi_user (id, account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime, magic, level) VALUES(%s, %s, %s, %s, %s, 0, %s, 0, %s, %s, 100, 1)", (uid, "%d-%d-%s" % (uid,platformId,device), curTime, "", curTime, 500, platformId, curTime))
-    cur.execute("INSERT INTO nozomi_rank (uid, score) VALUES (%s, %s)",(uid, 0))
-    cur.execute("INSERT INTO nozomi_research (id, research) VALUES(%s, '[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]')", (uid,))
-    cur.execute("INSERT INTO nozomi_user_state (uid, score, shieldTime, onlineTime, attackTime) VALUES (%s, %s, 0, 0, 0)", (uid, 0))
+    cur.execute("INSERT INTO nozomi_user (id, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime, magic, level) VALUES(%s, %s, %s, %s, 0, %s, 0, %s, %s, 100, 1)", (uid, curTime, "", curTime, 500, platformId, curTime))
+    cur.execute("REPLACE INTO nozomi_rank (uid, score) VALUES (%s, %s)",(uid, 0))
+    cur.execute("REPLACE INTO nozomi_research (id, research) VALUES(%s, '[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]')", (uid,))
+    cur.execute("REPLACE INTO nozomi_user_state (uid, score, shieldTime, onlineTime, attackTime) VALUES (%s, %s, 0, 0, 0)", (uid, 0))
     params = []
     for i in range(1, 23):
         params.append([uid, i])
@@ -722,12 +587,14 @@ def newInitUser(uid,plat,device,curTime):
     cur.close()
     updateUserBuilds(uid, dataBuilds)
     loginlogger.info("%s\t%d\treg\t%s" % (plat,uid,device))
+    
+    return dict(name="", score=0, clan=0, guide=0, crystal=500, lastSynTime=curTime, shieldTime=0, zombieTime=0, obstacleTime=0, mtype=0, totalCrystal=0, lastOffTime=curTime, registerTime=curTime, ban=0, rnum=0, mnum=100, level=1, exp=0, cmask=0, hnum=0, ug=0)
 
 updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.zclash': 'https://play.google.com/store/apps/details?id=com.caesars.zclash', 'com.caesars.nozomi': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.caesars': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.clashzombie': 'https://itunes.apple.com/app/id915963054', 'com.caesars.empire': 'https://itunes.apple.com/app/id608847384'}
 settings = [17,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,17]
-newActivitys2 = [[1422057600,1422144000,"act4",30,64,86400*14],[1422057600,1422144000,"act1",0,8,86400*14,1],[1422057600,1422144000,"act3",30,32,86400*14],[1422057600,1422144000,"act8",10,1024,86400*7],[1422057600,1422230400,"act6",20,256,0]]
+newActivitys2 = [[1422057600,1422144000,"act4",30,64,86400*14],[1422057600,1422144000,"act1",0,8,86400*14,1],[1422057600,1422144000,"act3",30,32,86400*14],[1422057600,1422144000,"act8",10,1024,86400*7]]
 newActivitys3 = [[1421452800,1421539200,"act2",30,16,86400*14],[1421452800,1421539200,"act1",0,8,86400*14,0],[1421452800,1421539200,"act4",30,64,86400*14,"special"],[1421452800,1421539200,"act8",10,1024,86400*7]]
-stours = [[1,1,0,2,1421625600,604800,1800,432000,489600,547200],[2,1,1,3,1422230400,604800,1800,432000,489600,547200]]
+stours = [] #[1,1,0,2,1422230400,604800,1800,432000,489600,547200]]
 @app.route("/getData", methods=['GET'])
 def getData():
     uid = int(request.args.get("uid"))
@@ -770,7 +637,7 @@ def getData():
             return json.dumps(ret)
         else:
             checkVersion = request.args.get("checkVersion", 0, type=int)
-            if checkVersion>settings[0]:
+            if checkVersion>settings[0] and platform.find("android")==-1:
                 shouldDebug = True
             elif checkVersion<settings[0]:
                 stitle = "New Version!"
@@ -816,8 +683,7 @@ def getData():
         if 'cdev' in request.args:
             deviceId = request.args['cdev']
         if data==None:
-            newInitUser(uid,platform,deviceId,t)
-            data = getUserAllInfos(uid)
+            data = newInitUser(uid,platform,deviceId,t)
         elif data['ban']!=0:
             ret = dict(serverError=1)
             if lang=="CN":
@@ -833,9 +699,10 @@ def getData():
                 ret['content'] = "You are banned because of the hacked data! Please contact feedback@caesarsgame.com to unban your account!"
                 ret['button'] = "Close"
             return json.dumps(ret)
-        state = getUserState(uid)
-        if 'attackTime' in state:
-            return json.dumps(state)
+        else:
+            state = getUserState(uid)
+            if 'attackTime' in state:
+                return json.dumps(state)
         if data['cmask']>0:
             ret = dict(serverUpdate=1)
             forceUpdate = False
@@ -1075,7 +942,8 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
     if ret==2:
         return True
     elif ret==10:
-        update("UPDATE nozomi_build SET extend=%s WHERE id=%s AND bid=1000",('{"soldiers":[0,0,0,0,0,0,0,0,0,0,0,0]}',uid),util.getDBID(uid))
+        tableName = "nozomi_build_%d" % (uid%100)
+        update("UPDATE " + tableName + " SET extend=%s WHERE id=%s AND bid=1000",('{"soldiers":[0,0,0,0,0,0,0,0,0,0,0,0]}',uid),util.getDBID(uid))
         return True
     if ret==0:
         for pair in maxList:
@@ -1905,6 +1773,9 @@ def synBattleData():
         abort(401)
     baseScore = request.form.get("bscore", 0, type=int)
     ebaseScore = request.form.get("ebscore", 0, type=int)
+    if incScore>60 or incScore<-60 or (baseScore>ebaseScore and incScore<-30) or (baseScore<ebaseScore and incScore>30):
+        testlogger.info("banType 20:%d" % uid)
+        abort(401)
     ngrank = 0
     if baseScore>=0 and ebaseScore>=0:
         uinfos = getUserInfos(uid)
@@ -1969,10 +1840,14 @@ testLevels = [3,2,4,4,3,4,3,5,5,11,7,11,8,10,10,9,10,11,12,13,15,15,14,18,15,17,
 testScores = [150,120,100,300,240,200,600,480,400,600,480,400,750,600,500,750,600,500,900,720,600,1050,840,700,1200,960,800,1200,960,800,1350,1080,900,1500,1200,1000,1500,1200,1000,1800,1440,1200,2100,1680,1400,1800,1440,1200,2100,1680,1400,2400,1920,1600,1950,1560,1300,2250,1800,1500,2550,2040,1700,2100,1680,1400,2400,1920,1600,2700,2160,1800,2250,1800,1500,2700,2160,1800,3000,2400,2000]
 testPercents = [[25,20],[40,5],[50,5],[15,30],[15,30],[15,30],[5,40],[5,40],[5,35]]
 def getTuoUserInfos(tid):
-    data = dict(name=testNames[tid], clan=0, mtype=0, totalCrystal=0, userId=1)
-    data['score'] = testScores[tid]
+    data = dict(clan=0, mtype=0, totalCrystal=0, userId=1)
+    tuoInfo = queryOne("SELECT builds,uinfo FROM nozomi_town_builds WHERE id=%s",(20000+tid,))
+    data['builds'] = json.loads(tuoInfo[0])
+    uinfo = json.loads(tuoInfo[1])
+    data['name'] = uinfo[0]
+    data['score'] = uinfo[1]
+    data['ug'] = uinfo[2]
     data['level'] = testLevels[tid]
-    data['builds'] = json.loads(queryOne("SELECT builds FROM nozomi_town_builds WHERE id=%s",(20000+tid,))[0])
     if data['level']>=70:
         data['totalCrystal'] = 10
     return data
@@ -1988,6 +1863,7 @@ def findEnemy():
     r2p = 0
     blevel = request.args.get("blevel",0,type=int)
     bscore = request.args.get('baseScore',0,type=int)
+    """
     if isAdmin!=None:
         uid = findSpecial(selfUid, blevel)
     else:
@@ -2001,6 +1877,7 @@ def findEnemy():
                 uid = 1
                 r1p = testPercents[(tuoid-1)%9][0]
                 r2p = testPercents[(tuoid-1)%9][1]
+    """
     if uid==0:
         uid = findAMatch(selfUid, bscore, 200)
     #uid = 29
@@ -2014,6 +1891,17 @@ def findEnemy():
             data['r2p'] = r2p
             if data['score']>bscore+10 and bscore>=20:
                 data['score'] = bscore+10
+        elif uid==1:
+            data = dict(clan=0, mtype=0, totalCrystal=0, userId=1)
+            if blevel<2:
+                blevel = 2
+            tid = random.randint((blevel-2)*400+1,(blevel-1)*400)
+            townInfo = queryOne("SELECT builds,uinfo FROM nozomi_town_builds WHERE id=%s",(tid,))
+            data['builds'] = json.loads(townInfo[0])
+            uinfo = json.loads(townInfo[1])
+            data['name'] = uinfo[0]
+            data['score'] = uinfo[1]
+            data['ug'] = uinfo[2]
         else:
             data = getUserInfos(uid)
             if data['clan']>0:

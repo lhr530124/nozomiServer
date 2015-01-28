@@ -38,10 +38,14 @@ def getClanInfo(cid):
 
 def getTopClans():
     ret = queryAll("SELECT `id`, icon, score, `type`, name, `desc`, members, `min` FROM `nozomi_clan` WHERE members>0 ORDER BY score DESC LIMIT 50")
+    if ret==None:
+        ret= []
     return ret
 
 def getTopClans2():
     ret = queryAll("SELECT `id`, icon, score2, `type`, name, `desc`, members, `min` FROM `nozomi_clan` WHERE members>0 ORDER BY score2 DESC LIMIT 50")
+    if ret==None:
+        ret = []
     return ret
 
 def joinClan(uid, cid):

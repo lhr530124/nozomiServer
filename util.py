@@ -51,7 +51,7 @@ def getAbsYesterday():
 
 #奇数偶数
 def getDBID(uid):
-    return (uid+1)%2
+    return 0
 
     """
     #print "getDBID", uid, config.userCut

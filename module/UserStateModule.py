@@ -41,18 +41,20 @@ def getUserState(uid):
 #uid = 0 user not exist ! so don't return any user info
 def findAMatch(uid, score, scoreOff):
     curTime = getTime()
-    highScore = 1600
+    highScore = 5000
     tryTime = 0
+    #新区，命中率低，所以只试一次
     while tryTime<3:
         tryTime = tryTime+1
         rscore = score+score*random.randint(-50,100)/400
+
         if rscore>highScore:
             maxScore = 10000
             minScore = rscore-100
             if minScore>highScore:
                 minScore = highScore
             #it is a small number, so get all to random
-            ids = queryAll("SELECT uid FROM nozomi_user_state WHERE uid!=%s AND shieldTime<%s AND attackTime<%s AND onlineTime<%s AND score>%s AND score<%s", (uid,curTime,curTime,curTime,minScore,maxScore))
+            ids = queryAll("SELECT uid FROM nozomi_user_state WHERE uid!=%s AND uid>=940676 AND shieldTime<%s AND attackTime<%s AND onlineTime<%s AND score>%s AND score<%s", (uid,curTime,curTime,curTime,minScore,maxScore))
             if ids!=None:
                 num = len(ids)
                 cut = ids[random.randint(0, num-1)][0]
@@ -64,7 +66,7 @@ def findAMatch(uid, score, scoreOff):
             if minScore<100:
                 minScore = 100
                 maxScore = 250
-            ids = queryOne("SELECT MIN(uid), MAX(uid) FROM nozomi_user_state WHERE score>%s AND score<%s", (minScore, maxScore))
+            ids = queryOne("SELECT MIN(uid), MAX(uid) FROM nozomi_user_state WHERE score>%s AND score<%s AND uid>=940676", (minScore, maxScore))
             if ids!=None:
                 minId = ids[0]
                 maxId = ids[1]
