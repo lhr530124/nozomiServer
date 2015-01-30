@@ -390,7 +390,8 @@ def newUserLogin(uid):
             tasks = queryAll("SELECT tid,num FROM `nozomi_user_daily_task` WHERE id=%s",(uid,))
             if tasks!=None:
                 for task in tasks:
-                    taskList[taskDict[task[0]]][1] = task[1]
+                    if task[0] in taskDict:
+                        taskList[taskDict[task[0]]][1] = task[1]
         dailyTasks = taskList
     return [0, loginDays, curLDays, newLogin, lt, lts, dailyTasks]
 
@@ -578,6 +579,83 @@ def getClanBoss(cid):
         update("INSERT IGNORE INTO nozomi_league_boss (id,n1time,n2time,mstage,cstage,chp) VALUES (%s,%s,%s,0,0,0)",(cid,t1,t2))
     return [ret[0],ret[0]+tt,ret[1],ret[2],ret[3],ret[4]]
 
+cbTimes2 = [1422230400,7*86400]
+BossDatas = [[[100000,100,5],[250000,125,10],[500000,150,15],[1000000,175,20],[1500000,200,30],[2000000,225,40],[2500000,250,50],[3000000,275,60],[4000000,300,70],[5000000,325,80],[6000000,350,90],[7000000,375,100],[8000000,400,110],[9000000,425,120],[10000000,450,130],[15000000,475,140],[20000000,500,150],[25000000,525,160],[30000000,550,170],[35000000,575,180]]]
+def getBossData(bossId, level):
+    ret = [bossId, level, 0]
+    bidx = bossId-1
+    if level<=20:
+        ret.extend(BossDatas[bidx][level-1])
+    else:
+        bdata1 = BossDatas[bidx][19]
+        bdata2 = BossDatas[bidx][18]
+        for i in range(3):
+            ret.append((bdata1[i]-bdata2[i])*(level-20)+bdata1[i])
+    ret[2] = ret[3]
+    return ret
+
+def getClanBoss2(cid):
+    if cid>0:
+        ret = []
+        bossDatas = queryAll("SELECT boss,lv,hp,mhp,atk,skill FROM nozomi_league_boss2 WHERE id=%s",(cid,))
+        bossDict = dict()
+        if ret!=None:
+            for boss in bossDatas:
+                bossDict[boss[0]] = boss
+        for i in range(1,2):
+            if i in bossDict:
+                ret.append(bossDict[i])
+            else:
+                ret.append(getBossData(i,1))
+        return ret
+    else:
+        return None
+
+@app.route("/getClanBossData2", methods=['GET'])
+def getClanBossData2():
+    cid = request.args.get('cid',0,type=int)
+    ret = dict(code=0)
+    if cid>0:
+        ret['cbe'] = getClanBoss2(cid)
+        ret['rusers'] = queryAll("SELECT u.id,u.name,if(cu.hp is NULL,0,cu.hp),u.score,if(cu.chance is NULL,%s,cu.chance) FROM nozomi_user AS u LEFT JOIN nozomi_league_boss_member2 AS cu ON cu.id=u.id WHERE u.clan=%s ORDER BY u.score DESC",(1,cid))
+    return json.dumps(ret)
+
+@app.route("/challengeBoss2", methods=['POST'])
+def challengeClanBoss2():
+    cid = request.form.get("cid",0,type=int)
+    uid = request.form.get("uid",0,type=int)
+    boss = request.form.get("sid",0,type=int)
+    if cid>0 and uid>0 and boss>0:
+        t = int(time.time())
+        ret = dict(code=0)
+        while cbTimes2[0]+cbTimes[1]<=t:
+            cbTimes2[0] += cbTimes[1]
+        if cbTimes2[0]+cbTimes[1]-3600<t:
+            ret["code"] = 1
+            ret["stime"] = cbTimes2[0]
+            ret["itime"] = cbTimes2[1]
+        else:
+            con = getConn()
+            cur = con.cursor()
+            cur.execute("SELECT chance FROM nozomi_league_boss_member2 WHERE id=%s",(uid,))
+            chance = cur.fetchone()
+            if chance!=None and chance[0]==0:
+                ret["code"] = 2
+            else:
+                cur.execute("SELECT boss,lv,hp,mhp,atk,skill FROM nozomi_league_boss2 WHERE id=%s AND boss=%s",(cid,boss))
+                ret = cur.fetchone()
+                if bossData==None:
+                    bossData = getBossData(boss,1)
+                    param = [cid]
+                    param.extend(bossData)
+                    cur.execute("INSERT IGNORE INTO nozomi_league_boss2 (id,boss,lv,hp,mhp,atk,skill) VALUES (%s,%s,%s,%s,%s,%s,%s)",param)
+                    con.commit()
+                ret["boss"] = bossData
+            cur.close()
+        return json.dumps(ret)
+    else:
+        abort(401)
+
 @app.route("/getClanBossData", methods=['GET'])
 def getClanBossData():
     cid = request.args.get('cid',0,type=int)
@@ -747,8 +825,8 @@ def newInitUser(uid,plat,device,curTime):
 updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.zclash': 'https://play.google.com/store/apps/details?id=com.caesars.zclash', 'com.caesars.nozomi': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.caesars': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.clashzombie': 'https://itunes.apple.com/app/id915963054', 'com.caesars.empire': 'https://itunes.apple.com/app/id608847384'}
 settings = [17,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,17]
 newActivitys2 = [[1422057600,1422144000,"act4",30,64,86400*14],[1422057600,1422144000,"act1",0,8,86400*14,1],[1422057600,1422144000,"act3",30,32,86400*14],[1422057600,1422144000,"act8",10,1024,86400*7]]
-newActivitys3 = [[1421452800,1421539200,"act2",30,16,86400*14],[1421452800,1421539200,"act1",0,8,86400*14,0],[1421452800,1421539200,"act4",30,64,86400*14,"special"],[1421452800,1421539200,"act8",10,1024,86400*7]]
-stours = [[1,1,0,2,1422230400,604800,1800,432000,489600,547200]]
+newActivitys3 = [[1422662400,1422748800,"act2",30,16,86400*14],[1422662400,1422748800,"act1",0,8,86400*14,0],[1422662400,1422748800,"act6",20,256,86400*14],[1422662400,1422748800,"act8",10,1024,86400*7],[1422748800,1422835200,"act5",100,128,0]]
+stours = [[1,1,0,2,1422230400,604800,1800,432000,489600,547200],[2,1,1,3,1422835200,604800,1800,432000,489600,547200]]
 @app.route("/getData", methods=['GET'])
 def getData():
     uid = int(request.args.get("uid"))
@@ -925,7 +1003,7 @@ def getData():
         stages = queryAll("SELECT stars,lres FROM nozomi_stages WHERE id=%s ORDER BY sid",(uid,))
         if stages!=None:
             data['stages'] = stages
-        data['nacts'] = newActivitys2
+        data['nacts'] = newActivitys3
         data['tours'] = stours
         data['utours'] = queryAll("SELECT tid,tstage,trank,ttype,star FROM nozomi_user_tour WHERE id=%s",(uid,))
         objs = queryOne("SELECT objs FROM nozomi_user_objs WHERE id=%s AND id2=0",(uid,))
@@ -1762,7 +1840,7 @@ def synArenaBattle2():
         else:
             uget = json.loads(uget)
             rserver.set("uget%d_%d" % (aid,uid), json.dumps([uget[0]+nuget[0],uget[1]+nuget[1],uget[2]+nuget[2],uget[3]+nuget[3]]))
-    cur.execute("SELECT reward,unum,winner,atype FROM nozomi_arena_battle WHERE id=%s", (aid, ))
+    cur.execute("SELECT reward,unum,winner,atype,stage FROM nozomi_arena_battle WHERE id=%s", (aid, ))
     battle = cur.fetchone()
     if battle==None or battle[2]>0:
         cur.close()
@@ -1841,7 +1919,11 @@ def synArenaBattle2():
                 rewardList.append([user,3,0,reward2,json.dumps(dict(arena2=atypeStr,aresult=aresult,ai=arenaId,ugets=ugets,ext=rewardExt))])
                 if atype==2 and ugets[2]>0:
                     rserver.zincrby("arena", user, ugets[2])
-                    rserver.zincrby("arenaRank", user, ugets[2])
+                    awscore = rserver.zincrby("arenaRank", user, ugets[2])
+                    if battle[4]>=8:
+                        rserver.zadd("arenaRank2", awscore, user)
+                    else:
+                        rserver.zadd("arenaRank1", awscore, user)
             if atype==1:
                 rserver.delete("cleader%d_%d" % (aid,ttype+1))
                 if totalLS>0:
@@ -1895,6 +1977,13 @@ def updateLevel():
     level = request.form.get("level",0,type=int)
     if level==2:
         update("INSERT IGNORE INTO nozomi_user_gift2 (id,type,etime,num) VALUE (%s,%s,%s,%s)",(uid,level,int(time.time())+3*86400,20))
+    elif level==8:
+        rserver = getRedisServer()
+        awscore = rserver.zscore("arenaRank1",uid)
+        if awscore!=None:
+            rserver.zadd("arenaRank2",awscore,uid)
+            rserver.zrem("arenaRank1",uid)
+    update("INSERT INTO nozomi_rank_new (id,tlevel,ascore,awscore,zscore,zwscore) VALUES (%s,%s,0,0,0,0) ON DUPLICATE KEY UPDATE tlevel=VALUES(tlevel)",(uid,level))
     return json.dumps(dict(code=0,ng2=queryAll("SELECT etime,num FROM nozomi_user_gift2 WHERE id=%s",(uid,))))
 
 def isNormal(eid):
