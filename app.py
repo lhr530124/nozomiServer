@@ -599,7 +599,7 @@ def getClanBoss2(cid):
         ret = []
         bossDatas = queryAll("SELECT boss,lv,hp,mhp,atk,skill FROM nozomi_league_boss2 WHERE id=%s",(cid,))
         bossDict = dict()
-        if ret!=None:
+        if bossDatas!=None:
             for boss in bossDatas:
                 bossDict[boss[0]] = boss
         for i in range(1,2):
@@ -643,7 +643,7 @@ def challengeClanBoss2():
                 ret["code"] = 2
             else:
                 cur.execute("SELECT boss,lv,hp,mhp,atk,skill FROM nozomi_league_boss2 WHERE id=%s AND boss=%s",(cid,boss))
-                ret = cur.fetchone()
+                bossData = cur.fetchone()
                 if bossData==None:
                     bossData = getBossData(boss,1)
                     param = [cid]
@@ -1566,7 +1566,7 @@ def getTourBattleData():
     if tour==None:
         cur.close()
         return json.dumps(dict(code=1))
-    cur.execute("SELECT b.id,b.star,u.name,u.level,u.totalCrystal,u.uglevel,b.atk,b.def,b.rid,c.icon,c.name FROM nozomi_tour_battle AS b, nozomi_user AS u LEFT JOIN nozomi_clan AS c ON u.clan=c.id WHERE u.id=b.id AND b.tbid=%s",(tour[5],))
+    cur.execute("SELECT b.id,b.star,u.name,u.level,u.totalCrystal,u.uglevel,b.atk,b.def,if(bcd.rid is NULL,0,bcd.rid),c.icon,c.name FROM nozomi_tour_battle AS b LEFT JOIN nozomi_tour_cold AS bcd ON bcd.tbid=b.tbid AND bcd.uid=%s AND bcd.eid=b.id, nozomi_user AS u LEFT JOIN nozomi_clan AS c ON u.clan=c.id WHERE u.id=b.id AND b.tbid=%s",(uid,tour[5]))
     members = cur.fetchall()
     cur.close()
     return json.dumps(dict(code=0,utour=tour[:5],members=members))
@@ -1593,9 +1593,6 @@ def getTourEnemy():
     ret = dict(code=0)
     if ebinfo==None:
         ret["code"] = 1
-    elif ebinfo[1]>0:
-        ret["code"] = 2
-        ret["subcode"] = 3
     else:
         t = int(time.time())
         tour = None
@@ -1619,27 +1616,13 @@ def getTourEnemy():
             ret["code"] = 2
             ret["subcode"] = 4
     if ret["code"]==0:
-        rserver = getRedisServer()
-        ekey = "tour%d_%d" % (tbid,eid)
-        ukey = "attb%d_%d" % (tbid,uid)
-        tvalue = rserver.get(ekey)
-        if tvalue!=None and int(tvalue)!=uid:
-            ret["code"] = 2
-            ret["subcode"] = 2
-        else:
-            tvalue2 = rserver.get(ukey)
-            if tvalue2!=None:
-                rserver.delete("tour%d_%d" % (tbid, int(tvalue2)))
-            rserver.setex(ukey, 360, str(eid))
-            rserver.setex(ekey, 360, str(uid))
-            ret = getUserInfos(eid)
-            ret['code'] = 0
-            if ret['clan']>0:
-                ret["clanInfo"] = ClanModule.getClanInfo(ret["clan"])
-            ret["builds"] = getUserBuilds(eid) 
-            ret["userId"] = eid
-            ret["tbid"] = tbid
-            ret["tid"] = tid
+        ret = getUserInfos(eid)
+        if ret['clan']>0:
+            ret["clanInfo"] = ClanModule.getClanInfo(ret["clan"])
+        ret["builds"] = getUserBuilds(eid) 
+        ret["userId"] = eid
+        ret["tbid"] = tbid
+        ret["tid"] = tid
     cur.close()
     return json.dumps(ret)
 
@@ -1656,20 +1639,18 @@ def synTourBattle():
     con = getConn()
     cur = con.cursor()
     rserver = getRedisServer()
-    rserver.delete("attb%d_%d" % (tbid,uid))
-    rserver.delete("tour%d_%d" % (tbid,eid))
     addStar = 1
     addUid = eid
+    rid = rserver.incr("videoServer")
+    cur.execute("INSERT INTO nozomi_replay (id,replay) VALUES (%s,%s)",(rid,replay))
+    cur.execute("INSERT IGNORE INTO nozomi_tour_cold (tbid,uid,eid,rid) VALUES (%s,%s,%s,%s)",(tbid,uid,eid,rid))
     if stars>0:
         addStar = stars*2-1
         addUid = uid
         cur.execute("UPDATE nozomi_tour_battle SET atk=atk+%s,star=star+%s WHERE tbid=%s AND id=%s",(1,addStar,tbid,uid))
-        rid = rserver.incr("videoServer")
-        cur.execute("INSERT INTO nozomi_replay (id,replay) VALUES (%s,%s)",(rid,replay))
         cur.execute("UPDATE nozomi_tour_battle SET rid=%s WHERE tbid=%s AND id=%s",(rid,tbid,eid))
     else:
         cur.execute("UPDATE nozomi_tour_battle SET def=def+%s,star=star+%s WHERE tbid=%s AND id=%s",(1,1,tbid,eid))
-        cur.execute("INSERT IGNORE INTO nozomi_tour_cold (tbid,uid,eid,rid) VALUES (%s,%s,%s,%s)",(tbid,uid,eid,0))
     cur.execute("UPDATE nozomi_user_tour SET star=star+%s WHERE id=%s AND tid=%s",(addStar,addUid,tid))
     rserver.zincrby("utour%d" % tid, addUid, addStar)
     con.commit()
