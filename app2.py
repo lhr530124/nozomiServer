@@ -89,7 +89,7 @@ redisPool = redis.ConnectionPool(host="127.0.0.1")
 def getServer():
     return redis.StrictRedis(connection_pool=redisPool)
 
-sqls = ["SELECT u.id,%s,0,u.name,u.level,u.totalCrystal,c.icon,c.name FROM nozomi_user AS u LEFT JOIN `nozomi_clan` AS c ON u.clan=c.id WHERE u.id=%s", "SELECT u.id,%s,0,u.name,u.level,u.totalCrystal,u.uglevel,c.icon,c.name FROM nozomi_user AS u LEFT JOIN `nozomi_clan` AS c ON u.clan=c.id WHERE u.id=%s"]
+sqls = ["SELECT u.id,%s,0,u.name,u.level,u.totalCrystal,c.icon,c.name FROM nozomi_user AS u LEFT JOIN `nozomi_clan` AS c ON u.clan=c.id WHERE u.id=%s", "SELECT u.id,%s,0,u.name,u.level,u.totalCrystal,u.uglevel,c.icon,c.name FROM nozomi_user AS u LEFT JOIN `nozomi_clan` AS c ON u.clan=c.id WHERE u.id=%s","SELECT `id`, icon, %s, `type`, name, `desc`, members, `min` FROM `nozomi_clan` WHERE `id`=%s"]
 @app.route('/v2/rank', methods=['GET'])
 def getRank():
     rankMode = str(request.args['mode'])
@@ -125,6 +125,48 @@ def getRank():
                     allUsers.append(item)
         cur.close()
         return json.dumps(allUsers)
+    return "[]"
+
+@app.route("/v2/crank", methods=['GET'])
+def getClanRank():
+    rankMode = str(request.args['mode'])
+    cid = request.args.get("cid",0,type=int)
+    num = 50
+    if num>0:
+        rserver = getServer()
+        srank = None
+        if cid>0:
+            srank = rserver.zrevrank(rankMode, cid)
+        con = getConn()
+        cur = con.cursor()
+        allClans = []
+        cids = rserver.zrevrange(rankMode, 0, num-1, True)
+        sql = sqls[2]
+        for cid in cids:
+            cur.execute(sql,(int(cid[1]), int(cid[0])))
+            item = cur.fetchone()
+            if item!=None and item[6]>0:
+                allClans.append(item)
+            else:
+                rserver.zrem(rankMode, cid[0])
+        if srank==None or srank<num or len(allClans)<num:
+            cur.close()
+            return json.dumps(allClans)
+        cids = rserver.zrevrange(rankMode, srank-1, srank+9, True)
+        for i in range(len(cids)):
+            if i+srank>num:
+                cid = cids[i]
+                cur.execute(sql,(int(cid[1]), int(cid[0])))
+                item = cur.fetchone()
+                if item!=None and item[6]>0:
+                    item = list(item)
+                    item.append(i+srank)
+                    allClans.append(item)
+                else:
+                    rserver.zrem(rankMode, cid[0])
+                    srank -= 1
+        cur.close()
+        return json.dumps(allClans)
     return "[]"
 
 app.secret_key = os.urandom(24)

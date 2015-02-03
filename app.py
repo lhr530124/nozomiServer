@@ -604,7 +604,10 @@ def getClanBoss2(cid):
                 bossDict[boss[0]] = boss
         for i in range(1,2):
             if i in bossDict:
-                ret.append(bossDict[i])
+                if bossDict[i][2]>0:
+                    ret.append(bossDict[i])
+                else:
+                    ret.append(getBossData(i,bossDict[i][1]+1))
             else:
                 ret.append(getBossData(i,1))
         return ret
@@ -650,11 +653,58 @@ def challengeClanBoss2():
                     param.extend(bossData)
                     cur.execute("INSERT IGNORE INTO nozomi_league_boss2 (id,boss,lv,hp,mhp,atk,skill) VALUES (%s,%s,%s,%s,%s,%s,%s)",param)
                     con.commit()
+                elif bossData[2]==0:
+                    bossData = getBossData(boss,bossData[1]+1)
+                    param = bossData[1:]
+                    param.append(cid)
+                    param.append(boss)
+                    cur.execute("UPDATE nozomi_league_boss2 SET lv=%s,hp=%s,mhp=%s,atk=%s,skill=%s WHERE id=%s AND boss=%s",param)
+                    con.commit()
                 ret["boss"] = bossData
+                token = random.randint(0,100000)
+                ret["token"] = token
+                rserver = getRedisServer()
+                rserver.setex("cboss%d" % uid,60*15,token)
             cur.close()
         return json.dumps(ret)
     else:
         abort(401)
+
+@app.route("/synBossBattle2", methods=['POST'])
+def synBossBattle2():
+    token = request.form.get("token",0,type=int)
+    uid = request.form.get("uid",0,type=int)
+    hp = request.form.get("hp",0,type=int)
+    cid = request.form.get("cid",0,type=int)
+    cost = request.form["cost"]
+    boss = request.form.get("boss",0,type=int)
+    level = request.form.get("level",0,type=int)
+    if uid>0 and cid>0 and boss>0 and level>0:
+        rserver = getRedisServer()
+        utoken = int(rserver.incr("cboss%d" % uid)-1)
+        rserver.delete("cboss%d" % uid)
+        if utoken==token:
+            con = getConn()
+            cur = con.cursor()
+            cur.execute("SELECT boss,lv,hp FROM nozomi_league_boss2 WHERE id=%s AND boss=%s",(cid,boss))
+            bossData = cur.fetchone()
+            if bossData!=None and bossData[1]==level:
+                if bossData[2]<=hp:
+                    bossData = getBossData(boss,level+1)
+                    param = bossData[1:]
+                    param.append(cid)
+                    param.append(boss)
+                    cur.execute("UPDATE nozomi_league_boss2 SET lv=%s,hp=%s,mhp=%s,atk=%s,skill=%s WHERE id=%s AND boss=%s",param)
+                else:
+                    cur.execute("UPDATE nozomi_league_boss2 SET hp=if(hp>%s,hp-%s,0) WHERE id=%s AND boss=%s",(hp,hp,cid,boss))
+            bscore = hp/5000
+            cur.execute("UPDATE nozomi_clan SET score3=score3+%s,score4=score4+%s WHERE id=%s",(bscore,bscore,cid))
+            cur.execute("INSERT INTO nozomi_league_boss_member2 (id,hp,chance) VALUES (%s,%s,%s) ON DUPLICATE KEY UPDATE hp=hp+VALUES(hp),chance=if(chance>1,chance-1,0)",(uid,hp,0))
+            con.commit()
+            cur.close()
+            rserver.zincrby("clanRank3",cid,bscore)
+            rserver.zincrby("clanRank4",cid,bscore)
+    return json.dumps(dict(cbe2=1,code=0))
 
 @app.route("/getClanBossData", methods=['GET'])
 def getClanBossData():
@@ -825,7 +875,7 @@ def newInitUser(uid,plat,device,curTime):
 updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.zclash': 'https://play.google.com/store/apps/details?id=com.caesars.zclash', 'com.caesars.nozomi': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.caesars': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.clashzombie': 'https://itunes.apple.com/app/id915963054', 'com.caesars.empire': 'https://itunes.apple.com/app/id608847384'}
 settings = [17,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,17]
 newActivitys2 = [[1422057600,1422144000,"act4",30,64,86400*14],[1422057600,1422144000,"act1",0,8,86400*14,1],[1422057600,1422144000,"act3",30,32,86400*14],[1422057600,1422144000,"act8",10,1024,86400*7]]
-newActivitys3 = [[1422662400,1422748800,"act2",30,16,86400*14],[1422662400,1422748800,"act1",0,8,86400*14,0],[1422662400,1422748800,"act6",20,256,86400*14],[1422662400,1422748800,"act8",10,1024,86400*7],[1422748800,1422835200,"act5",100,128,0]]
+newActivitys3 = [[1422662400,1422748800,"act2",30,16,86400*14],[1422662400,1422748800,"act1",0,8,86400*14,0],[1422662400,1422748800,"act6",20,256,86400*14],[1422662400,1422748800,"act8",10,1024,86400*7]]
 stours = [[1,1,0,2,1422230400,604800,1800,432000,489600,547200],[2,1,1,3,1422835200,604800,1800,432000,489600,547200]]
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -870,7 +920,7 @@ def getData():
         else:
             checkVersion = request.args.get("checkVersion", 0, type=int)
             if checkVersion>settings[0] and platform.find("android")==-1:
-                shouldDebug = True
+                shouldDebug = False
             elif checkVersion<settings[0]:
                 stitle = "New Version!"
                 stext = "A big update is coming! New heroes, new features are waiting for you!"
@@ -1636,11 +1686,17 @@ def synTourBattle():
     replay = request.form.get("replay")
     if uid==0 or eid==0 or stars<0 or stars>3 or replay==None:
         return json.dumps(dict(code=0))
+    rserver = getRedisServer()
+    rkey = "tbt%d_%d_%d" % (tbid,uid,eid)
+    rvalue = rserver.incr(rkey)
+    rserver.expire(rkey,600)
+    if rvalue>1:
+        return json.dumps(dict(code=0))
     con = getConn()
     cur = con.cursor()
-    rserver = getRedisServer()
     addStar = 1
     addUid = eid
+
     rid = rserver.incr("videoServer")
     cur.execute("INSERT INTO nozomi_replay (id,replay) VALUES (%s,%s)",(rid,replay))
     cur.execute("INSERT IGNORE INTO nozomi_tour_cold (tbid,uid,eid,rid) VALUES (%s,%s,%s,%s)",(tbid,uid,eid,rid))
