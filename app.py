@@ -46,17 +46,17 @@ mysqllogger.setLevel(logging.INFO)
 
 
 #oldExec = getattr(cursors.BaseCursor, 'execute')
-oldQuery = getattr(connections.Connection, 'query')
+#oldQuery = getattr(connections.Connection, 'query')
     
-def query(self, sql):
-    mysqllogger.info("%s\n%s", sql, time.asctime())
-    startTime = time.time()*1000
-    oldQuery(self, sql)
-    endTime = time.time()*1000
+#def query(self, sql):
+#    mysqllogger.info("%s\n%s", sql, time.asctime())
+#    startTime = time.time()*1000
+#    oldQuery(self, sql)
+#    endTime = time.time()*1000
 
 
 #setattr(cursor.BaseCursor, 'execute', execute)
-setattr(connections.Connection, 'query', query)
+#setattr(connections.Connection, 'query', query)
 
 
 
@@ -161,7 +161,6 @@ dataBuilds = [
               [3, 130025, 2002, 1, 0, 400, "{\"resource\":500}"],
               [4, 180025, 1000, 1, 0, 400, ""],
               [5, 240023, 2004, 1, 0, 250, "{\"resource\":1}"],
-              [6, 350003, 1003, 0, 0, 0, ""],
               [48, 140020, 7000, 1, 0, 0, ""],
               [7, 360033, 4003, 1, 0, 0, ""],
               [8, 370037, 4014, 1, 0, 0, ""],
@@ -192,18 +191,10 @@ dataBuilds = [
               [33, 250030, 4009, 1, 0, 0, ""],
               [34, 250035, 4004, 1, 0, 0, ""],
               [35, 210038, 4008, 1, 0, 0, ""],
-              [36, 350001, 4008, 1, 0, 0, ""],
-              [37, 350007, 4008, 1, 0, 0, ""],
-              [38, 370001, 4012, 1, 0, 0, ""],
-              [39, 370007, 4013, 1, 0, 0, ""],
-              [40, 330003, 4001, 1, 0, 0, ""],
-              [41, 390003, 4000, 1, 0, 0, ""],
-              [42, 330005, 4012, 1, 0, 0, ""],
-              [43, 390005, 4012, 1, 0, 0, ""],
-              [44, 370020, 4004, 1, 0, 0, ""],
-              [45, 370024, 4012, 1, 0, 0, ""],
-              [46, 340029, 4001, 1, 0, 0, ""],
-              [47, 330036, 4008, 1, 0, 0, ""]
+              [6, 370020, 4004, 1, 0, 0, ""],
+              [36, 370024, 4012, 1, 0, 0, ""],
+              [37, 340029, 4001, 1, 0, 0, ""],
+              [38, 330036, 4008, 1, 0, 0, ""]
               ]
 
 def getUserInfos(uid):
@@ -1050,6 +1041,9 @@ def getData():
         zdc = queryOne("SELECT chance,stage,etime FROM nozomi_zombie_challenge WHERE id=%s",(uid,))
         if zdc!=None:
             data['zdc'] = zdc
+        hdc = queryOne("SELECT chance,stage,etime FROM nozomi_hero_challenge WHERE id=%s",(uid,))
+        if hdc!=None:
+            data['hdc'] = hdc
         stages = queryAll("SELECT stars,lres FROM nozomi_stages WHERE id=%s ORDER BY sid",(uid,))
         if stages!=None:
             data['stages'] = stages
@@ -1324,7 +1318,6 @@ def synData():
                 zdc[0] -= 1
                 if alevel>zdc[1]:
                     zdc[1] = alevel
-                print "Syn Batch Time",zdc[0],zdc[2],baseTime,cmd[1]
                 if zdc[0]<5 and zdc[2]<cmdTime:
                     zdc[2] = cmdTime+7200
                 zchanged = True
@@ -1332,6 +1325,24 @@ def synData():
                 if cmdInfo[0]==1:
                     zdc[0] += cmdInfo[1]
                     zchanged = True
+            elif cmd[0]==3:
+                hdc = queryOne("SELECT chance,stage,etime FROM nozomi_hero_challenge WHERE id=%s",(uid,))
+                if hdc==None:
+                    hdc = [5,0,0]
+                else:
+                    hdc = list(hdc)
+                    while hdc[0]<5 and hdc[2]<ctime:
+                        hdc[0] += 1
+                        hdc[2] += 21600
+                alevel = 0
+                if cmdInfo[1]>=3:
+                    alevel = cmdInfo[0]*10
+                hdc[0] -= 1
+                if alevel>hdc[1]:
+                    hdc[1] = alevel
+                if hdc[0]<5 and hdc[2]<cmdTime:
+                    hdc[2] = cmdTime + 21600
+                update("REPLACE INTO nozomi_hero_challenge (id,chance,stage,etime) VALUES (%s,%s,%s,%s)",(uid,hdc[0],hdc[1],hdc[2]))
         if zchanged:
             update("REPLACE INTO nozomi_zombie_challenge (id,chance,stage,etime) VALUES (%s,%s,%s,%s)",(uid,zdc[0],zdc[1],zdc[2]))
     if 'objs' in request.form:
@@ -1965,6 +1976,8 @@ def synArenaBattle2():
                 rserver.delete("cleader%d_%d" % (aid,ttype+1))
                 if totalLS>0:
                     cur.execute("UPDATE nozomi_clan SET score2=score2+%s,score=score+%s WHERE id=%s",(totalLS,totalLS,tscores[ttype][3]))
+                    rserver.zincrby("clanRank1",tscores[ttype][3],totalLS)
+                    rserver.zincrby("clanRank2",tscores[ttype][3],totalLS)
         cur.execute("UPDATE nozomi_arena_battle SET winner=%s WHERE id=%s",(winner,aid))
         cur.execute("DELETE FROM nozomi_arena_prepare WHERE aid=%s",(aid,))
         cur.executemany("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",rewardList)
