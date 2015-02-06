@@ -863,11 +863,11 @@ def newInitUser(uid,plat,device,curTime):
 
     return dict(name="", score=0, clan=0, guide=0, crystal=500, lastSynTime=curTime, shieldTime=0, zombieTime=0, obstacleTime=0, mtype=0, totalCrystal=0, lastOffTime=curTime, registerTime=curTime, ban=0, rnum=0, mnum=100, level=1, exp=0, cmask=0, hnum=0, ug=0)
 
-updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.zclash': 'https://play.google.com/store/apps/details?id=com.caesars.zclash', 'com.caesars.nozomi': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.caesars': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.clashzombie': 'https://itunes.apple.com/app/id915963054', 'com.caesars.empire': 'https://itunes.apple.com/app/id608847384'}
-settings = [17,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,17]
-newActivitys2 = [[1422057600,1422144000,"act4",30,64,86400*14],[1422057600,1422144000,"act1",0,8,86400*14,1],[1422057600,1422144000,"act3",30,32,86400*14],[1422057600,1422144000,"act8",10,1024,86400*7]]
+updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.zclash': 'https://play.google.com/store/apps/details?id=com.caesars.zclash', 'com.caesars.nozomi': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.caesars': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.clashzombie': 'https://itunes.apple.com/app/id915963054', 'com.caesars.empire': 'https://itunes.apple.com/app/id608847384', 'com.kreed.cozombie': 'http://apple.vshare.com/72092635.html'}
+settings = [19,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,21]
+newActivitys2 = [[1423267200,1423353600,"act4",30,64,86400*14],[1423267200,1423353600,"act1",0,8,86400*14,1],[1423267200,1423353600,"act3",30,32,86400*14],[1423267200,1423353600,"act8",10,1024,86400*7]]
 newActivitys3 = [[1422662400,1422748800,"act2",30,16,86400*14],[1422662400,1422748800,"act1",0,8,86400*14,0],[1422662400,1422748800,"act6",20,256,86400*14],[1422662400,1422748800,"act8",10,1024,86400*7]]
-stours = [[1,1,0,2,1422230400,604800,1800,432000,489600,547200],[2,1,1,3,1422835200,604800,1800,432000,489600,547200]]
+stours = [[2,1,0,3,1422835200,604800,1800,432000,489600,547200],[3,1,0,4,1423440000,604800,1800,432000,489600,547200]]
 @app.route("/getData", methods=['GET'])
 def getData():
     uid = int(request.args.get("uid"))
@@ -914,17 +914,17 @@ def getData():
                 shouldDebug = False
             elif checkVersion<settings[0]:
                 stitle = "New Version!"
-                stext = "A big update is coming! New heroes, new features are waiting for you!"
+                stext = "New heroes are coming! Update now!"
                 sbut1 = "Update Now"
                 sbut2 = "Later"
                 if lang=="CN":
                     stitle = "新版本来啦！"
-                    stext = "一个大更新版本来啦！新英雄，新功能在等着你！"
+                    stext = "新英雄来啦！现在更新！"
                     sbut1 = "现在更新"
                     sbut2 = "以后更新"
                 elif lang=="HK":
                     stitle = "新版本來啦！"
-                    stext = "壹個大更新版本來啦！新英雄，新功能在等著你！"
+                    stext = "新英雄來啦！現在更新！"
                     sbut1 = "現在更新"
                     sbut2 = "以後更新"
                 ret = dict(serverUpdate=1, title=stitle, content=stext, button1=sbut1, button2=sbut2)
@@ -1047,7 +1047,7 @@ def getData():
         stages = queryAll("SELECT stars,lres FROM nozomi_stages WHERE id=%s ORDER BY sid",(uid,))
         if stages!=None:
             data['stages'] = stages
-        data['nacts'] = newActivitys3
+        data['nacts'] = newActivitys2
         data['tours'] = stours
         data['utours'] = queryAll("SELECT tid,tstage,trank,ttype,star FROM nozomi_user_tour WHERE id=%s",(uid,))
         objs = queryOne("SELECT objs FROM nozomi_user_objs WHERE id=%s AND id2=0",(uid,))
@@ -1137,7 +1137,7 @@ def getReplay():
     return queryOne("SELECT replay FROM nozomi_replay WHERE id=%s", (vid))[0]
 
 resourceMap={2004:1, 2001:2000000, 2003:2000000, 2005:80000}
-maxList = [[0,4],[1,1],[2,1],[1000,4],[1001,4],[1002,1],[1003,1],[1004,1],[1005,1],[2000,7],[2001,4],[2002,7],[2003,4],[2004,5],[2005,4],[3000,6],[3001,7],[3002,3],[3003,4],[3004,4],[3005,4],[3006,250],[3007,3]]
+maxList = [[0,4],[1,1],[2,1],[1000,4],[1001,4],[1002,1],[1003,2],[1004,1],[1005,1],[2000,7],[2001,4],[2002,7],[2003,4],[2004,5],[2005,4],[3000,6],[3001,7],[3002,3],[3003,4],[3004,4],[3005,4],[3006,250],[3007,3]]
 
 def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
     oldBuilds = getUserBuilds(uid)
@@ -1227,7 +1227,7 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
                 ret = 8
                 break
     if ret>0:
-        if ret!=2:
+        if ret!=2 and ret!=7:
             update("UPDATE nozomi_user SET ban=2 WHERE id=%s",(uid))
             testlogger.info("banUserId:%d,banType:%d,requestBuilds:%s" % (uid, ret, json.dumps(updateBuilds)))
         return True
