@@ -782,7 +782,7 @@ def getData():
         else:
             checkVersion = request.args.get("checkVersion", 0, type=int)
             if checkVersion>settings[0] and platform.find("android")==-1:
-                shouldDebug = False
+                shouldDebug = True
             elif checkVersion<settings[0]:
                 stitle = "New Version!"
                 stext = "New heroes are coming! Update now!"
@@ -1235,6 +1235,8 @@ def synData():
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
     if 'userInfo' in request.form:
         userInfo = json.loads(request.form['userInfo'])
+        if 'magic' in userInfo:
+            testlogger.info("magic_stat\t%d\t%d\t%d" % (uid,userDbInfo["mnum"],userInfo["magic"]))
         userInfoUpdate.update(userInfo)
         if 'score' in userInfo:
             userInfoUpdate.pop('score')
