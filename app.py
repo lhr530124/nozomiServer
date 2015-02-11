@@ -865,9 +865,9 @@ def newInitUser(uid,plat,device,curTime):
 
 updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.zclash': 'https://play.google.com/store/apps/details?id=com.caesars.zclash', 'com.caesars.nozomi': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.caesars': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.clashzombie': 'https://itunes.apple.com/app/id915963054', 'com.caesars.empire': 'https://itunes.apple.com/app/id608847384', 'com.kreed.cozombie': 'http://apple.vshare.com/72092635.html'}
 settings = [19,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,21]
-newActivitys2 = [[1423267200,1423353600,"act4",30,64,86400*14],[1423267200,1423353600,"act1",0,8,86400*14,1],[1423267200,1423353600,"act3",30,32,86400*14],[1423267200,1423353600,"act8",10,1024,86400*7]]
+newActivitys2 = [[1423267200,1423353600,"act4",30,64,86400*14],[1423267200,1423353600,"act1",0,8,86400*14,1],[1423267200,1423353600,"act3",20,32,86400*14],[1423267200,1423353600,"act8",10,1024,86400*7]]
 newActivitys3 = [[1422662400,1422748800,"act2",30,16,86400*14],[1422662400,1422748800,"act1",0,8,86400*14,0],[1422662400,1422748800,"act6",20,256,86400*14],[1422662400,1422748800,"act8",10,1024,86400*7]]
-stours = [[2,1,0,3,1422835200,604800,1800,432000,489600,547200],[3,1,0,4,1423440000,604800,1800,432000,489600,547200]]
+stours = [[3,1,2,4,1423440000,604800,1800,432000,489600,547200]]
 @app.route("/getData", methods=['GET'])
 def getData():
     uid = int(request.args.get("uid"))
@@ -2233,7 +2233,7 @@ def sendLeagueAd():
     uid = request.form.get("uid",0,type=int)
     cid = request.form.get('cid',0,type=int)
     text = request.form['text']
-    cost = request.form.get("crystal",0,type=int)
+    cost = request.form.get("cost",0,type=int)
     t = int(time.time())
     ret = dict(code=0)
     con = getConn()
