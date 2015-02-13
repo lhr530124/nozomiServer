@@ -866,7 +866,7 @@ def newInitUser(uid,plat,device,curTime):
 updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.zclash': 'https://play.google.com/store/apps/details?id=com.caesars.zclash', 'com.caesars.nozomi': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.caesars': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.clashzombie': 'https://itunes.apple.com/app/id915963054', 'com.caesars.empire': 'https://itunes.apple.com/app/id608847384', 'com.kreed.cozombie': 'http://apple.vshare.com/72092635.html'}
 settings = [19,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,21]
 newActivitys2 = [[1423267200,1423353600,"act4",30,64,86400*14],[1423267200,1423353600,"act1",0,8,86400*14,1],[1423267200,1423353600,"act3",20,32,86400*14],[1423267200,1423353600,"act8",10,1024,86400*7]]
-newActivitys3 = [[1422662400,1422748800,"act2",30,16,86400*14],[1422662400,1422748800,"act1",0,8,86400*14,0],[1422662400,1422748800,"act6",20,256,86400*14],[1422662400,1422748800,"act8",10,1024,86400*7]]
+newActivitys3 = [[1423872000,1423958400,"act2",30,16,86400*14],[1423872000,1423958400,"act1",0,8,86400*14,0],[1423872000,1423958400,"act6",20,256,86400*14],[1423872000,1423958400,"act8",10,1024,86400*7]]
 stours = [[3,1,2,4,1423440000,604800,1800,432000,489600,547200]]
 @app.route("/getData", methods=['GET'])
 def getData():
@@ -1047,7 +1047,7 @@ def getData():
         stages = queryAll("SELECT stars,lres FROM nozomi_stages WHERE id=%s ORDER BY sid",(uid,))
         if stages!=None:
             data['stages'] = stages
-        data['nacts'] = newActivitys2
+        data['nacts'] = newActivitys3
         data['tours'] = stours
         data['utours'] = queryAll("SELECT tid,tstage,trank,ttype,star FROM nozomi_user_tour WHERE id=%s",(uid,))
         objs = queryOne("SELECT objs FROM nozomi_user_objs WHERE id=%s AND id2=0",(uid,))
@@ -1137,7 +1137,7 @@ def getReplay():
     return queryOne("SELECT replay FROM nozomi_replay WHERE id=%s", (vid))[0]
 
 resourceMap={2004:1, 2001:2000000, 2003:2000000, 2005:80000}
-maxList = [[0,4],[1,1],[2,1],[1000,4],[1001,4],[1002,1],[1003,2],[1004,1],[1005,1],[2000,7],[2001,4],[2002,7],[2003,4],[2004,5],[2005,4],[3000,6],[3001,7],[3002,3],[3003,4],[3004,4],[3005,4],[3006,250],[3007,3]]
+maxList = [[0,4],[1,1],[2,1],[1000,4],[1001,4],[1002,1],[1003,2],[1004,1],[1005,1],[2000,7],[2001,4],[2002,7],[2003,4],[2004,5],[2005,4],[3000,6],[3001,7],[3002,3],[3003,4],[3004,4],[3005,4],[3006,250],[3007,3],[3008,2]]
 
 def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
     oldBuilds = getUserBuilds(uid)
@@ -1227,7 +1227,7 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
                 ret = 8
                 break
     if ret>0:
-        if ret!=2 and ret!=7:
+        if ret!=1 and ret!=2 and ret!=7:
             update("UPDATE nozomi_user SET ban=2 WHERE id=%s",(uid))
             testlogger.info("banUserId:%d,banType:%d,requestBuilds:%s" % (uid, ret, json.dumps(updateBuilds)))
         return True
@@ -1236,7 +1236,7 @@ def checkBuilds(uid, updateBuilds, deleteBuilds, accTimes):
 
 @app.route("/synData", methods=['POST'])
 def synData():
-    uid = int(request.form.get("uid", 0))
+    uid = request.form.get("uid", 0, type=int)
     if uid==0:
         return json.dumps({'code':2})
     if 'req' in request.form:
@@ -1246,7 +1246,7 @@ def synData():
             rid = int(rid)
             nrid = request.form.get('req',0,type=int)
             if nrid>rid or nrid<rid-3:
-                print("token error, may be login in two device", uid)
+                testlogger.info("refuse_stat\t%d\t%s:%d,%d" % (uid,"Token_Different",rid,nrid))
                 return json.dumps({'code':2,'subcode':1})
             elif nrid<rid:
                 print("token the same, may be syn data twice", uid)
@@ -1256,6 +1256,7 @@ def synData():
                 rserver.setex("utoken%d" % uid, 7200, rid)
         else:
             print("token out date",uid)
+            testlogger.info("refuse_stat\t%d\t%s" % (uid,"Token_Timeout"))
             return json.dumps({'code':2})
     platform = "ios"
     if 'platform' in request.form:
@@ -1265,10 +1266,16 @@ def synData():
         stime = request.form.get('servertime', 0, type=int)
         ctime = int(time.mktime(time.localtime()))
         if stime<ctime-600 or stime>ctime+600:
+            testlogger.info("refuse_stat\t%d\t%s" % (uid,"Client_Time_Error"))
             return '{"code":2}'
     accTimes = 0
     if 'crystal' in request.form:
-        ls = json.loads(request.form['crystal'])
+        ls = None
+        try:
+            ls = json.loads(request.form['crystal'])
+        except:
+            testlogger.info("refuse_stat\t%d\t%s" % (uid,"Client_Data_Error4"))
+            return '{"code":2}'
         for l in ls:
             if l[0]>0:
                 crystallogger.info("%s\t%d\t%s" % (platform, uid, json.dumps(l)))
@@ -1288,14 +1295,35 @@ def synData():
         try:
             updateBuilds = json.loads(updateBuilds)
         except:
+            testlogger.info("refuse_stat\t%d\t%s" % (uid,"Client_Data_Error"))
             return '{"code":2}'
         if checkBuilds(uid,updateBuilds,deleteBuilds,accTimes):
+            testlogger.info("refuse_stat\t%d\t%s" % (uid,"Client_Data_HackOrExcept"))
             return '{"code":1}'
     userDbInfo = getUserAllInfos(uid)
     if userDbInfo==None or userDbInfo['ban']!=0:
+        testlogger.info("refuse_stat\t%d\t%s" % (uid,"User_Baned"))
         return '{"code":1}'
+    userInfo = None
+    if "userInfo" in request.form:
+        try:
+            userInfo = json.loads(request.form['userInfo'])
+        except:
+            testlogger.info("refuse_stat\t%d\t%s" % (uid,"Client_Data_Error2"))
+            return '{"code":2}'
+        if 'magic' in userInfo:
+            if userInfo["magic"]-userDbInfo["mnum"]>=50000:
+                update("UPDATE nozomi_user SET ban=2 WHERE id=%s",(uid,))
+                testlogger.info("banUserId:%d,banType:%d,requestMagic:%s" % (uid, 10, userInfo["magic"]))
+                return '{"code":1}'
+            testlogger.info("magic_stat\t%d\t%d\t%d" % (uid,userDbInfo["mnum"],userInfo["magic"]))
     if 'cmds' in request.form:
-        cmds = json.loads(request.form['cmds'])
+        cmds = None
+        try:
+            cmds = json.loads(request.form['cmds'])
+        except:
+            testlogger.info("refuse_stat\t%d\t%s" % (uid,"Client_Data_Error3"))
+            return '{"code":2}'
         baseTime = cmds[0]
         ctime = int(time.time())
         zdc = queryOne("SELECT chance,stage,etime FROM nozomi_zombie_challenge WHERE id=%s",(uid,))
@@ -1361,10 +1389,7 @@ def synData():
     if 'irn' in request.form:
         update("UPDATE nozomi_invite_stat SET tg=tg+%s WHERE id=%s",(request.form.get("irn",0,type=int), uid))
     userInfoUpdate = dict(lastSynTime=int(time.mktime(time.localtime())))
-    if 'userInfo' in request.form:
-        userInfo = json.loads(request.form['userInfo'])
-        if 'magic' in userInfo:
-            testlogger.info("magic_stat\t%d\t%d\t%d" % (uid,userDbInfo["mnum"],userInfo["magic"]))
+    if userInfo!=None:
         userInfoUpdate.update(userInfo)
         if 'score' in userInfo:
             userInfoUpdate.pop('score')
@@ -1377,6 +1402,7 @@ def synData():
         baseCrystal = request.form.get('bs',0,type=int)
         changeCrystal = request.form.get('cc',0,type=int)
         if baseCrystal>oldCrystal+100 or changeCrystal>500000:
+            testlogger.info("refuse_stat\t%d\t%s" % (uid,"Client_Crystal_Error"))
             return '{"code":1}'
         newCrystal = baseCrystal+changeCrystal
         userInfoUpdate['crystal'] = newCrystal
@@ -1418,9 +1444,13 @@ def getArenaBattle2():
         cur.execute("SELECT endTime,unum,reward,winner FROM nozomi_arena_battle WHERE id=%s",(aid,))
         data = cur.fetchone()
         ret = dict(endTime=data[0],unum=data[1],reward=data[2],winner=data[3],aid=aid)
-        cur.execute("SELECT id,ttype,name FROM nozomi_arena_prepare WHERE aid=%s",(aid,))
-        ret['players'] = cur.fetchall()
-        cur.execute("SELECT name,ttype,stars,owner,did,res,rid FROM nozomi_arena_town WHERE aid=%s ORDER BY tid ASC",(aid,))
+        if atype!=1:
+            cur.execute("SELECT id,ttype,name FROM nozomi_arena_prepare WHERE aid=%s",(aid,))
+            ret['players'] = cur.fetchall()
+        else:
+            cur.execute("SELECT c.id,a.ttype,c.name,c.icon FROM nozomi_arena_prepare AS a, nozomi_clan AS c WHERE a.aid=%s AND a.id=c.id",(aid,))
+            ret['players'] = cur.fetchall()
+        cur.execute("SELECT name,ttype,stars,owner,did,res,rid,chance,rsp,olv FROM nozomi_arena_town WHERE aid=%s ORDER BY tid ASC",(aid,))
         ret['towns'] = cur.fetchall()
         ret['code'] = 0
         rserver = getRedisServer()
@@ -1445,7 +1475,7 @@ def nextTownData():
     utid = mdict.get("utid",0,type=int)
     tid = mdict.get("tid",0,type=int)
     utype = mdict.get('utype',0,type=int)
-    datas = queryAll("SELECT tid,name,ttype,stars,did,res FROM nozomi_arena_town WHERE aid=%s AND tid!=%s AND ttype!=%s AND stars=0",(aid,tid,utype))
+    datas = queryAll("SELECT tid,name,ttype,stars,did,res,olv FROM nozomi_arena_town WHERE aid=%s AND tid!=%s AND ttype!=%s AND stars=0",(aid,tid,utype))
     if datas==None:
         return json.dumps(dict(code=0))
     else:
@@ -1477,6 +1507,12 @@ def nextTownData():
         ret['tid'] = data[0]
         ret['stars'] = data[3]
         ret['res'] = data[5]
+        if data[6]<0:
+            ret['totalCrystal'] = 10
+            ret['level'] = -data[6]
+        else:
+            ret['totalCrystal'] = 0
+            ret['level'] = data[6]
         if data[2]==0:
             ret['builds'] = json.loads(queryOne("SELECT builds FROM nozomi_town_builds WHERE id=%s",(did,))[0])
         elif did<0:
@@ -1503,7 +1539,7 @@ def getTownData():
     aid = mdict.get("aid",0,type=int)
     utid = mdict.get("utid",0,type=int)
     tid = mdict.get("tid",0,type=int)
-    data = queryOne("SELECT name,ttype,stars,owner,did,res FROM nozomi_arena_town WHERE aid=%s AND tid=%s",(aid,tid))
+    data = queryOne("SELECT name,ttype,stars,owner,did,res,olv FROM nozomi_arena_town WHERE aid=%s AND tid=%s",(aid,tid))
     ret = dict(code=0)
     if not isScout:
         rserver = getRedisServer()
@@ -1533,6 +1569,12 @@ def getTownData():
         ret['tid'] = tid
         ret['stars'] = data[2]
         ret['res'] = data[5]
+        if data[6]<0:
+            ret['level'] = -data[6]
+            ret['totalCrystal'] = 10
+        else:
+            ret['level'] = data[6]
+            ret['totalCrystal'] = 0
         if data[1]==0:
             ret['builds'] = json.loads(queryOne("SELECT builds FROM nozomi_town_builds WHERE id=%s",(did,))[0])
         elif did<0:
@@ -1874,6 +1916,7 @@ def synArenaBattle2():
         return json.dumps(dict(code=0))
     con = getConn()
     cur = con.cursor()
+    rsp = 0
     if stars>=1:
         rid = 0
         if 'replay' in request.form:
@@ -1882,14 +1925,18 @@ def synArenaBattle2():
         nuget = json.loads(request.form['uget'])
         if atype==2:
             cur.execute("UPDATE nozomi_arena_town SET res=if(res>%s,res-%s,0) WHERE aid=%s AND tid=%s",(nuget[0],nuget[0],aid,tid))
+            rsp = nuget[2]
+        else:
+            rsp = nuget[3]
         cur.execute("UPDATE nozomi_arena_town SET stars=%s,owner=%s,rid=%s WHERE aid=%s AND tid=%s AND stars<%s",(stars,utid,rid,aid,tid,stars))
-        con.commit()
         uget = rserver.get("uget%d_%d" % (aid,uid))
         if uget==None:
             rserver.set("uget%d_%d" % (aid,uid), json.dumps(nuget))
         else:
             uget = json.loads(uget)
             rserver.set("uget%d_%d" % (aid,uid), json.dumps([uget[0]+nuget[0],uget[1]+nuget[1],uget[2]+nuget[2],uget[3]+nuget[3]]))
+    cur.execute("UPDATE nozomi_arena_town SET chance=if(chance>0,chance-1,%s),rsp=rsp+%s WHERE aid=%s AND tid=%s",(rnum,rsp,aid,utid))
+    con.commit()
     cur.execute("SELECT reward,unum,winner,atype,stage FROM nozomi_arena_battle WHERE id=%s", (aid, ))
     battle = cur.fetchone()
     if battle==None or battle[2]>0:
@@ -1958,7 +2005,9 @@ def synArenaBattle2():
                     uget = json.loads(uget)
                     rserver.delete("uget%d_%d" % (aid,user))
                 reward2 = 0
-                if user==rwdUid:
+                if atype==2 and aresult==1:
+                    reward2 = battle[0]/2
+                elif user==rwdUid:
                     reward2 = battle[0]
                 ugets = [apercent*uget[0]/100,apercent*uget[1]/100,apercent*uget[2]/100]
                 if uget[3]>0:
@@ -2060,14 +2109,24 @@ def updateUserRG(rserver, uid, nscore, cur, ol):
 
 @app.route("/synBattleData", methods=['POST'])
 def synBattleData():
-    uid = int(request.form.get("uid", 0))
-    eid = int(request.form.get("eid", 0))
-    incScore = int(request.form.get("score", 0))
-    if uid==0 or eid==0:
+    uid = 0
+    eid = 0
+    incScore = 0
+    try:
+        uid = int(request.form.get("uid", 0))
+        eid = int(request.form.get("eid", 0))
+        incScore = int(request.form.get("score", 0))
+        if uid==0 or eid==0:
+            abort(401)
+    except:
         abort(401)
+    history = None
     if 'history' in request.form:
-        history = json.loads(request.form['history'])
-        if history[2]>0 and len(history[7])==0:
+        try:
+            history = json.loads(request.form['history'])
+            if history[2]>0 and len(history[7])==0:
+                abort(401)
+        except:
             abort(401)
     elif 'isLeague' not in request.form:
         abort(401)
@@ -2108,12 +2167,16 @@ def synBattleData():
             cur.close()
     if isNormal(eid):
         if 'eupdate' in request.form:
-            up = json.loads(request.form['eupdate'])
-            updateUserBuildExtends(eid, up, request.form.get("fixv",0,type=int))
+            up = None
+            try:
+                up = json.loads(request.form['eupdate'])
+            except:
+                up = None
+            if up!=None:
+                updateUserBuildExtends(eid, up, request.form.get("fixv",0,type=int))
         if 'hits' in request.form:
             hits = json.loads(request.form['hits'])
             updateUserBuildHitpoints(eid, hits)
-
         if 'shieldTime' in request.form:
             t = int(request.form['shieldTime'])
             setUserShield(eid, t)
@@ -2126,7 +2189,6 @@ def synBattleData():
         videoId = 0
         if 'replay' in request.form:
             videoId = insertAndGetId("INSERT INTO nozomi_replay (replay) VALUES(%s)", (request.form['replay']))
-        history = json.loads(request.form['history'])
         if len(history)==11:
             udata = getUserInfos(uid)
             history.append(udata['totalCrystal'])
