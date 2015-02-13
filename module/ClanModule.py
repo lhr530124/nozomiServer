@@ -29,7 +29,7 @@ def editClan(cid, icon, ltype, name, desc, minScore):
     return 0
 
 def getClanMembers(cid):
-    rets = queryAll("SELECT `id`, score, lscore, name, memberType, level, totalCrystal, uglevel FROM `nozomi_user` WHERE clan=%s", (cid))
+    rets = queryAll("SELECT `id`, score, lscore, name, memberType, level, totalCrystal, uglevel, dnum, rdnum FROM `nozomi_user` WHERE clan=%s", (cid))
     return rets
 
 def getClanInfo(cid):
