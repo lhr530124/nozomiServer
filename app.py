@@ -864,7 +864,7 @@ def newInitUser(uid,plat,device,curTime):
     return dict(name="", score=0, clan=0, guide=0, crystal=500, lastSynTime=curTime, shieldTime=0, zombieTime=0, obstacleTime=0, mtype=0, totalCrystal=0, lastOffTime=curTime, registerTime=curTime, ban=0, rnum=0, mnum=100, level=1, exp=0, cmask=0, hnum=0, ug=0)
 
 updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.zclash': 'https://play.google.com/store/apps/details?id=com.caesars.zclash', 'com.caesars.nozomi': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.caesars': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.clashzombie': 'https://itunes.apple.com/app/id915963054', 'com.caesars.empire': 'https://itunes.apple.com/app/id608847384', 'com.kreed.cozombie': 'http://apple.vshare.com/72092635.html'}
-settings = [19,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,21]
+settings = [19,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,24]
 stours = [[3,1,2,4,1423440000,604800,1800,432000,489600,547200]]
 
 newActivitys = [[1423958401,1424563201,"actSpring",20,32,86400],[1423267200,1423353600,"act4",30,64,86400*14],[1423267200,1423353600,"act1",0,8,86400*14,1],[1425686400,1425772800,"act3",20,32,86400*14],[1423872000,1423958400,"act2",30,16,86400*14],[1423872000,1423958400,"act1",0,8,86400*14,0],[1423872000,1423958400,"act6",20,256,86400*14],[1423267200,1423353600,"act8",10,1024,86400*7]]
@@ -954,17 +954,17 @@ def getData():
                     ret['forceUpdate'] = 1
                     return json.dumps(ret)
         if sversion<settings[4]:
-            stitle = "New Version!"
-            stext = "Big update of Nozomi, tap Close and relogin game please!"
-            sbut = "Close"
+            stitle = "Happy Spring Festival!"
+            stext = "Hero Discount Activity is coming! You should reopen game to download new script."
+            sbut = "Reopen"
             if lang=="CN":
-                stitle = "新版本来啦！"
-                stext = "希望号升级了许多新功能，请点击关闭重启游戏以进行更新！"
-                sbut = "关闭"
+                stitle = "春节快乐！"
+                stext = "英雄打折活动上线啦！你需要重新打开游戏来下载新脚本。"
+                sbut = "重新打开"
             elif lang=="HK":
-                stitle = "新版本來啦！"
-                stext = "希望號升級了許多新功能，請點擊關閉重啓遊戲以進行更新！"
-                sbut = "關閉"
+                stitle = "春節快樂！"
+                stext = "英雄打折活動上線啦！妳需要重新打開遊戲來下載新腳本。"
+                sbut = "重新打開"
             return json.dumps(dict(serverError=1, title=stitle, content=stext, button=sbut))
         data = getUserAllInfos(uid)
         deviceId = ""
