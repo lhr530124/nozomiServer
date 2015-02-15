@@ -865,9 +865,25 @@ def newInitUser(uid,plat,device,curTime):
 
 updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.zclash': 'https://play.google.com/store/apps/details?id=com.caesars.zclash', 'com.caesars.nozomi': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.caesars': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.clashzombie': 'https://itunes.apple.com/app/id915963054', 'com.caesars.empire': 'https://itunes.apple.com/app/id608847384', 'com.kreed.cozombie': 'http://apple.vshare.com/72092635.html'}
 settings = [19,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,21]
-newActivitys2 = [[1423267200,1423353600,"act4",30,64,86400*14],[1423267200,1423353600,"act1",0,8,86400*14,1],[1423267200,1423353600,"act3",20,32,86400*14],[1423267200,1423353600,"act8",10,1024,86400*7]]
-newActivitys3 = [[1423872000,1423958400,"act2",30,16,86400*14],[1423872000,1423958400,"act1",0,8,86400*14,0],[1423872000,1423958400,"act6",20,256,86400*14],[1423872000,1423958400,"act8",10,1024,86400*7]]
 stours = [[3,1,2,4,1423440000,604800,1800,432000,489600,547200]]
+
+newActivitys = [[1423958401,1424563201,"actSpring",20,32,86400],[1423267200,1423353600,"act4",30,64,86400*14],[1423267200,1423353600,"act1",0,8,86400*14,1],[1425686400,1425772800,"act3",20,32,86400*14],[1423872000,1423958400,"act2",30,16,86400*14],[1423872000,1423958400,"act1",0,8,86400*14,0],[1423872000,1423958400,"act6",20,256,86400*14],[1423267200,1423353600,"act8",10,1024,86400*7]]
+def getNewActivitys(sv, ct):
+    acts = []
+    for i in range(len(newActivitys)):
+        act = newActivitys[i]
+        if act[5]>0 and act[5]<act[1]-act[0]:
+            if act[1]<=ct:
+                continue
+            act = [act[0],act[0]+act[5],act[2],act[3],act[4],act[5]]
+        if act[5]>0:
+            while act[1]<ct:
+                act[0] += act[5]
+                act[1] += act[5]
+        if act[0]<ct+2*86400:
+            acts.append(act)
+    return acts
+            
 @app.route("/getData", methods=['GET'])
 def getData():
     uid = int(request.args.get("uid"))
@@ -1047,7 +1063,8 @@ def getData():
         stages = queryAll("SELECT stars,lres FROM nozomi_stages WHERE id=%s ORDER BY sid",(uid,))
         if stages!=None:
             data['stages'] = stages
-        data['nacts'] = newActivitys3
+        if sversion>=23:
+            data['nacts'] = getNewActivitys(sversion,t)
         data['tours'] = stours
         data['utours'] = queryAll("SELECT tid,tstage,trank,ttype,star FROM nozomi_user_tour WHERE id=%s",(uid,))
         objs = queryOne("SELECT objs FROM nozomi_user_objs WHERE id=%s AND id2=0",(uid,))
