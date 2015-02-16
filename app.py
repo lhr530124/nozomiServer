@@ -866,6 +866,17 @@ def newInitUser(uid,plat,device,curTime):
 updateUrls = {'other': 'https://itunes.apple.com/app/id915963054', 'com.caesars.zclash': 'https://play.google.com/store/apps/details?id=com.caesars.zclash', 'com.caesars.nozomi': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.caesars': 'https://play.google.com/store/apps/details?id=com.caesars.nozomi', 'com.caesars.clashzombie': 'https://itunes.apple.com/app/id915963054', 'com.caesars.empire': 'https://itunes.apple.com/app/id608847384', 'com.kreed.cozombie': 'http://apple.vshare.com/72092635.html'}
 settings = [19,int(time.mktime((2014,9,1,12,0,0,0,0,0)))-util.beginTime, True, int(time.mktime((2013,11,26,6,0,0,0,0,0)))-util.beginTime,24]
 stours = [[3,1,2,4,1423440000,604800,1800,432000,489600,547200]]
+def getNewTours(ct):
+    tours = []
+    for tour in stours:
+        while tour[4]+tour[5]<ct:
+            tour[0]+=1
+            tour[2]+=1
+            tour[3]+=1
+            tour[4]+=tour[5]
+        tours.append(tour)
+        tours.append([tour[0]+1,tour[1],tour[2]+1,tour[3]+1,tour[4]+tour[5],tour[5],tour[6],tour[7],tour[8],tour[9]])
+    return tours
 
 newActivitys = [[1423958401,1424563201,"actSpring",20,32,86400],[1423267200,1423353600,"act4",30,64,86400*14],[1423267200,1423353600,"act1",0,8,86400*14,1],[1425686400,1425772800,"act3",20,32,86400*14],[1423872000,1423958400,"act2",30,16,86400*14],[1423872000,1423958400,"act1",0,8,86400*14,0],[1423872000,1423958400,"act6",20,256,86400*14],[1423267200,1423353600,"act8",10,1024,86400*7]]
 def getNewActivitys(sv, ct):
@@ -1065,7 +1076,7 @@ def getData():
             data['stages'] = stages
         if sversion>=23:
             data['nacts'] = getNewActivitys(sversion,t)
-        data['tours'] = stours
+        data['tours'] = getNewTours(t)
         data['utours'] = queryAll("SELECT tid,tstage,trank,ttype,star FROM nozomi_user_tour WHERE id=%s",(uid,))
         objs = queryOne("SELECT objs FROM nozomi_user_objs WHERE id=%s AND id2=0",(uid,))
         if objs==None:
@@ -1666,7 +1677,8 @@ def prepareTour():
         return json.dumps(dict(code=1))
     t = int(time.time())
     tour = None
-    for stour in stours:
+    ntours = getNewTours(t)
+    for stour in ntours:
         if stour[0]==tid:
             tour=stour
             break
@@ -1718,7 +1730,8 @@ def getTourEnemy():
     else:
         t = int(time.time())
         tour = None
-        for stour in stours:
+        ntours = getNewTours(t)
+        for stour in ntours:
             if stour[0]==tid:
                 tour=stour
                 break
@@ -1780,7 +1793,6 @@ def synTourBattle():
     else:
         cur.execute("UPDATE nozomi_tour_battle SET def=def+%s,star=star+%s WHERE tbid=%s AND id=%s",(1,1,tbid,eid))
     cur.execute("UPDATE nozomi_user_tour SET star=star+%s WHERE id=%s AND tid=%s",(addStar,addUid,tid))
-    rserver.zincrby("utour%d" % tid, addUid, addStar)
     con.commit()
     cur.close()
     return json.dumps(dict(code=0))
