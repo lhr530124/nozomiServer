@@ -426,7 +426,7 @@ def updateUserState(uid, eid):
 @app.route("/getBattleHistory", methods=['GET'])
 def getBattleHistory():
     uid = int(request.args['uid'])
-    ret = queryAll("SELECT info, eid, time, videoId, reverged FROM nozomi_battle_history WHERE uid=%s" , (uid))
+    ret = queryAll("SELECT info, eid, time, videoId, reverged FROM nozomi_battle_history WHERE uid=%s" , (uid,), 2)
     if ret==None:
         return "[]"
     else:
@@ -2228,7 +2228,6 @@ def synBattleData():
             updateUserInfoById(userInfoUpdate, eid)
     updateUserState(uid, eid)
     if 'isReverge' in request.form:
-        update("UPDATE nozomi_battle_history SET reverged=1 WHERE uid=%s AND eid=%s", (uid, eid))
         update("UPDATE nozomi_battle_history SET reverged=1 WHERE uid=%s AND eid=%s", (uid, eid), 2)
     if isNormal(eid):
         videoId = 0
@@ -2245,7 +2244,6 @@ def synBattleData():
             history.append(udata['totalCrystal'])
             history.append(udata['level'])
         hid = rserver.incrby("historyServer",1)
-        update("INSERT INTO nozomi_battle_history (id, uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s,0)", (hid, eid, uid, videoId, int(time.mktime(time.localtime())), json.dumps(history)))
         update("INSERT INTO nozomi_battle_history (id, uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s,0)", (hid, eid, uid, videoId, int(time.mktime(time.localtime())), json.dumps(history)), 2)
     return json.dumps({'code':0,'ng':ngrank})
 
