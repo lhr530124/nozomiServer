@@ -938,7 +938,7 @@ def getData():
         else:
             checkVersion = request.args.get("checkVersion", 0, type=int)
             if checkVersion>settings[0] and platform.find("android")==-1:
-                shouldDebug = True
+                shouldDebug = False
             elif checkVersion<settings[0]:
                 stitle = "New Version!"
                 stext = "New heroes are coming! Update now!"
@@ -964,6 +964,26 @@ def getData():
                 if settings[2]:
                     ret['forceUpdate'] = 1
                     return json.dumps(ret)
+            if checkVersion<20 and platform=="ios":
+                stitle = "New Version"
+                stext = "1. Crash bug is fixed;\n2. You can watch video to earn free Crystals now!"
+                sbut1 = "Update Now"
+                sbut2 = "Later"
+                if lang=="CN":
+                    stitle = "新版本来啦！"
+                    stext = "1. 闪退bug修复啦！\n2. 现在你可以通过观看视频来获取免费水晶了！"
+                    sbut1 = "现在更新"
+                    sbut2 = "以后更新"
+                elif lang=="HK":
+                    stitle = "新版本來啦！"
+                    stext = "1. 閃退bug修複啦！\n2. 現在妳可以通過觀看視頻來獲取免費水晶了！"
+                    sbut1 = "現在更新"
+                    sbut2 = "以後更新"
+                ret = dict(serverUpdate=1, title=stitle, content=stext, button1=sbut1, button2=sbut2)
+                if cc!="":
+                    ret['url'] = updateUrls[cc.strip("0123456789")]
+                else:
+                    ret['url'] = "https://itunes.apple.com/app/id608847384?mt=8&uo=4"
         if sversion<settings[4]:
             stitle = "Happy Spring Festival!"
             stext = "Hero Discount Activity is coming! You should reopen game to download new script."
@@ -1065,6 +1085,8 @@ def getData():
         data['dtasks'] = loginResult[6]
         data['newRewards'] = getUserRewardsNew(uid)
         data['mask'] = getUserMask(uid)
+        if platform=="ios":
+            data['ratet'] = t+3*86400
         zdc = queryOne("SELECT chance,stage,etime FROM nozomi_zombie_challenge WHERE id=%s",(uid,))
         if zdc!=None:
             data['zdc'] = zdc
