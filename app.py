@@ -17,14 +17,13 @@ import config
 import module
 
 #from requestlogger import WSGILogger, ApacheFormatter
-from logging.handlers import TimedRotatingFileHandler
+from logging.handlers import SocketHandler
 import time
 import random
 
 from logging import Formatter
 import BufferMailHandler
 import util
-import IpSocketHandler
 
 from MySQLdb import cursors, connections
 import redis
@@ -33,32 +32,8 @@ from werkzeug.contrib.fixers import ProxyFix
 if not config.DEBUG:
     rootLogger = logging.getLogger('')
     rootLogger.setLevel(logging.INFO)
-    socketHandler = IpSocketHandler.IpSocketHandler(config.LOG_HOST, config.LOG_PORT)
+    socketHandler = SocketHandler(config.LOG_HOST, config.LOG_PORT)
     rootLogger.addHandler(socketHandler)
-
-
-
-#mysqlLogHandler = TimedRotatingFileHandler('mysqlLog.log', 'd', 1)
-mysqllogger = logging.getLogger("mysqlLogger")
-#mysqllogger.addHandler(mysqlLogHandler)
-mysqllogger.setLevel(logging.INFO)
-#mysqllogger.addHandler(mysqlLogHandler)
-
-
-#oldExec = getattr(cursors.BaseCursor, 'execute')
-#oldQuery = getattr(connections.Connection, 'query')
-    
-#def query(self, sql):
-#    mysqllogger.info("%s\n%s", sql, time.asctime())
-#    startTime = time.time()*1000
-#    oldQuery(self, sql)
-#    endTime = time.time()*1000
-
-
-#setattr(cursor.BaseCursor, 'execute', execute)
-#setattr(connections.Connection, 'query', query)
-
-
 
 reload(sys)
 sys.setdefaultencoding('utf-8') 
@@ -697,152 +672,6 @@ def synBossBattle2():
             rserver.zincrby("clanRank4",cid,bscore)
     return json.dumps(dict(cbe2=1,code=0))
 
-@app.route("/getClanBossData", methods=['GET'])
-def getClanBossData():
-    cid = request.args.get('cid',0,type=int)
-    ret = dict(code=0)
-    if cid>0:
-        ret['cbe'] = getClanBoss(cid)
-        ret['rusers'] = queryAll("SELECT u.id,u.name,if(cu.hp is NULL,0,cu.hp),u.score,if(cu.chance is NULL,%s,cu.chance) FROM nozomi_user AS u LEFT JOIN nozomi_league_boss_member AS cu ON cu.id=u.id WHERE u.clan=%s ORDER BY u.score DESC",(3,cid))
-    return json.dumps(ret)
-
-@app.route("/challengeBoss", methods=['POST'])
-def challengeClanBoss():
-    cid = request.form.get("cid",0,type=int)
-    uid = request.form.get("uid",0,type=int)
-    sid = request.form.get("sid",0,type=int)
-    cdata = getClanBoss(cid)
-    lhp = 0
-    ret = dict(code=0, cbe=cdata, sid=sid)
-    if cdata==None:
-        ret['code'] = 1
-        ret['sid'] = 0
-    elif cdata[4]==0:
-        bhps = [1000000,5000000,22500000,50000000]
-        lhp = bhps[sid-1]
-        update("UPDATE nozomi_league_boss SET cstage=%s, chp=%s WHERE id=%s",(sid,lhp,cid))
-    elif cdata[4]==sid:
-        lhp = cdata[5]
-        if lhp<=0:
-            ret['code'] = 2
-        else:
-            ret['sid'] = sid
-    else:
-        ret['code'] = 1
-        ret['sid'] = cdata[4]
-    if ret['code']==0:
-        ret['hp'] = lhp
-    return json.dumps(ret)
-
-@app.route("/synBossBattle", methods=['POST'])
-def synBossBattle():
-    uid = request.form.get("uid",0,type=int)
-    cid = request.form.get("cid",0,type=int)
-    hp = request.form.get("hp",0,type=int)
-    update("INSERT INTO nozomi_league_boss_member (id,hp,chance) VALUES (%s,%s,%s) ON DUPLICATE KEY UPDATE hp=hp+VALUES(hp), chance=if(chance>1,chance-1,0)",(uid,hp,2))
-    update("UPDATE nozomi_league_boss SET chp=if(chp>%s,chp-%s,0) WHERE id=%s",(hp,hp,cid))
-    return json.dumps(dict(code=0, cbe=getClanBoss(cid)))
-
-codeNames = {20151:"2a1",20153:"2a2",20155:"2a3",20157:"2b1",20159:"2b2",20161:"2b3",20163:"2c1",20165:"2c2",20167:"2c3",20169:"3a2",20171:"3a1",20173:"3a3",20175:"3b1",20177:"3b2",20179:"3b3",20181:"3c1",20183:"3c2",20185:"3c3",20187:"4a1",20189:"4a2",20191:"4b1",20193:"4a3",20195:"4b2",20197:"4b3",20199:"4c1",20201:"4c2",20203:"4c3",20205:"5a3",20207:"5a1",20211:"5a2",20213:"5b1",20215:"5b2",20217:"5b3",20219:"5c1",20221:"5c2",20223:"5c3",20225:"6a2",20227:"6a1",20229:"6c1",20231:"6b3",20233:"6a3",20235:"6b1",20237:"6c2",20239:"6b2",20243:"6c3",20245:"7a3",20247:"7b1",20249:"7b2",20251:"7a2",20253:"7c1",20255:"7a1",20257:"7b3",20259:"7c3",20261:"7c2",20263:"8a3",20265:"8b1",20267:"8b3",20269:"8a2",20271:"8b2",20273:"8a1",20275:"8c3",20277:"8c2",20279:"8c1",20281:"9b3",20283:"9c1",20285:"9a3",20287:"9a2",20289:"9a1",20291:"9b1",20293:"9b2",20295:"9c3",20297:"9c2",20299:"10b2",20301:"10b3",20303:"10a2",20305:"10c2",20307:"10a3",20309:"10a1",20311:"10b1",20313:"10c1",20315:"10c3",20317:"2c1",20319:"2b1",20321:"2a1",20323:"2c2",20325:"2b2",20327:"2a2",20329:"2c3",20331:"2b3",20333:"2a3",20335:"3c1",20337:"3b1",20339:"3a2",20341:"3c2",20343:"3b2",20345:"3a1",20347:"3c3",20349:"3b3",20351:"3a3",20353:"4c1",20355:"4a3",20357:"4a1",20359:"4c2",20361:"4b2",20363:"4a2",20365:"4c3",20367:"4b3",20369:"4b1",20371:"5c1",20375:"5b1",20377:"5a3",20379:"5c2",20381:"5b2",20383:"5a1",20385:"5c3",20387:"5b3",20389:"5a2",20391:"6c2",20393:"6b3",20395:"6a2",20397:"6b2",20399:"6a3",20401:"6a1",20403:"6c3",20405:"6b1",20407:"6c1",20409:"7b3",20411:"7a2",20413:"7a3",20415:"7c3",20417:"7c1",20419:"7b1",20421:"7c2",20423:"7a1",20425:"7b2",20427:"8c3",20429:"8a2",20431:"8a3",20433:"8c2",20435:"8b2",20437:"8b1",20439:"8c1",20441:"8a1",20443:"8b3",20445:"9b2",20447:"9a2",20449:"9b3",20451:"9c3",20453:"9a1",20455:"9c1",20457:"9c2",20459:"9b1",20461:"9a3",20463:"10b1",20465:"10c2",20467:"10b2",20469:"10c1",20471:"10a3",20473:"10b3",20475:"10c3",20477:"10a1",20479:"10a2"}
-
-def redisLock(rserver, lk):
-    lv = rserver.incr(lk)
-    rserver.expire(lk,20)
-    lktick = 10
-    while lv>1 and lktick>0:
-        rserver.decr(lk)
-        time.sleep(0.5)
-        lktick -= 1
-        lv = rserver.incr(lk)
-    if lktick==0:
-        print("death lock in key:%s?" % lk)
-        testlogger.info("death lock in key:%s?" % lk)
-        rserver.setex(lk,20,1)
-
-def redisUnlock(rserver, lk):
-    rserver.decr(lk)
-
-def getNewUserId():
-    rserver = getRedisServer()
-    nuid = rserver.incr("newUid")
-    return nuid
-
-def fixNewUserId(cur):
-    rserver = getRedisServer()
-    redisLock(rserver,"lockNewUid")
-    cur.execute("SELECT max(id) FROM nozomi_raw_user")
-    muid = cur.fetchone()[0]
-    ouid = rserver.get("newUid")
-    if ouid==None or ouid=="":
-        ouid = 0
-    else:
-        ouid = int(ouid)
-    if muid>ouid:
-        rserver.set("newUid",muid)
-    redisUnlock(rserver,"lockNewUid")
-
-#兼容旧版本的老接口；分服以后要换到V2接口上去
-@app.route("/login", methods=['POST'])
-def login():
-    tempname = None
-    if 'tempname' in request.form:
-        tempname = request.form['tempname']
-    username = None
-    if 'username' in request.form:
-        username = request.form['username']
-    plat = "ios"
-    if 'platform' in request.form:
-        plat = request.form['platform']
-    if 'admin' in request.form:
-        uinfos = list(queryAll("SELECT t.id, u.name FROM nozomi_test_users as t, nozomi_user as u where t.id=u.id and t.state=0 order by t.id"))
-        for i in range(len(uinfos)):
-            uinfo = uinfos[i]
-            if uinfo[0] in codeNames:
-                uinfos[i] = [uinfo[0], codeNames[uinfo[0]]]
-        ret = dict(code=0, uinfos=uinfos)
-        return json.dumps(ret)
-    if username==None and tempname==None:
-        return "{'code':401}"
-    shouldBindGC = False
-    uid = 0
-    con = getConn()
-    cur = con.cursor()
-    if username!=None:
-        shouldBindGC = True
-        cur.execute("SELECT uid FROM nozomi_channel_bind WHERE channel=%s AND account=%s",(1,username))
-        user = cur.fetchone()
-        if user!=None:
-            uid = user[0]
-            shouldBindGC = False
-    if uid==0 and tempname!=None:
-        cur.execute("SELECT id FROM nozomi_raw_user WHERE device=%s",(tempname,))
-        user = cur.fetchone()
-        if user!=None:
-            uid = user[0]
-            if shouldBindGC:
-                cur.execute("SELECT account FROM nozomi_channel_bind WHERE channel=%s AND uid=%s",(1,uid))
-                bacc = cur.fetchone()
-                if bacc!=None:
-                    uid = 0
-                    tempname = None
-    while uid==0:
-        uid = getNewUserId()
-        if tempname==None:
-            tempname = "VDEV-%d" % (8000000+uid)
-        try:
-            cur.execute("INSERT INTO nozomi_raw_user (id,device,server,state) VALUES (%s,%s,%s,%s)",(uid,tempname,0,0))
-            con.commit()
-        except:
-            uid = 0
-            if tempname.find("VDEV")==0:
-                tempname = None
-            fixNewUserId(cur)
-    if shouldBindGC:
-        cur.execute("INSERT INTO nozomi_channel_bind (channel,account,uid) VALUES (%s,%s,%s)",(1,username,uid))
-        con.commit()
-    cur.close()
-    return json.dumps(dict(code=0, uid=uid))
-
 def newInitUser(uid,plat,device,curTime):
     con = getConn()
     cur = con.cursor()
@@ -1124,6 +953,7 @@ def getData():
         rid = random.randint(0, 1000000) 
         data['treq'] = rid
         rserver.setex("utoken%d" % uid, 3600, rid)
+        data['jcold'] = rserver.get("uccold%d" % uid)
         loginlogger.info("%s\t%d\tlogin\t%d\t%s" % (platform,uid,rid,deviceId))
     else:
         data = getUserInfos(uid)
@@ -1498,6 +1328,7 @@ def getArenaBattle2():
     cur.execute("SELECT aid FROM nozomi_arena_prepare WHERE id=%s AND atype=%s",(sid,atype))
     arenaInfo = cur.fetchone()
     if arenaInfo!=None and arenaInfo[0]>0:
+        rserver = getRedisServer()
         aid = arenaInfo[0]
         cur.execute("SELECT endTime,unum,reward,winner FROM nozomi_arena_battle WHERE id=%s",(aid,))
         data = cur.fetchone()
@@ -1508,10 +1339,11 @@ def getArenaBattle2():
         else:
             cur.execute("SELECT c.id,a.ttype,c.name,c.icon FROM nozomi_arena_prepare AS a, nozomi_clan AS c WHERE a.aid=%s AND a.id=c.id",(aid,))
             ret['players'] = cur.fetchall()
+            cur.execute("SELECT name,ttype,did,chance,rsp,olv FROM nozomi_arena_exttown WHERE aid=%s ORDER BY tid ASC",(aid,))
+            ret['towns2'] = cur.fetchall()
         cur.execute("SELECT name,ttype,stars,owner,did,res,rid,chance,rsp,olv FROM nozomi_arena_town WHERE aid=%s ORDER BY tid ASC",(aid,))
         ret['towns'] = cur.fetchall()
         ret['code'] = 0
-        rserver = getRedisServer()
         ugets = rserver.get("uget%d_%d" % (aid,uid))
         if ugets!=None:
             ret['uget'] = json.loads(ugets)
@@ -1730,7 +1562,7 @@ def getTourBattleData():
     if tour==None:
         cur.close()
         return json.dumps(dict(code=1))
-    cur.execute("SELECT b.id,b.star,u.name,u.level,u.totalCrystal,u.uglevel,b.atk,b.def,if(bcd.rid is NULL,0,bcd.rid),c.icon,c.name FROM nozomi_tour_battle AS b LEFT JOIN nozomi_tour_cold AS bcd ON bcd.tbid=b.tbid AND bcd.uid=%s AND bcd.eid=b.id, nozomi_user AS u LEFT JOIN nozomi_clan AS c ON u.clan=c.id WHERE u.id=b.id AND b.tbid=%s",(uid,tour[5]))
+    cur.execute("SELECT b.id,b.star,u.name,u.level,u.totalCrystal,u.uglevel,b.atk,b.def,if(bcd.rid is NULL,0,bcd.rid),c.icon,c.name,b.stime FROM nozomi_tour_battle AS b LEFT JOIN nozomi_tour_cold AS bcd ON bcd.tbid=b.tbid AND bcd.uid=%s AND bcd.eid=b.id, nozomi_user AS u LEFT JOIN nozomi_clan AS c ON u.clan=c.id WHERE u.id=b.id AND b.tbid=%s",(uid,tour[5]))
     members = cur.fetchall()
     cur.close()
     return json.dumps(dict(code=0,utour=tour[:5],members=members))
@@ -1807,6 +1639,7 @@ def synTourBattle():
     rserver.expire(rkey,600)
     if rvalue>1:
         return json.dumps(dict(code=0))
+    ct = int(time.time())
     con = getConn()
     cur = con.cursor()
     addStar = 1
@@ -1821,10 +1654,10 @@ def synTourBattle():
     if stars>0:
         addStar = stars*2-1
         addUid = uid
-        cur.execute("UPDATE nozomi_tour_battle SET atk=atk+%s,star=star+%s WHERE tbid=%s AND id=%s",(1,addStar,tbid,uid))
+        cur.execute("UPDATE nozomi_tour_battle SET atk=atk+%s,star=star+%s,stime=%s WHERE tbid=%s AND id=%s",(1,addStar,ct,tbid,uid))
         cur.execute("UPDATE nozomi_tour_battle SET rid=%s WHERE tbid=%s AND id=%s",(rid,tbid,eid))
     else:
-        cur.execute("UPDATE nozomi_tour_battle SET def=def+%s,star=star+%s WHERE tbid=%s AND id=%s",(1,1,tbid,eid))
+        cur.execute("UPDATE nozomi_tour_battle SET def=def+%s,star=star+%s,stime=%s WHERE tbid=%s AND id=%s",(1,1,ct,tbid,eid))
     cur.execute("UPDATE nozomi_user_tour SET star=star+%s WHERE id=%s AND tid=%s",(addStar,addUid,tid))
     con.commit()
     cur.close()
@@ -1952,6 +1785,9 @@ def getArenaState():
     ret = dict(code=0,atype=atype)
     if r!=None:
         ret['arena'] = r
+        if atype==1 and 'cold' in request.args:
+            rserver = getRedisServer()
+            ret["jcold"] = rserver.get("uccold%d" % uid)
     else:
         ret['rewards'] = getUserRewardsNew(uid)
     return json.dumps(ret)
@@ -2001,6 +1837,7 @@ def synArenaBattle2():
             uget = json.loads(uget)
             rserver.set("uget%d_%d" % (aid,uid), json.dumps([uget[0]+nuget[0],uget[1]+nuget[1],uget[2]+nuget[2],uget[3]+nuget[3]]))
     cur.execute("UPDATE nozomi_arena_town SET chance=if(chance>0,chance-1,%s),rsp=rsp+%s WHERE aid=%s AND tid=%s",(rnum,rsp,aid,utid))
+    cur.execute("UPDATE nozomi_arena_exttown SET chance=if(chance>0,chance-1,%s),rsp=rsp+%s WHERE aid=%s AND tid=%s",(rnum,rsp,aid,utid))
     con.commit()
     cur.execute("SELECT reward,unum,winner,atype,stage FROM nozomi_arena_battle WHERE id=%s", (aid, ))
     battle = cur.fetchone()
@@ -2011,6 +1848,8 @@ def synArenaBattle2():
     if arenaChance<=0:
         cur.execute("SELECT tid,ttype,owner,stars,did FROM nozomi_arena_town WHERE aid=%s", (aid,))
         ltowns = cur.fetchall()
+        cur.execute("SELECT tid,ttype,did FROM nozomi_arena_exttown WHERE aid=%s", (aid,))
+        ltowns2 = cur.fetchall()
         tscores = []
         for i in range(battle[1]):
             tscores.append([0,0,[],0,0,0])
@@ -2020,6 +1859,10 @@ def synArenaBattle2():
             if ltown[4]>0:
                 umap[ltown[0]] = ttype
                 tscores[ttype][2].append(ltown[4])
+        for ltown in ltowns2:
+            ttype = ltown[1]-1
+            umap[ltown[0]] = ttype
+            tscores[ttype][2].append(ltown[2])
         for ltown in ltowns:
             if ltown[3]>0:
                 ttype = umap[ltown[2]]
@@ -2441,13 +2284,19 @@ def editClan():
 def joinClan():
     uid = int(request.form.get('uid', 0))
     cid = int(request.form.get('cid', 0))
+    rserver = getRedisServer()
+    #jcold = rserver.get("uccold%d" % uid)
+    #if jcold!=None:
+    #    return json.dumps(dict(code=3))
     user = getUserInfos(uid)
     if user==None or user['clan']!=0:
         return json.dumps(dict(code=2))
     ret = ClanModule.joinClan(uid, cid)
     if ret==None:
         return json.dumps(dict(code=1))
-    return json.dumps(dict(code=0, clan=ret[0], clanInfo=ret, cbe=getClanBoss(cid)))
+    ct = int(time.time())
+    rserver.setex("uccold%d" % uid, 86400, ct+86400)
+    return json.dumps(dict(code=0, jcold=ct+86400, clan=ret[0], clanInfo=ret, cbe=getClanBoss(cid)))
 
 @app.route("/leaveClan", methods=['POST'])
 def leaveClan():
