@@ -949,6 +949,9 @@ def getData():
                 data['arena%d' % ainfo[2]] = [ainfo[0], ainfo[1]]
         if data['guide']>=1400:
             data['ng2'] = queryAll("SELECT etime,num FROM nozomi_user_gift2 WHERE id=%s",(uid,))
+        tss = queryOne("SELECT skill FROM nozomi_team_skill WHERE id=%s",(uid,),3)
+        if tss!=None:
+            data['tss'] = json.loads(tss)
         rserver = getRedisServer()
         rid = random.randint(0, 1000000) 
         data['treq'] = rid
@@ -1015,8 +1018,8 @@ def revergeGetData():
 def getReplay():
     vid = request.args.get("vid",0,type=int)
     record = None
-    if vid<13000000:
-        record = queryOne("SELECT replay FROM nozomi_replay WHERE id=%s", (vid,))
+    if vid>=15000000:
+        record = queryOne("SELECT replay FROM nozomi_replay_%d" % (vid/1000000) + " WHERE id=%s",(vid,),3)
     else:
         record = queryOne("SELECT replay FROM nozomi_replay_%d" % (vid/1000000) + " WHERE id=%s",(vid,),2)
     if record!=None:
@@ -1205,6 +1208,13 @@ def synData():
                 testlogger.info("banUserId:%d,banType:%d,requestMagic:%s" % (uid, 10, userInfo["magic"]))
                 return '{"code":1}'
             testlogger.info("magic_stat\t%d\t%d\t%d" % (uid,userDbInfo["mnum"],userInfo["magic"]))
+    if 'tss' in request.form:
+        try:
+            tss = json.loads(request.form['tss'])
+            update("REPLACE INTO nozomi_team_skill (id,skill) VALUES(%s,%s)",(uid,json.dumps(tss)),3)
+        except:
+            testlogger.info("refuse_stat\t%d\t%s" % (uid,"Client_Data_Error4"))
+            return '{"code":4}'
     if 'cmds' in request.form:
         cmds = None
         try:
@@ -1646,8 +1656,8 @@ def synTourBattle():
     addUid = eid
 
     rid = rserver.incr("videoServer")
-    if rid<13000000:
-        cur.execute("INSERT INTO nozomi_replay (id,replay) VALUES (%s,%s)",(rid,replay))
+    if rid>=15000000:
+        update("INSERT INTO nozomi_replay_%d" % (rid/1000000) + " (id,replay) VALUES (%s,%s)",(rid,replay),3)
     else:
         update("INSERT INTO nozomi_replay_%d" % (rid/1000000) + " (id,replay) VALUES (%s,%s)",(rid,replay),2)
     cur.execute("INSERT IGNORE INTO nozomi_tour_cold (tbid,uid,eid,rid) VALUES (%s,%s,%s,%s)",(tbid,uid,eid,rid))
@@ -1819,8 +1829,8 @@ def synArenaBattle2():
         rid = 0
         if 'replay' in request.form:
             rid = rserver.incr("videoServer")
-            if rid<13000000:
-                cur.execute("INSERT INTO nozomi_replay (id,replay) VALUES(%s,%s)", (rid,request.form['replay']))
+            if rid>=15000000:
+                update("INSERT INTO nozomi_replay_%d" % (rid/1000000) + " (id,replay) VALUES (%s,%s)",(rid,request.form['replay']),3)
             else:
                 update("INSERT INTO nozomi_replay_%d" % (rid/1000000) + " (id,replay) VALUES (%s,%s)",(rid,request.form['replay']),2)
         nuget = json.loads(request.form['uget'])
@@ -2094,22 +2104,24 @@ def synBattleData():
     updateUserState(uid, eid)
     if 'isReverge' in request.form:
         update("UPDATE nozomi_battle_history SET reverged=1 WHERE uid=%s AND eid=%s", (uid, eid), 2)
+        update("UPDATE nozomi_battle_history SET reverged=1 WHERE uid=%s AND eid=%s", (uid, eid), 3)
     if isNormal(eid):
         videoId = 0
         if rserver==None:
             rserver = getRedisServer()
         if 'replay' in request.form:
             videoId = rserver.incr("videoServer")
-            if videoId>=13000000:
+            if videoId<15000000:
                 update("INSERT INTO nozomi_replay_%d" % (videoId/1000000) + " (id,replay) VALUES (%s,%s)",(videoId,request.form['replay']),2)
             else:
-                update("INSERT INTO nozomi_replay (id,replay) VALUES (%s,%s)",(videoId,request.form['replay']))
+                update("INSERT INTO nozomi_replay_%d" % (videoId/1000000) + " (id,replay) VALUES (%s,%s)",(videoId,request.form['replay']),3)
         if len(history)==11:
             udata = getUserInfos(uid)
             history.append(udata['totalCrystal'])
             history.append(udata['level'])
         hid = rserver.incrby("historyServer",1)
         update("INSERT INTO nozomi_battle_history (id, uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s,0)", (hid, eid, uid, videoId, int(time.mktime(time.localtime())), json.dumps(history)), 2)
+        update("INSERT INTO nozomi_battle_history (id, uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s,0)", (hid, eid, uid, videoId, int(time.mktime(time.localtime())), json.dumps(history)), 3)
     return json.dumps({'code':0,'ng':ngrank})
 
 testUids = [20163, 20157, 20151, 20165, 20159, 20153, 20167, 20161, 20155, 20181, 20175, 20169, 20183, 20177, 20171, 20185, 20179, 20173, 20199, 20193, 20187, 20201, 20195, 20189, 20203, 20197, 20191, 20219, 20213, 20205, 20221, 20215, 20207, 20223, 20217, 20211, 20237, 20231, 20225, 20239, 20233, 20227, 20243, 20235, 20229, 20257, 20251, 20245, 20259, 20253, 20247, 20261, 20255, 20249, 20275, 20269, 20263, 20277, 20271, 20265, 20279, 20273, 20267, 20293, 20287, 20281, 20295, 20289, 20283, 20297, 20291, 20285, 20311, 20305, 20299, 20313, 20307, 20301, 20315, 20309, 20303]

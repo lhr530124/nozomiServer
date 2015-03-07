@@ -16,6 +16,7 @@ class DbManager:
             connKwargs = {'host':config.dbInfo[i]['host'],'user':config.dbInfo[i]['user'],'passwd':config.dbInfo[i]['passwd'],'db':config.dbInfo[i]['db'],'charset':"utf8"}
             if 'port' in config.dbInfo[i]:
                 connKwargs["port"] = config.dbInfo[i]["port"]
+            if i>1:
                 connKwargs["charset"] = "utf8mb4"
             pool = PooledDB(MySQLdb, mincached=1, maxcached=10, maxshared=10, maxusage=10000, **connKwargs)
             self.allPools.append(pool)

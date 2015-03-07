@@ -20,5 +20,6 @@ dbInfo = [
 {'host':'10.68.55.40', 'user':'root', 'passwd':'wavegame1', 'db':DATABASE}, 
 {'host':'10.151.82.234', 'user':'root', 'passwd':'wavegame1', 'db':'nozomi2'}, 
 {'host':'10.68.55.40', 'user':'root', 'passwd':'wavegame1', 'db':DATABASE, 'port':3307}, 
+{'host':'10.168.124.83', 'user':'root', 'passwd':'wavegame1', 'db':DATABASE}
 ]
 userCut = [1000000, 99999999]
