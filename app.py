@@ -1269,10 +1269,13 @@ def synData():
                 if hdc[0]<5 and hdc[2]<cmdTime:
                     hdc[2] = cmdTime + 21600
                 update("REPLACE INTO nozomi_hero_challenge (id,chance,stage,etime) VALUES (%s,%s,%s,%s)",(uid,hdc[0],hdc[1],hdc[2]))
+                update("REPLACE INTO nozomi_hero_challenge (id,chance,stage,etime) VALUES (%s,%s,%s,%s)",(uid,hdc[0],hdc[1],hdc[2]), 3)
         if zchanged:
             update("REPLACE INTO nozomi_zombie_challenge (id,chance,stage,etime) VALUES (%s,%s,%s,%s)",(uid,zdc[0],zdc[1],zdc[2]))
+            update("REPLACE INTO nozomi_zombie_challenge (id,chance,stage,etime) VALUES (%s,%s,%s,%s)",(uid,zdc[0],zdc[1],zdc[2]), 3)
     if 'objs' in request.form:
         update("REPLACE INTO nozomi_user_objs (id,id2,objs) VALUES (%s,0,%s)",(uid, request.form['objs']))
+        update("REPLACE INTO nozomi_user_objs (id,id2,objs) VALUES (%s,0,%s)",(uid, request.form['objs']), 3)
     if 'zdt' in request.form:
         zdt = json.loads(request.form['zdt'])
         update("REPLACE INTO nozomi_boss_challenge (id,chance,stage,etime,hp) VALUES (%s,%s,%s,%s,%s)",(uid,zdt[0],zdt[1],zdt[2],zdt[3]))
@@ -1996,6 +1999,7 @@ def updateLevel():
     level = request.form.get("level",0,type=int)
     if level==2:
         update("INSERT IGNORE INTO nozomi_user_gift2 (id,type,etime,num) VALUE (%s,%s,%s,%s)",(uid,level,int(time.time())+3*86400,20))
+        update("INSERT IGNORE INTO nozomi_user_gift2 (id,type,etime,num) VALUE (%s,%s,%s,%s)",(uid,level,int(time.time())+3*86400,20), 3)
     elif level==8:
         rserver = getRedisServer()
         awscore = rserver.zscore("arenaRank1",uid)
@@ -2003,6 +2007,7 @@ def updateLevel():
             rserver.zadd("arenaRank2",awscore,uid)
             rserver.zrem("arenaRank1",uid)
     update("INSERT INTO nozomi_rank_new (id,tlevel,ascore,awscore,zscore,zwscore) VALUES (%s,%s,0,0,0,0) ON DUPLICATE KEY UPDATE tlevel=VALUES(tlevel)",(uid,level))
+    update("INSERT INTO nozomi_rank_new (id,tlevel,ascore,awscore,zscore,zwscore) VALUES (%s,%s,0,0,0,0) ON DUPLICATE KEY UPDATE tlevel=VALUES(tlevel)",(uid,level),3)
     return json.dumps(dict(code=0,ng2=queryAll("SELECT etime,num FROM nozomi_user_gift2 WHERE id=%s",(uid,))))
 
 def isNormal(eid):
@@ -2103,7 +2108,6 @@ def synBattleData():
             updateUserInfoById(userInfoUpdate, eid)
     updateUserState(uid, eid)
     if 'isReverge' in request.form:
-        update("UPDATE nozomi_battle_history SET reverged=1 WHERE uid=%s AND eid=%s", (uid, eid), 2)
         update("UPDATE nozomi_battle_history SET reverged=1 WHERE uid=%s AND eid=%s", (uid, eid), 3)
     if isNormal(eid):
         videoId = 0
@@ -2120,7 +2124,6 @@ def synBattleData():
             history.append(udata['totalCrystal'])
             history.append(udata['level'])
         hid = rserver.incrby("historyServer",1)
-        update("INSERT INTO nozomi_battle_history (id, uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s,0)", (hid, eid, uid, videoId, int(time.mktime(time.localtime())), json.dumps(history)), 2)
         update("INSERT INTO nozomi_battle_history (id, uid, eid, videoId, `time`, `info`, reverged) VALUES(%s,%s,%s,%s,%s,%s,0)", (hid, eid, uid, videoId, int(time.mktime(time.localtime())), json.dumps(history)), 3)
     return json.dumps({'code':0,'ng':ngrank})
 
@@ -2375,6 +2378,8 @@ def checkMask():
     if (umask&mask)==0:
         update("REPLACE INTO nozomi_user_mask (id,mask) VALUES (%s,%s)", (uid, umask|mask))
         update("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)", (uid,0,0,reward,''))
+        update("REPLACE INTO nozomi_user_mask (id,mask) VALUES (%s,%s)", (uid, umask|mask), 3)
+        update("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)", (uid,0,0,reward,''), 3)
         return json.dumps(dict(code=0, rewards=getUserRewardsNew(uid)))
     return json.dumps(dict(code=1))
 
