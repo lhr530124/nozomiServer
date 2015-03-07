@@ -951,7 +951,7 @@ def getData():
             data['ng2'] = queryAll("SELECT etime,num FROM nozomi_user_gift2 WHERE id=%s",(uid,))
         tss = queryOne("SELECT skill FROM nozomi_team_skill WHERE id=%s",(uid,),3)
         if tss!=None:
-            data['tss'] = json.loads(tss)
+            data['tss'] = json.loads(tss[0])
         rserver = getRedisServer()
         rid = random.randint(0, 1000000) 
         data['treq'] = rid
