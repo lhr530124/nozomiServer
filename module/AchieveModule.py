@@ -7,19 +7,17 @@ class AchieveModule:
         self.updateSql = "UPDATE " + dbname + " SET level=%s, num=%s WHERE uid=%s AND achieve=%s"
 
     def getAchieves(self, uid):
-        ret = queryAll(self.selectSql, (uid))
+        ret = queryAll(self.selectSql, (uid), 3)
         return ret
 
     def initAchieves(self, uid):
         params = []
         for i in range(1, 23):
             params.append([uid, i])
-        executemany(self.initSql, params)
         executemany(self.initSql, params, 3)
 
     def updateAchieves(self, uid, params):
         nparams = []
         for p in params:
             nparams.append([p[1], p[2], uid, p[0]])
-        executemany(self.updateSql, nparams)
         executemany(self.updateSql, nparams, 3)

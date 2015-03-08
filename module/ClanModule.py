@@ -23,12 +23,14 @@ def searchClans(text):
 
 def createClan(uid, icon, ltype, name, desc, minScore):
     id = insertAndGetId("INSERT INTO `nozomi_clan` (icon, score, type, name, `desc`, members, `min`, creator, state, statetime) VALUES(%s,0,%s,%s,%s,1,%s,%s,0,0)", (icon, ltype, name, desc, minScore, uid))
+    update("INSERT INTO `nozomi_clan` (id, icon, score, type, name, `desc`, members, `min`, creator, state, statetime) VALUES(%s,%s,0,%s,%s,%s,1,%s,%s,0,0)", (id, icon, ltype, name, desc, minScore, uid))
     update("UPDATE `nozomi_user` SET clan=%s, memberType=2 WHERE id=%s", (id, uid))
     update("UPDATE `nozomi_user` SET clan=%s, memberType=2 WHERE id=%s", (id, uid), 3)
     return id
 
 def editClan(cid, icon, ltype, name, desc, minScore):
     update("UPDATE `nozomi_clan` SET icon=%s,type=%s,name=%s,`desc`=%s,`min`=%s WHERE id=%s", (icon,ltype,name,desc,minScore,cid))
+    update("UPDATE `nozomi_clan` SET icon=%s,type=%s,name=%s,`desc`=%s,`min`=%s WHERE id=%s", (icon,ltype,name,desc,minScore,cid), 3)
     return 0
 
 def getClanMembers(cid):
@@ -51,6 +53,7 @@ def joinClan(uid, cid):
         update("UPDATE `nozomi_user` SET clan=%s, memberType=0 WHERE id=%s", (cid, uid))
         update("UPDATE `nozomi_user` SET clan=%s, memberType=0 WHERE id=%s", (cid, uid), 3)
         update("UPDATE `nozomi_clan` SET members=members+1 WHERE id=%s", (cid))
+        update("UPDATE `nozomi_clan` SET members=members+1 WHERE id=%s", (cid), 3)
         return clan
     return None
 
@@ -88,6 +91,7 @@ def leaveClan(uid, cid):
     con.commit()
     cur.close()
     cur3.execute("UPDATE nozomi_user SET clan=0, lscore=0, memberType=0 WHERE id=%s", (uid,))
+    cur3.execute("UPDATE `nozomi_clan` SET members=if(members>0,members-1,0), score=if(score>%s,score-%s,0) WHERE id=%s", (lscore, lscore, cid))
     con3.commit()
     cur3.close()
     return clan
