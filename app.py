@@ -172,7 +172,7 @@ dataBuilds = [
               ]
 
 def getUserInfos(uid):
-    r = queryOne("SELECT name, score, clan, memberType, level, totalCrystal, uglevel FROM nozomi_user WHERE id=%s", (uid))
+    r = queryOne("SELECT name, score, clan, memberType, level, totalCrystal, uglevel FROM nozomi_user WHERE id=%s", (uid), 3)
     if r==None:
         return None
     return dict(name=r[0], score=r[1], clan=r[2], mtype=r[3], level=r[4], totalCrystal=r[5], ug=r[6])
@@ -185,7 +185,7 @@ def getUserMask(uid):
         return r[0]
 
 def getUserAllInfos(uid):
-    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime, registerTime, ban, rewardNums, magic,level,exp,cmask,hnum,uglevel FROM nozomi_user WHERE id=%s", (uid,))
+    r = queryOne("SELECT name, score, clan, guideValue, crystal, lastSynTime, shieldTime, zombieTime, obstacleTime, memberType, totalCrystal, lastOffTime, registerTime, ban, rewardNums, magic,level,exp,cmask,hnum,uglevel FROM nozomi_user WHERE id=%s", (uid,), 3)
     if r==None:
         return None
     return dict(name=r[0], score=r[1], clan=r[2], guide=r[3], crystal=r[4], lastSynTime=r[5], shieldTime=r[6], zombieTime=r[7], obstacleTime=r[8], mtype=r[9], totalCrystal=r[10], lastOffTime=r[11], registerTime=r[12], ban=r[13], rnum=r[14], mnum=r[15], level=r[16], exp=r[17], cmask=r[18], hnum=r[19], ug=r[20])
@@ -203,7 +203,6 @@ def updateUserInfoById(params, uid):
         paramList.append(value)
     sql = sql + " WHERE id=%s"
     paramList.append(uid)
-    update(sql, paramList)
     update(sql, paramList, 3)
 
 def getJsonObj(string):
@@ -264,13 +263,6 @@ def updateUserBuildExtends(uid, datas, fixv):
             others.append([data[1], uid, data[0],"%\"type\":1%"])
     executemany("UPDATE " + tableName + " SET extend=%s WHERE id=%s AND buildIndex=%s", params, 3)
 
-def getUidByName(account):
-    ret = queryOne("SELECT id FROM nozomi_user WHERE account=%s", (account))
-    if ret==None:
-        return 0
-    else:
-        return ret[0]
-
 dailyGiftReward = [[1,1000],[1,1500],[0,5],[1,2000],[1,2500],[1,3000],[0,10],[1,3500],[1,4000],[0,15],[1,5000],[1,6500],[1,7000],[1,8000],[0,20],[1,9000],[1,10000],[1,11000],[1,12000],[0,30],[1,14000],[1,15000],[1,17000],[1,19000],[0,40],[1,23000],[1,25000],[1,27000],[1,30000],[0,50]]
 dailyTaskInfos = [1,5,100,500,1,100000,1,1,1,10,1]
 def newUserLogin(uid):
@@ -310,8 +302,6 @@ def newUserLogin(uid):
         update("INSERT INTO `nozomi_login_new` (`id`,regDate,loginDate,loginDays,maxLDays,curLDays,lottery,lotterySeed) VALUES(%s,%s,%s,1,1,1,0,%s)", (uid, today, today, lts), 3)
     if newGift>0:
         reward = dailyGiftReward[(newGift-1)%30]
-        update("DELETE FROM `nozomi_reward_new` WHERE uid=%s AND `type`=%s", (uid,1))
-        update("INSERT INTO `nozomi_reward_new` (uid,`type`,`rtype`,`rvalue`,`info`) VALUES(%s,%s,%s,%s,%s)", (uid,1,reward[0],reward[1],json.dumps(dict(day=newGift))))
         update("DELETE FROM `nozomi_reward_new` WHERE uid=%s AND `type`=%s", (uid,1), 3)
         update("INSERT INTO `nozomi_reward_new` (uid,`type`,`rtype`,`rvalue`,`info`) VALUES(%s,%s,%s,%s,%s)", (uid,1,reward[0],reward[1],json.dumps(dict(day=newGift))), 3)
     if dailyTasks!=None:
@@ -331,14 +321,13 @@ def newUserLogin(uid):
     return [0, loginDays, curLDays, newLogin, lt, lts, dailyTasks]
 
 def getUserRewardsNew(uid):
-    allRewards = queryAll("SELECT `id`,`type`,`rtype`,`rvalue`,`info` FROM `nozomi_reward_new` WHERE uid=%s", (uid))
+    allRewards = queryAll("SELECT `id`,`type`,`rtype`,`rvalue`,`info` FROM `nozomi_reward_new` WHERE uid=%s", (uid,), 3)
     if allRewards!=None and len(allRewards)>0:
         return allRewards
     else:
         return []
 
 def deleteUserRewards(rwList):
-    executemany("DELETE FROM `nozomi_reward_new` WHERE id=%s", [(k,) for k in rwList])
     executemany("DELETE FROM `nozomi_reward_new` WHERE id=%s", [(k,) for k in rwList], 3)
 
 platformIds = dict(ios=0, android=1, android_our=2, android_german=3, ios_cn=4)
@@ -373,8 +362,6 @@ def addInviteRewards():
     level = request.form.get("level",0,type=int)
     con = getConn(3)
     cur = con.cursor()
-    con3 = getConn()
-    cur3 = con3.cursor()
     cur.execute("SELECT rlv, tr FROM nozomi_invite_stat WHERE id=%s",(uid,))
     res = cur.fetchone()
     rserver = getRedisServer()
@@ -387,15 +374,12 @@ def addInviteRewards():
         rwds = []
         ccid = rserver.incr("rwdServer")
         cur.execute("INSERT INTO nozomi_reward_new (id,uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s,%s)",(ccid,uid,4,0,ireward[1],''))
-        cur3.execute("INSERT INTO nozomi_reward_new (id,uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s,%s)",(ccid,uid,4,0,ireward[1],''))
         rwds.append([ccid,4,0,ireward[1],''])
         ccid = rserver.incr("rwdServer")
         cur.execute("INSERT INTO nozomi_reward_new (id,uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s,%s)",(ccid,uid,4,3,ireward[2],''))
-        cur3.execute("INSERT INTO nozomi_reward_new (id,uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s,%s)",(ccid,uid,4,3,ireward[2],''))
         rwds.append([ccid,4,3,ireward[2],''])
         ret['rewards'] = rwds
         con.commit()
-        con3.commit()
     elif res!=None:
         ret['level'] = res[0]
         ccid = rserver.get("rwdServer")
@@ -406,7 +390,6 @@ def addInviteRewards():
             if rwds!=None:
                 ret['rewards'] = rwds
     cur.close()
-    cur3.close()
     return json.dumps(ret)
 
 @app.route("/inviteUser", methods=['POST'])
@@ -482,24 +465,6 @@ def getInviteRecord():
         ret['srecords'] = cur.fetchall()
     cur.close()
     return json.dumps(ret)
-
-cbTimes = [82800, 86400,3,1419644150]
-def getClanBoss(cid):
-    ret = None
-    if cid>0:
-        ret = queryOne("SELECT n1time,n2time,mstage,cstage,chp FROM nozomi_league_boss WHERE id=%s",(cid,))
-    else:
-        return None
-    tt = cbTimes[0]
-    if ret==None:
-        t = int(time.time())
-        while cbTimes[3]<t:
-            cbTimes[3] += cbTimes[1]
-        t1 = cbTimes[3]
-        t2 = cbTimes[3]+cbTimes[1]
-        ret = [t1,t2,0,0,0]
-        update("INSERT IGNORE INTO nozomi_league_boss (id,n1time,n2time,mstage,cstage,chp) VALUES (%s,%s,%s,0,0,0)",(cid,t1,t2))
-    return [ret[0],ret[0]+tt,ret[1],ret[2],ret[3],ret[4]]
 
 cbTimes2 = [1422230400,7*86400]
 BossDatas = [[[100000,100,5],[250000,125,10],[500000,150,15],[1000000,175,20],[1500000,200,30],[2000000,225,40],[2500000,250,50],[3000000,275,60],[4000000,300,70],[5000000,325,80],[6000000,350,90],[7000000,375,100],[8000000,400,110],[9000000,425,120],[10000000,450,130],[15000000,475,140],[20000000,500,150],[25000000,525,160],[30000000,550,170],[35000000,575,180]]]
@@ -608,8 +573,6 @@ def synBossBattle2():
         if utoken==token:
             con = getConn(3)
             cur = con.cursor()
-            con3 = getConn()
-            cur3 = con3.cursor()
             cur.execute("SELECT boss,lv,hp FROM nozomi_league_boss2 WHERE id=%s AND boss=%s",(cid,boss))
             bossData = cur.fetchone()
             if bossData!=None and bossData[1]==level:
@@ -623,12 +586,9 @@ def synBossBattle2():
                     cur.execute("UPDATE nozomi_league_boss2 SET hp=if(hp>%s,hp-%s,0) WHERE id=%s AND boss=%s",(hp,hp,cid,boss))
             bscore = hp/5000
             cur.execute("UPDATE nozomi_clan SET score3=score3+%s,score4=score4+%s WHERE id=%s",(bscore,bscore,cid))
-            cur3.execute("UPDATE nozomi_clan SET score3=score3+%s,score4=score4+%s WHERE id=%s",(bscore,bscore,cid))
             cur.execute("INSERT INTO nozomi_league_boss_member2 (id,hp,chance) VALUES (%s,%s,%s) ON DUPLICATE KEY UPDATE hp=hp+VALUES(hp),chance=if(chance>1,chance-1,0)",(uid,hp,0))
             con.commit()
             cur.close()
-            con3.commit()
-            cur3.close()
             rserver.zincrby("clanRank3",cid,bscore)
             rserver.zincrby("clanRank4",cid,bscore)
     return json.dumps(dict(cbe2=1,code=0))
@@ -636,11 +596,8 @@ def synBossBattle2():
 def newInitUser(uid,plat,device,curTime):
     con = getConn(3)
     cur = con.cursor()
-    con3 = getConn()
-    cur3 = con3.cursor()
 
     platformId = platformIds.get(plat, 0)
-    cur3.execute("REPLACE INTO nozomi_user (id, account, lastSynTime, name, registerTime, score, crystal, shieldTime, platform, lastOffTime, magic, level) VALUES(%s, %s, %s, %s, %s, 0, %s, 0, %s, %s, 50, 1)", (uid, "%d-%d-%s" % (uid,platformId,device), curTime, "", curTime, 500, platformId, curTime))
     cur.execute("REPLACE INTO nozomi_rank (uid, score) VALUES (%s, %s)",(uid, 0))
     cur.execute("REPLACE INTO nozomi_research (id, research) VALUES(%s, '[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]')", (uid,))
     cur.execute("REPLACE INTO nozomi_user_state (uid, score, shieldTime, onlineTime, attackTime) VALUES (%s, %s, 0, 0, 0)", (uid, 0))
@@ -651,8 +608,6 @@ def newInitUser(uid,plat,device,curTime):
     cur.executemany("INSERT IGNORE INTO nozomi_achievement (uid, achieve, level, num) VALUES (%s,%s,1,0)",params)
     con.commit()
     cur.close()
-    con3.commit()
-    cur3.close()
     updateUserBuilds(uid, dataBuilds)
     loginlogger.info("%s\t%d\treg\t%s" % (plat,uid,device))
 
@@ -840,7 +795,6 @@ def getData():
                 else:
                     info['title'] = "Thanks for update!"
                     info['text'] = "Thanks for update our new version! We send you 500 crystals as reward!"
-                update("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",(uid,3,0,500,json.dumps(info)))
                 update("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",(uid,3,0,500,json.dumps(info)), 3)
             if forceUpdate:
                 ret['forceUpdate'] = 1
@@ -907,11 +861,11 @@ def getData():
         if zdt!=None:
             data['zdt'] = zdt
         if data['clan']>0:
-            carena = queryOne("SELECT state,btime,battlers FROM nozomi_arena_prepare WHERE id=%s AND atype=%s",(data['clan'],1))
+            carena = queryOne("SELECT state,btime,battlers FROM nozomi_arena_prepare WHERE id=%s AND atype=%s",(data['clan'],1), 3)
             if carena!=None:
                 data['arena1'] = carena
             data['cbe'] = getClanBoss(data['clan'])
-        arenas = queryAll("SELECT state,btime,atype FROM nozomi_arena_prepare WHERE id=%s AND atype>=%s",(uid,2))
+        arenas = queryAll("SELECT state,btime,atype FROM nozomi_arena_prepare WHERE id=%s AND atype>=%s",(uid,2), 3)
         if arenas!=None and len(arenas)>0:
             for ainfo in arenas:
                 data['arena%d' % ainfo[2]] = [ainfo[0], ainfo[1]]
@@ -1305,7 +1259,7 @@ def getArenaBattle2():
     uid = request.args.get('uid',0,type=int)
     sid = request.args.get('sid',0,type=int)
     atype = request.args.get('atype',0,type=int)
-    con = getConn()
+    con = getConn(3)
     cur = con.cursor()
     cur.execute("SELECT aid FROM nozomi_arena_prepare WHERE id=%s AND atype=%s",(sid,atype))
     arenaInfo = cur.fetchone()
@@ -1347,7 +1301,7 @@ def nextTownData():
     utid = mdict.get("utid",0,type=int)
     tid = mdict.get("tid",0,type=int)
     utype = mdict.get('utype',0,type=int)
-    datas = queryAll("SELECT tid,name,ttype,stars,did,res,olv FROM nozomi_arena_town WHERE aid=%s AND tid!=%s AND ttype!=%s AND stars=0",(aid,tid,utype))
+    datas = queryAll("SELECT tid,name,ttype,stars,did,res,olv FROM nozomi_arena_town WHERE aid=%s AND tid!=%s AND ttype!=%s AND stars=0",(aid,tid,utype), 3)
     if datas==None:
         return json.dumps(dict(code=0))
     else:
@@ -1411,7 +1365,7 @@ def getTownData():
     aid = mdict.get("aid",0,type=int)
     utid = mdict.get("utid",0,type=int)
     tid = mdict.get("tid",0,type=int)
-    data = queryOne("SELECT name,ttype,stars,owner,did,res,olv FROM nozomi_arena_town WHERE aid=%s AND tid=%s",(aid,tid))
+    data = queryOne("SELECT name,ttype,stars,owner,did,res,olv FROM nozomi_arena_town WHERE aid=%s AND tid=%s",(aid,tid), 3)
     ret = dict(code=0)
     if not isScout:
         rserver = getRedisServer()
@@ -1459,24 +1413,19 @@ def getTownData():
 def buyArena():
     uid = request.form.get("uid",0,type=int)
     bnum = request.form.get("bnum",0,type=int)
-    con = getConn()
+    con = getConn(3)
     cur = con.cursor()
-    con3 = getConn(3)
-    cur3 = con3.cursor()
     cur.execute("SELECT rewardNums FROM nozomi_user WHERE id=%s",(uid,))
     res = cur.fetchone()
     ret = dict(code=0, bnum=bnum)
     rserver = getRedisServer()
     if bnum==res[0]+1:
         cur.execute("UPDATE nozomi_user SET rewardNums=%s WHERE id=%s", (bnum, uid))
-        cur3.execute("UPDATE nozomi_user SET rewardNums=%s WHERE id=%s", (bnum, uid))
         ccid = rserver.incr("rwdServer")
         crystal = request.form.get("crystal",0,type=int)
         ret['rewards'] = [[ccid,4,0,-crystal,'']]
         cur.execute("INSERT INTO nozomi_reward_new (id,uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s,%s)",(ccid,uid,4,0,-crystal,''))
         con.commit()
-        cur3.execute("INSERT INTO nozomi_reward_new (id,uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s,%s)",(ccid,uid,4,0,-crystal,''))
-        con3.commit()
     else:
         ret['bnum'] = res[0]
         ccid = rserver.get("rwdServer")
@@ -1487,31 +1436,25 @@ def buyArena():
             if rwds!=None:
                 ret['rewards'] = rwds
     cur.close()
-    cur3.close()
     return json.dumps(ret)
 
 @app.route("/buyHeroNum", methods=['POST'])
 def buyHeroNum():
     uid = request.form.get("uid",0,type=int)
     hnum = request.form.get("hnum",0,type=int)
-    con = getConn()
+    con = getConn(3)
     cur = con.cursor()
-    con3 = getConn(3)
-    cur3 = con3.cursor()
     cur.execute("SELECT hnum FROM nozomi_user WHERE id=%s",(uid,))
     res = cur.fetchone()
     ret = dict(code=0, hnum=hnum)
     rserver = getRedisServer()
     if hnum==res[0]+1:
         cur.execute("UPDATE nozomi_user SET hnum=%s WHERE id=%s", (hnum, uid))
-        cur3.execute("UPDATE nozomi_user SET hnum=%s WHERE id=%s", (hnum, uid))
         ccid = rserver.incr("rwdServer")
         crystal = request.form.get("crystal",0,type=int)
         ret['rewards'] = [[ccid,4,0,-crystal,'']]
         cur.execute("INSERT INTO nozomi_reward_new (id,uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s,%s)",(ccid,uid,4,0,-crystal,''))
         con.commit()
-        cur3.execute("INSERT INTO nozomi_reward_new (id,uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s,%s)",(ccid,uid,4,0,-crystal,''))
-        con3.commit()
     else:
         ret['hnum'] = res[0]
         ccid = rserver.get("rwdServer")
@@ -1661,10 +1604,8 @@ def prepareArena():
     sid = request.form.get('sid',0,type=int)
     ctime = int(time.time())
     ret = dict(code=0)
-    con = getConn()
+    con = getConn(3)
     cur = con.cursor()
-    con3 = getConn(3)
-    cur3 = con3.cursor()
     atype = request.form.get('atype',0,type=int)
     rserver = getRedisServer()
     lkakey = "lock%d_%d" % (sid,atype)
@@ -1751,28 +1692,21 @@ def prepareArena():
             ret['ccid'] = rserver.incr("rwdServer")
             ret['crystal'] = crystal
             cur.execute("INSERT INTO nozomi_reward_new (id,uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s,%s)",(ret['ccid'],uid,0,0,-crystal,''))
-            cur3.execute("INSERT INTO nozomi_reward_new (id,uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s,%s)",(ret['ccid'],uid,0,0,-crystal,''))
         if eid==0:
             cur.execute("INSERT INTO nozomi_arena_prepare (id,atype,state,btime,aid,ttype,name,battlers,rduid,crystal) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",(sid,atype,1,btime,0,tlevel,'','',uid,crystal))
-            cur3.execute("INSERT INTO nozomi_arena_prepare (id,atype,state,btime,aid,ttype,name,battlers,rduid,crystal) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",(sid,atype,1,btime,0,tlevel,'','',uid,crystal))
         else:
             aid = rserver.incr("arenaBattle")
             cur.execute("INSERT INTO nozomi_arena_prepare (id,atype,state,btime,aid,ttype,name,battlers,rduid,crystal) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",(sid,atype,2,btime,aid,tlevel,'','',uid,crystal))
-            cur3.execute("INSERT INTO nozomi_arena_prepare (id,atype,state,btime,aid,ttype,name,battlers,rduid,crystal) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",(sid,atype,2,btime,aid,tlevel,'','',uid,crystal))
             cur.execute("UPDATE nozomi_arena_prepare SET state=%s,aid=%s WHERE id=%s AND atype=%s",(2,aid,eid,tkey))
-            cur3.execute("UPDATE nozomi_arena_prepare SET state=%s,aid=%s WHERE id=%s AND atype=%s",(2,aid,eid,tkey))
             if atype>2:
                 atype = 2
             cur.execute("INSERT INTO nozomi_arena_battle (id,endTime,unum,stage,reward,winner,atype) VALUES (%s,%s,%s,%s,%s,%s,%s)",(aid,btime+battleTime,0,tlevel,reward,0,atype))
-            cur3.execute("INSERT INTO nozomi_arena_battle (id,endTime,unum,stage,reward,winner,atype) VALUES (%s,%s,%s,%s,%s,%s,%s)",(aid,btime+battleTime,0,tlevel,reward,0,atype))
             ret['aid'] = aid
         con.commit()
-        con3.commit()
         rserver.decr(lkkey)
         ret['atime'] = btime
     rserver.decr(lkakey)
     cur.close()
-    cur3.close()
     return json.dumps(ret)
 
 @app.route("/getArenaState",methods=['GET'])
@@ -1780,7 +1714,7 @@ def getArenaState():
     sid = request.args.get('sid',0,type=int)
     atype = request.args.get('atype',0,type=int)
     uid = request.args.get("uid",0,type=int)
-    r = queryOne("SELECT state,btime,battlers,aid FROM nozomi_arena_prepare WHERE id=%s AND atype=%s",(sid,atype))
+    r = queryOne("SELECT state,btime,battlers,aid FROM nozomi_arena_prepare WHERE id=%s AND atype=%s",(sid,atype), 3)
     ret = dict(code=0,atype=atype)
     if r!=None:
         ret['arena'] = r
@@ -1811,25 +1745,21 @@ def synArenaBattle2():
         rserver.incr("abnum%d_%d" % (aid,uid))
         rserver.expire("abnum%d_%d" % (aid,uid), 86400)
         return json.dumps(dict(code=0))
-    con = getConn()
+    con = getConn(3)
     cur = con.cursor()
-    con3 = getConn(3)
-    cur3 = con3.cursor()
     rsp = 0
     if stars>=1:
         rid = 0
         if 'replay' in request.form:
             rid = rserver.incr("videoServer")
-            cur3.execute("INSERT INTO nozomi_replay_%d" % (rid/1000000) + " (id,replay) VALUES (%s,%s)",(rid,request.form['replay']))
+            cur.execute("INSERT INTO nozomi_replay_%d" % (rid/1000000) + " (id,replay) VALUES (%s,%s)",(rid,request.form['replay']))
         nuget = json.loads(request.form['uget'])
         if atype==2:
             cur.execute("UPDATE nozomi_arena_town SET res=if(res>%s,res-%s,0) WHERE aid=%s AND tid=%s",(nuget[0],nuget[0],aid,tid))
-            cur3.execute("UPDATE nozomi_arena_town SET res=if(res>%s,res-%s,0) WHERE aid=%s AND tid=%s",(nuget[0],nuget[0],aid,tid))
             rsp = nuget[2]
         else:
             rsp = nuget[3]
         cur.execute("UPDATE nozomi_arena_town SET stars=%s,owner=%s,rid=%s WHERE aid=%s AND tid=%s AND stars<%s",(stars,utid,rid,aid,tid,stars))
-        cur3.execute("UPDATE nozomi_arena_town SET stars=%s,owner=%s,rid=%s WHERE aid=%s AND tid=%s AND stars<%s",(stars,utid,rid,aid,tid,stars))
         uget = rserver.get("uget%d_%d" % (aid,uid))
         if uget==None:
             rserver.set("uget%d_%d" % (aid,uid), json.dumps(nuget))
@@ -1839,9 +1769,6 @@ def synArenaBattle2():
     cur.execute("UPDATE nozomi_arena_town SET chance=if(chance>0,chance-1,%s),rsp=rsp+%s WHERE aid=%s AND tid=%s",(rnum,rsp,aid,utid))
     cur.execute("UPDATE nozomi_arena_exttown SET chance=if(chance>0,chance-1,%s),rsp=rsp+%s WHERE aid=%s AND tid=%s",(rnum,rsp,aid,utid))
     con.commit()
-    cur3.execute("UPDATE nozomi_arena_town SET chance=if(chance>0,chance-1,%s),rsp=rsp+%s WHERE aid=%s AND tid=%s",(rnum,rsp,aid,utid))
-    cur3.execute("UPDATE nozomi_arena_exttown SET chance=if(chance>0,chance-1,%s),rsp=rsp+%s WHERE aid=%s AND tid=%s",(rnum,rsp,aid,utid))
-    con3.commit()
     cur.execute("SELECT reward,unum,winner,atype,stage FROM nozomi_arena_battle WHERE id=%s", (aid, ))
     battle = cur.fetchone()
     if battle==None or battle[2]>0:
@@ -1938,25 +1865,17 @@ def synArenaBattle2():
                 rserver.delete("cleader%d_%d" % (aid,ttype+1))
                 if totalLS>0:
                     cur.execute("UPDATE nozomi_clan SET score2=score2+%s,score=score+%s WHERE id=%s",(totalLS,totalLS,tscores[ttype][3]))
-                    cur3.execute("UPDATE nozomi_clan SET score2=score2+%s,score=score+%s WHERE id=%s",(totalLS,totalLS,tscores[ttype][3]))
                     rserver.zincrby("clanRank1",tscores[ttype][3],totalLS)
                     rserver.zincrby("clanRank2",tscores[ttype][3],totalLS)
         cur.execute("UPDATE nozomi_arena_battle SET winner=%s WHERE id=%s",(winner,aid))
-        cur3.execute("UPDATE nozomi_arena_battle SET winner=%s WHERE id=%s",(winner,aid))
         cur.execute("DELETE FROM nozomi_arena_prepare WHERE aid=%s",(aid,))
-        cur3.execute("DELETE FROM nozomi_arena_prepare WHERE aid=%s",(aid,))
         cur.executemany("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",rewardList)
-        cur3.executemany("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",rewardList)
         if atype==1 and len(lscoreList)>0:
             cur.executemany("UPDATE nozomi_user SET lscore=lscore+%s WHERE id=%s",lscoreList)
-            cur3.executemany("UPDATE nozomi_user SET lscore=lscore+%s WHERE id=%s",lscoreList)
         if atype==1:
             cur.execute("REPLACE INTO nozomi_clan_cold (coldKey,coldTime) VALUES (%s,%s)",(tscores[0][3]+tscores[1][3],int(time.time())+2*86400))
-            cur3.execute("REPLACE INTO nozomi_clan_cold (coldKey,coldTime) VALUES (%s,%s)",(tscores[0][3]+tscores[1][3],int(time.time())+2*86400))
         con.commit()
-        con3.commit()
         cur.close()
-        cur3.close()
         rserver.delete("abnum%d" % aid)
     return json.dumps(dict(code=0))
 
@@ -2020,7 +1939,6 @@ def updateUserRG(rserver, uid, nscore, cur, ol):
     nl = (nl2+2)/3
     if nl2!=ol:
         cur.execute("UPDATE nozomi_user SET uglevel=%s WHERE id=%s",(nl2, uid))
-        update("UPDATE nozomi_user SET uglevel=%s WHERE id=%s",(nl2, uid), 3)
         if ol>0 and nl2!=ol:
             rserver.zrem("urn%d" % ol, uid)
     if nl2>0:
@@ -2063,7 +1981,7 @@ def synBattleData():
         if curScore!=baseScore:
             return json.dumps(dict(code=1, reason="duplicate request"))
         elif incScore!=0:
-            con = getConn()
+            con = getConn(3)
             cur = con.cursor()
             rserver = getRedisServer()
             baseScore -= incScore
@@ -2086,13 +2004,6 @@ def synBattleData():
             cur.executemany("update nozomi_user set score=%s where id=%s", scores)
             con.commit()
             cur.close()
-            con3 = getConn(3)
-            cur3 = con3.cursor()
-            cur3.executemany("update nozomi_rank set score=%s where uid=%s", scores)
-            cur3.executemany("update nozomi_user_state set score=%s where uid=%s", scores)
-            cur3.executemany("update nozomi_user set score=%s where id=%s", scores)
-            con3.commit()
-            cur3.close()
     if isNormal(eid):
         if 'eupdate' in request.form:
             up = None
@@ -2119,10 +2030,7 @@ def synBattleData():
             rserver = getRedisServer()
         if 'replay' in request.form:
             videoId = rserver.incr("videoServer")
-            if videoId<15000000:
-                update("INSERT INTO nozomi_replay_%d" % (videoId/1000000) + " (id,replay) VALUES (%s,%s)",(videoId,request.form['replay']),2)
-            else:
-                update("INSERT INTO nozomi_replay_%d" % (videoId/1000000) + " (id,replay) VALUES (%s,%s)",(videoId,request.form['replay']),3)
+            update("INSERT INTO nozomi_replay_%d" % (videoId/1000000) + " (id,replay) VALUES (%s,%s)",(videoId,request.form['replay']),3)
         if len(history)==11:
             udata = getUserInfos(uid)
             history.append(udata['totalCrystal'])
@@ -2233,10 +2141,8 @@ def sendLeagueAd():
     cost = request.form.get("cost",0,type=int)
     t = int(time.time())
     ret = dict(code=0)
-    con = getConn()
+    con = getConn(3)
     cur = con.cursor()
-    con3 = getConn(3)
-    cur3 = con3.cursor()
     rserver = getRedisServer()
     ccd = rserver.incr("ladCD%d" % cid)
     if ccd==1:
@@ -2252,16 +2158,12 @@ def sendLeagueAd():
         cur.execute("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",(uid,4,0,-cost,''))
         cur.execute("REPLACE INTO nozomi_league_ads (cid,name,text,btime,etime,adnum) VALUES (%s,%s,%s,%s,%s,%s)", (cid,name,text,t,t+3600,0))
         con.commit()
-        cur3.execute("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",(uid,4,0,-cost,''))
-        cur3.execute("REPLACE INTO nozomi_league_ads (cid,name,text,btime,etime,adnum) VALUES (%s,%s,%s,%s,%s,%s)", (cid,name,text,t,t+3600,0))
-        con3.commit()
         ret['crystal'] = cost
         ret['ccid'] = ccid
         ret['ad'] = [cid,name,text,t,t+3600]
     else:
         ret["code"] = 1
     cur.close()
-    cur3.close()
     return json.dumps(ret)
 
 @app.route("/getRandomClans", methods=['GET'])
@@ -2386,7 +2288,6 @@ def checkMask():
     elif reward<5:
         reward = 5
     if (umask&mask)==0:
-        update("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)", (uid,0,0,reward,''))
         update("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)", (uid,0,0,reward,''), 3)
         update("REPLACE INTO nozomi_user_mask (id,mask) VALUES (%s,%s)", (uid, umask|mask), 3)
         return json.dumps(dict(code=0, rewards=getUserRewardsNew(uid)))
@@ -2398,7 +2299,7 @@ def getRewards():
     if uid==0:
         return json.dumps(dict(code=1))
     else:
-        l = queryOne("select lastOffTime from nozomi_user where id=%s", (uid,))
+        l = queryOne("select lastOffTime from nozomi_user where id=%s", (uid,), 3)
         if l==None:
             return json.dumps(dict(code=1))
         return json.dumps(dict(code=0, rewards=getUserRewardsNew(uid), offtime=l[0]))

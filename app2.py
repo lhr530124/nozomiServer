@@ -98,7 +98,7 @@ def getRank():
     if uid>0 and num>0:
         rserver = getServer()
         srank = rserver.zrevrank(rankMode, uid)
-        con = getConn()
+        con = getConn(3)
         cur = con.cursor()
         allUsers = []
         uids = rserver.zrevrange(rankMode, 0, num-1, True)
@@ -137,7 +137,7 @@ def getClanRank():
         srank = None
         if cid>0:
             srank = rserver.zrevrank(rankMode, cid)
-        con = getConn()
+        con = getConn(3)
         cur = con.cursor()
         allClans = []
         cids = rserver.zrevrange(rankMode, 0, num-1, True)
