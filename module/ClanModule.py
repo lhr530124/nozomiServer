@@ -23,7 +23,7 @@ def searchClans(text):
 
 def createClan(uid, icon, ltype, name, desc, minScore):
     id = insertAndGetId("INSERT INTO `nozomi_clan` (icon, score, type, name, `desc`, members, `min`, creator, state, statetime) VALUES(%s,0,%s,%s,%s,1,%s,%s,0,0)", (icon, ltype, name, desc, minScore, uid))
-    update("INSERT INTO `nozomi_clan` (id, icon, score, type, name, `desc`, members, `min`, creator, state, statetime) VALUES(%s,%s,0,%s,%s,%s,1,%s,%s,0,0)", (id, icon, ltype, name, desc, minScore, uid))
+    update("INSERT INTO `nozomi_clan` (id, icon, score, type, name, `desc`, members, `min`, creator, state, statetime) VALUES(%s,%s,0,%s,%s,%s,1,%s,%s,0,0)", (id, icon, ltype, name, desc, minScore, uid), 3)
     update("UPDATE `nozomi_user` SET clan=%s, memberType=2 WHERE id=%s", (id, uid))
     update("UPDATE `nozomi_user` SET clan=%s, memberType=2 WHERE id=%s", (id, uid), 3)
     return id
