@@ -518,9 +518,9 @@ def challengeClanBoss2():
     if cid>0 and uid>0 and boss>0:
         t = int(time.time())
         ret = dict(code=0)
-        while cbTimes2[0]+cbTimes[1]<=t:
-            cbTimes2[0] += cbTimes[1]
-        if cbTimes2[0]+cbTimes[1]-3600<t:
+        while cbTimes2[0]+cbTimes2[1]<=t:
+            cbTimes2[0] += cbTimes2[1]
+        if cbTimes2[0]+cbTimes2[1]-3600<t:
             ret["code"] = 1
             ret["stime"] = cbTimes2[0]
             ret["itime"] = cbTimes2[1]
