@@ -841,6 +841,7 @@ def getData():
                     info['title'] = "Thanks for update!"
                     info['text'] = "Thanks for update our new version! We send you 500 crystals as reward!"
                 update("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",(uid,3,0,500,json.dumps(info)))
+                update("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",(uid,3,0,500,json.dumps(info)), 3)
             if forceUpdate:
                 ret['forceUpdate'] = 1
                 ret['button2'] = ""
@@ -895,7 +896,7 @@ def getData():
         if sversion>=23:
             data['nacts'] = getNewActivitys(sversion,t)
         data['tours'] = getNewTours(t)
-        data['utours'] = queryAll("SELECT tid,tstage,trank,ttype,star FROM nozomi_user_tour WHERE id=%s",(uid,))
+        data['utours'] = queryAll("SELECT tid,tstage,trank,ttype,star FROM nozomi_user_tour WHERE id=%s",(uid,), 3)
         objs = queryOne("SELECT objs FROM nozomi_user_objs WHERE id=%s AND id2=0",(uid,), 3)
         if objs==None:
             objs = []
@@ -1538,7 +1539,6 @@ def prepareTour():
             break
     if tour==None or tour[4]+tour[7]<=t:
         return json.dumps(dict(code=1))
-    update("REPLACE INTO nozomi_user_tour (id,tid,tstage,trank,ttype,star) VALUES (%s,%s,%s,%s,%s,%s)",(uid,tid,0,0,1,0))
     update("REPLACE INTO nozomi_user_tour (id,tid,tstage,trank,ttype,star) VALUES (%s,%s,%s,%s,%s,%s)",(uid,tid,0,0,1,0), 3)
     return json.dumps(dict(code=0,tour=[tid,0,0,1,0]))
 
@@ -1548,7 +1548,7 @@ def getTourBattleData():
     tid = request.args.get("tid",0,type=int)
     if uid==0 or tid==0:
         return json.dumps(dict(code=1))
-    con = getConn()
+    con = getConn(3)
     cur = con.cursor()
     cur.execute("SELECT tid,tstage,trank,ttype,star,tbid FROM nozomi_user_tour WHERE id=%s AND tid=%s",(uid,tid))
     tour = cur.fetchone()
@@ -1568,7 +1568,7 @@ def getTourEnemy():
     tstage = request.args.get("tstage",0,type=int)
     if uid==0 or tid==0 or tstage==0 or eid==0:
         return json.dumps(dict(code=1))
-    con = getConn()
+    con = getConn(3)
     cur = con.cursor()
     cur.execute("SELECT tbid FROM nozomi_user_tour WHERE id=%s AND tid=%s", (uid,tid))
     tbid = cur.fetchone()
@@ -1633,33 +1633,24 @@ def synTourBattle():
     if rvalue>1:
         return json.dumps(dict(code=0))
     ct = int(time.time())
-    con = getConn()
+    con = getConn(3)
     cur = con.cursor()
-    con3 = getConn(3)
-    cur3 = con3.cursor()
     addStar = 1
     addUid = eid
 
     rid = rserver.incr("videoServer")
-    cur3.execute("INSERT INTO nozomi_replay_%d" % (rid/1000000) + " (id,replay) VALUES (%s,%s)",(rid,replay))
+    cur.execute("INSERT INTO nozomi_replay_%d" % (rid/1000000) + " (id,replay) VALUES (%s,%s)",(rid,replay))
     cur.execute("INSERT IGNORE INTO nozomi_tour_cold (tbid,uid,eid,rid) VALUES (%s,%s,%s,%s)",(tbid,uid,eid,rid))
-    cur3.execute("INSERT IGNORE INTO nozomi_tour_cold (tbid,uid,eid,rid) VALUES (%s,%s,%s,%s)",(tbid,uid,eid,rid))
     if stars>0:
         addStar = stars*2-1
         addUid = uid
         cur.execute("UPDATE nozomi_tour_battle SET atk=atk+%s,star=star+%s,stime=%s WHERE tbid=%s AND id=%s",(1,addStar,ct,tbid,uid))
         cur.execute("UPDATE nozomi_tour_battle SET rid=%s WHERE tbid=%s AND id=%s",(rid,tbid,eid))
-        cur3.execute("UPDATE nozomi_tour_battle SET atk=atk+%s,star=star+%s,stime=%s WHERE tbid=%s AND id=%s",(1,addStar,ct,tbid,uid))
-        cur3.execute("UPDATE nozomi_tour_battle SET rid=%s WHERE tbid=%s AND id=%s",(rid,tbid,eid))
     else:
         cur.execute("UPDATE nozomi_tour_battle SET def=def+%s,star=star+%s,stime=%s WHERE tbid=%s AND id=%s",(1,1,ct,tbid,eid))
-        cur3.execute("UPDATE nozomi_tour_battle SET def=def+%s,star=star+%s,stime=%s WHERE tbid=%s AND id=%s",(1,1,ct,tbid,eid))
     cur.execute("UPDATE nozomi_user_tour SET star=star+%s WHERE id=%s AND tid=%s",(addStar,addUid,tid))
-    cur3.execute("UPDATE nozomi_user_tour SET star=star+%s WHERE id=%s AND tid=%s",(addStar,addUid,tid))
     con.commit()
-    con3.commit()
     cur.close()
-    cur3.close()
     return json.dumps(dict(code=0))
 
 ArenaGroups = [[0,5,6,7,8,9,10],[0,27,32,37,50,77,82,87,100]]
@@ -1672,6 +1663,8 @@ def prepareArena():
     ret = dict(code=0)
     con = getConn()
     cur = con.cursor()
+    con3 = getConn(3)
+    cur3 = con3.cursor()
     atype = request.form.get('atype',0,type=int)
     rserver = getRedisServer()
     lkakey = "lock%d_%d" % (sid,atype)
@@ -1758,21 +1751,28 @@ def prepareArena():
             ret['ccid'] = rserver.incr("rwdServer")
             ret['crystal'] = crystal
             cur.execute("INSERT INTO nozomi_reward_new (id,uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s,%s)",(ret['ccid'],uid,0,0,-crystal,''))
+            cur3.execute("INSERT INTO nozomi_reward_new (id,uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s,%s)",(ret['ccid'],uid,0,0,-crystal,''))
         if eid==0:
             cur.execute("INSERT INTO nozomi_arena_prepare (id,atype,state,btime,aid,ttype,name,battlers,rduid,crystal) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",(sid,atype,1,btime,0,tlevel,'','',uid,crystal))
+            cur3.execute("INSERT INTO nozomi_arena_prepare (id,atype,state,btime,aid,ttype,name,battlers,rduid,crystal) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",(sid,atype,1,btime,0,tlevel,'','',uid,crystal))
         else:
             aid = rserver.incr("arenaBattle")
             cur.execute("INSERT INTO nozomi_arena_prepare (id,atype,state,btime,aid,ttype,name,battlers,rduid,crystal) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",(sid,atype,2,btime,aid,tlevel,'','',uid,crystal))
+            cur3.execute("INSERT INTO nozomi_arena_prepare (id,atype,state,btime,aid,ttype,name,battlers,rduid,crystal) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",(sid,atype,2,btime,aid,tlevel,'','',uid,crystal))
             cur.execute("UPDATE nozomi_arena_prepare SET state=%s,aid=%s WHERE id=%s AND atype=%s",(2,aid,eid,tkey))
+            cur3.execute("UPDATE nozomi_arena_prepare SET state=%s,aid=%s WHERE id=%s AND atype=%s",(2,aid,eid,tkey))
             if atype>2:
                 atype = 2
             cur.execute("INSERT INTO nozomi_arena_battle (id,endTime,unum,stage,reward,winner,atype) VALUES (%s,%s,%s,%s,%s,%s,%s)",(aid,btime+battleTime,0,tlevel,reward,0,atype))
+            cur3.execute("INSERT INTO nozomi_arena_battle (id,endTime,unum,stage,reward,winner,atype) VALUES (%s,%s,%s,%s,%s,%s,%s)",(aid,btime+battleTime,0,tlevel,reward,0,atype))
             ret['aid'] = aid
         con.commit()
+        con3.commit()
         rserver.decr(lkkey)
         ret['atime'] = btime
     rserver.decr(lkakey)
     cur.close()
+    cur3.close()
     return json.dumps(ret)
 
 @app.route("/getArenaState",methods=['GET'])
@@ -1813,22 +1813,23 @@ def synArenaBattle2():
         return json.dumps(dict(code=0))
     con = getConn()
     cur = con.cursor()
+    con3 = getConn(3)
+    cur3 = con3.cursor()
     rsp = 0
     if stars>=1:
         rid = 0
         if 'replay' in request.form:
             rid = rserver.incr("videoServer")
-            if rid>=15000000:
-                update("INSERT INTO nozomi_replay_%d" % (rid/1000000) + " (id,replay) VALUES (%s,%s)",(rid,request.form['replay']),3)
-            else:
-                update("INSERT INTO nozomi_replay_%d" % (rid/1000000) + " (id,replay) VALUES (%s,%s)",(rid,request.form['replay']),2)
+            cur3.execute("INSERT INTO nozomi_replay_%d" % (rid/1000000) + " (id,replay) VALUES (%s,%s)",(rid,request.form['replay']))
         nuget = json.loads(request.form['uget'])
         if atype==2:
             cur.execute("UPDATE nozomi_arena_town SET res=if(res>%s,res-%s,0) WHERE aid=%s AND tid=%s",(nuget[0],nuget[0],aid,tid))
+            cur3.execute("UPDATE nozomi_arena_town SET res=if(res>%s,res-%s,0) WHERE aid=%s AND tid=%s",(nuget[0],nuget[0],aid,tid))
             rsp = nuget[2]
         else:
             rsp = nuget[3]
         cur.execute("UPDATE nozomi_arena_town SET stars=%s,owner=%s,rid=%s WHERE aid=%s AND tid=%s AND stars<%s",(stars,utid,rid,aid,tid,stars))
+        cur3.execute("UPDATE nozomi_arena_town SET stars=%s,owner=%s,rid=%s WHERE aid=%s AND tid=%s AND stars<%s",(stars,utid,rid,aid,tid,stars))
         uget = rserver.get("uget%d_%d" % (aid,uid))
         if uget==None:
             rserver.set("uget%d_%d" % (aid,uid), json.dumps(nuget))
@@ -1838,6 +1839,9 @@ def synArenaBattle2():
     cur.execute("UPDATE nozomi_arena_town SET chance=if(chance>0,chance-1,%s),rsp=rsp+%s WHERE aid=%s AND tid=%s",(rnum,rsp,aid,utid))
     cur.execute("UPDATE nozomi_arena_exttown SET chance=if(chance>0,chance-1,%s),rsp=rsp+%s WHERE aid=%s AND tid=%s",(rnum,rsp,aid,utid))
     con.commit()
+    cur3.execute("UPDATE nozomi_arena_town SET chance=if(chance>0,chance-1,%s),rsp=rsp+%s WHERE aid=%s AND tid=%s",(rnum,rsp,aid,utid))
+    cur3.execute("UPDATE nozomi_arena_exttown SET chance=if(chance>0,chance-1,%s),rsp=rsp+%s WHERE aid=%s AND tid=%s",(rnum,rsp,aid,utid))
+    con3.commit()
     cur.execute("SELECT reward,unum,winner,atype,stage FROM nozomi_arena_battle WHERE id=%s", (aid, ))
     battle = cur.fetchone()
     if battle==None or battle[2]>0:
@@ -1934,18 +1938,25 @@ def synArenaBattle2():
                 rserver.delete("cleader%d_%d" % (aid,ttype+1))
                 if totalLS>0:
                     cur.execute("UPDATE nozomi_clan SET score2=score2+%s,score=score+%s WHERE id=%s",(totalLS,totalLS,tscores[ttype][3]))
-                    update("UPDATE nozomi_clan SET score2=score2+%s,score=score+%s WHERE id=%s",(totalLS,totalLS,tscores[ttype][3]), 3)
+                    cur3.execute("UPDATE nozomi_clan SET score2=score2+%s,score=score+%s WHERE id=%s",(totalLS,totalLS,tscores[ttype][3]))
                     rserver.zincrby("clanRank1",tscores[ttype][3],totalLS)
                     rserver.zincrby("clanRank2",tscores[ttype][3],totalLS)
         cur.execute("UPDATE nozomi_arena_battle SET winner=%s WHERE id=%s",(winner,aid))
+        cur3.execute("UPDATE nozomi_arena_battle SET winner=%s WHERE id=%s",(winner,aid))
         cur.execute("DELETE FROM nozomi_arena_prepare WHERE aid=%s",(aid,))
+        cur3.execute("DELETE FROM nozomi_arena_prepare WHERE aid=%s",(aid,))
         cur.executemany("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",rewardList)
+        cur3.executemany("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",rewardList)
         if atype==1 and len(lscoreList)>0:
             cur.executemany("UPDATE nozomi_user SET lscore=lscore+%s WHERE id=%s",lscoreList)
-            executemany("UPDATE nozomi_user SET lscore=lscore+%s WHERE id=%s",lscoreList,3)
+            cur3.executemany("UPDATE nozomi_user SET lscore=lscore+%s WHERE id=%s",lscoreList)
         if atype==1:
             cur.execute("REPLACE INTO nozomi_clan_cold (coldKey,coldTime) VALUES (%s,%s)",(tscores[0][3]+tscores[1][3],int(time.time())+2*86400))
+            cur3.execute("REPLACE INTO nozomi_clan_cold (coldKey,coldTime) VALUES (%s,%s)",(tscores[0][3]+tscores[1][3],int(time.time())+2*86400))
         con.commit()
+        con3.commit()
+        cur.close()
+        cur3.close()
         rserver.delete("abnum%d" % aid)
     return json.dumps(dict(code=0))
 
@@ -2211,7 +2222,7 @@ def getClanDetails():
 @app.route("/getLeagueAds", methods=['GET'])
 def getLeagueAds():
     t = int(time.time())
-    return json.dumps(queryAll("SELECT c.id, c.name, a.text, a.btime, a.etime, c.score2 FROM nozomi_clan as c, nozomi_league_ads as a WHERE a.etime>=%s AND c.id=a.cid AND c.members>0 ORDER BY a.etime ASC LIMIT 5",(t,)))
+    return json.dumps(queryAll("SELECT c.id, c.name, a.text, a.btime, a.etime, c.score2 FROM nozomi_clan as c, nozomi_league_ads as a WHERE a.etime>=%s AND c.id=a.cid AND c.members>0 ORDER BY a.etime ASC LIMIT 5",(t,), 3))
 
 @app.route("/sendLeagueAd", methods=['POST'])
 def sendLeagueAd():
@@ -2224,6 +2235,8 @@ def sendLeagueAd():
     ret = dict(code=0)
     con = getConn()
     cur = con.cursor()
+    con3 = getConn(3)
+    cur3 = con3.cursor()
     rserver = getRedisServer()
     ccd = rserver.incr("ladCD%d" % cid)
     if ccd==1:
@@ -2239,13 +2252,16 @@ def sendLeagueAd():
         cur.execute("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",(uid,4,0,-cost,''))
         cur.execute("REPLACE INTO nozomi_league_ads (cid,name,text,btime,etime,adnum) VALUES (%s,%s,%s,%s,%s,%s)", (cid,name,text,t,t+3600,0))
         con.commit()
-        update("REPLACE INTO nozomi_league_ads (cid,name,text,btime,etime,adnum) VALUES (%s,%s,%s,%s,%s,%s)", (cid,name,text,t,t+3600,0), 3)
+        cur3.execute("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",(uid,4,0,-cost,''))
+        cur3.execute("REPLACE INTO nozomi_league_ads (cid,name,text,btime,etime,adnum) VALUES (%s,%s,%s,%s,%s,%s)", (cid,name,text,t,t+3600,0))
+        con3.commit()
         ret['crystal'] = cost
         ret['ccid'] = ccid
         ret['ad'] = [cid,name,text,t,t+3600]
     else:
         ret["code"] = 1
     cur.close()
+    cur3.close()
     return json.dumps(ret)
 
 @app.route("/getRandomClans", methods=['GET'])
