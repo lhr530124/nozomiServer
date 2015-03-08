@@ -8,23 +8,29 @@ def getTime():
     return int(time.mktime(time.localtime())-beginTime)
 
 def newUserState(uid):
-    update("INSERT INTO nozomi_user_state (uid, score, shieldTime, onlineTime, attackTime) VALUES (%s, 500, 0, 0, 0)", (uid))
+    update("INSERT INTO nozomi_user_state (uid, score, shieldTime, onlineTime, attackTime) VALUES (%s, 500, 0, 0, 0)", (uid,))
+    update("INSERT INTO nozomi_user_state (uid, score, shieldTime, onlineTime, attackTime) VALUES (%s, 500, 0, 0, 0)", (uid,), 3)
 
 def setUserShield(uid, shieldTime):
     update("UPDATE nozomi_user_state SET shieldTime=%s WHERE uid=%s", (shieldTime-beginTime, uid))
+    update("UPDATE nozomi_user_state SET shieldTime=%s WHERE uid=%s", (shieldTime-beginTime, uid), 3)
 
 def clearUserShield(uid):
-    update("UPDATE nozomi_user_state SET shieldTime=0 WHERE uid=%s", (uid))
+    update("UPDATE nozomi_user_state SET shieldTime=0 WHERE uid=%s", (uid,))
+    update("UPDATE nozomi_user_state SET shieldTime=0 WHERE uid=%s", (uid,), 3)
 
 def updateUserOnline(uid):
     update("UPDATE nozomi_user_state SET onlineTime=%s WHERE uid=%s", (getTime()+1800, uid))
+    update("UPDATE nozomi_user_state SET onlineTime=%s WHERE uid=%s", (getTime()+1800, uid), 3)
 
 #减少通讯频率，因此每次请求仅更新一次进攻时间（随着下次请求而取消）
 def updateUserAttack(uid):
     update("UPDATE nozomi_user_state SET attackTime=%s WHERE uid=%s", (getTime()+240, uid))
+    update("UPDATE nozomi_user_state SET attackTime=%s WHERE uid=%s", (getTime()+240, uid), 3)
 
 def clearUserAttack(uid):
-    update("UPDATE nozomi_user_state SET attackTime=0 WHERE uid=%s", (uid))
+    update("UPDATE nozomi_user_state SET attackTime=0 WHERE uid=%s", (uid,))
+    update("UPDATE nozomi_user_state SET attackTime=0 WHERE uid=%s", (uid,), 3)
 
 def getUserState(uid):
     r = queryOne("SELECT shieldTime, onlineTime, attackTime FROM nozomi_user_state WHERE uid=%s", (uid))

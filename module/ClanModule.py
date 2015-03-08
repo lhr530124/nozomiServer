@@ -24,6 +24,7 @@ def searchClans(text):
 def createClan(uid, icon, ltype, name, desc, minScore):
     id = insertAndGetId("INSERT INTO `nozomi_clan` (icon, score, type, name, `desc`, members, `min`, creator, state, statetime) VALUES(%s,0,%s,%s,%s,1,%s,%s,0,0)", (icon, ltype, name, desc, minScore, uid))
     update("UPDATE `nozomi_user` SET clan=%s, memberType=2 WHERE id=%s", (id, uid))
+    update("UPDATE `nozomi_user` SET clan=%s, memberType=2 WHERE id=%s", (id, uid), 3)
     return id
 
 def editClan(cid, icon, ltype, name, desc, minScore):
@@ -44,9 +45,11 @@ def joinClan(uid, cid):
     if clan[6]<50 and clan[9]<2:
         if clan[7]>user[0]+100:
             update("UPDATE `nozomi_user` SET ban=2 WHERE id=%s",(uid,))
+            update("UPDATE `nozomi_user` SET ban=2 WHERE id=%s",(uid,), 3)
             return None
         clan[6] = clan[6]+1
         update("UPDATE `nozomi_user` SET clan=%s, memberType=0 WHERE id=%s", (cid, uid))
+        update("UPDATE `nozomi_user` SET clan=%s, memberType=0 WHERE id=%s", (cid, uid), 3)
         update("UPDATE `nozomi_clan` SET members=members+1 WHERE id=%s", (cid))
         return clan
     return None
@@ -55,6 +58,8 @@ def leaveClan(uid, cid):
     clan = list(getClanInfo(cid))
     con = getConn()
     cur = con.cursor()
+    con3 = getConn(3)
+    cur3 = con3.cursor()
     cur.execute("SELECT state,battlers FROM nozomi_arena_prepare WHERE id=%s AND atype=1",(cid,))
     cbinfo = cur.fetchone()
     if cbinfo!=None:
@@ -77,15 +82,21 @@ def leaveClan(uid, cid):
         cur.execute("SELECT id FROM `nozomi_user` WHERE clan=%s AND id!=%s ORDER BY memberType,lscore DESC LIMIT 1", (cid,uid))
         nuid = cur.fetchone()[0]
         cur.execute("UPDATE nozomi_user SET memberType=%s WHERE id=%s", (2, nuid))
+        cur3.execute("UPDATE nozomi_user SET memberType=%s WHERE id=%s", (2, nuid))
     cur.execute("UPDATE nozomi_user SET clan=0, lscore=0, memberType=0 WHERE id=%s", (uid,))
     cur.execute("UPDATE `nozomi_clan` SET members=if(members>0,members-1,0), score=if(score>%s,score-%s,0) WHERE id=%s", (lscore, lscore, cid))
     con.commit()
     cur.close()
+    cur3.execute("UPDATE nozomi_user SET clan=0, lscore=0, memberType=0 WHERE id=%s", (uid,))
+    con3.commit()
+    cur3.close()
     return clan
 
 def modifyMemberType(uid, targetUid, memberType):
     con = getConn()
     cur = con.cursor()
+    con3 = getConn(3)
+    cur3 = con3.cursor()
     cur.execute("SELECT memberType,clan FROM `nozomi_user` WHERE id=%s", (uid,))
     uinfo = cur.fetchone()
     error = 0
@@ -104,8 +115,12 @@ def modifyMemberType(uid, targetUid, memberType):
             error = 2
         else:
             cur.execute("UPDATE nozomi_user SET memberType=%s WHERE id=%s",(memberType, targetUid))
+            cur3.execute("UPDATE nozomi_user SET memberType=%s WHERE id=%s",(memberType, targetUid))
             if memberType==2:
                 cur.execute("UPDATE nozomi_user SET memberType=%s WHERE id=%s",(3, uid))
+                cur3.execute("UPDATE nozomi_user SET memberType=%s WHERE id=%s",(3, uid))
             con.commit()
+            con3.commit()
     cur.close()
+    cur3.close()
     return error
