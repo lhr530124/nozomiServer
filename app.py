@@ -864,7 +864,6 @@ def getData():
             carena = queryOne("SELECT state,btime,battlers FROM nozomi_arena_prepare WHERE id=%s AND atype=%s",(data['clan'],1), 3)
             if carena!=None:
                 data['arena1'] = carena
-            data['cbe'] = getClanBoss(data['clan'])
         arenas = queryAll("SELECT state,btime,atype FROM nozomi_arena_prepare WHERE id=%s AND atype>=%s",(uid,2), 3)
         if arenas!=None and len(arenas)>0:
             for ainfo in arenas:
@@ -2191,10 +2190,10 @@ def createClan():
         return json.dumps(dict(clan=0))
     elif user['clan']!=0:
         clanInfo = ClanModule.getClanInfo(user['clan'])
-        return json.dumps(dict(clan=0, info=list(clanInfo), cbe=getClanBoss(user['clan'])))
+        return json.dumps(dict(clan=0, info=list(clanInfo)))
     else:
         ret = ClanModule.createClan(uid, icon, ltype, name, desc, minScore)
-    return json.dumps(dict(clan=ret, info=[ret, icon, 0, ltype, name, desc, 1, minScore, uid, 0, 0], cbe=getClanBoss(ret)))
+    return json.dumps(dict(clan=ret, info=[ret, icon, 0, ltype, name, desc, 1, minScore, uid, 0, 0]))
 
 @app.route("/editClan", methods=['POST'])
 def editClan():
@@ -2223,7 +2222,7 @@ def joinClan():
         return json.dumps(dict(code=1))
     ct = int(time.time())
     rserver.setex("uccold%d" % uid, 86400, ct+86400)
-    return json.dumps(dict(code=0, jcold=ct+86400, clan=ret[0], clanInfo=ret, cbe=getClanBoss(cid)))
+    return json.dumps(dict(code=0, jcold=ct+86400, clan=ret[0], clanInfo=ret))
 
 @app.route("/leaveClan", methods=['POST'])
 def leaveClan():
