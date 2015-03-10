@@ -77,9 +77,11 @@ def internalError(exception):
     ''' % (str(request.args), str(request.form), exception))
     return '', 500 
 
-GlobalValues = [None,redis.ConnectionPool(host=config.REDIS_HOST)]
+GlobalValues = [redis.ConnectionPool(host="10.168.124.83"),redis.ConnectionPool(host=config.REDIS_HOST)]
 def getRedisServer(): 
     return redis.StrictRedis(connection_pool=GlobalValues[1], db=1)
+def getRServer():
+    return redis.StrictRedis(connection_pool=GlobalValues[0])
 
 def getMyConn():
     top = _app_ctx_stack.top
@@ -552,6 +554,8 @@ def challengeClanBoss2():
                 ret["token"] = token
                 rserver = getRedisServer()
                 rserver.setex("cboss%d" % uid,60*15,token)
+                rserver2 = getRServer()
+                rserver2.setex("cboss%d" % uid,60*15,token)
             cur.close()
         return json.dumps(ret)
     else:
@@ -570,6 +574,8 @@ def synBossBattle2():
         rserver = getRedisServer()
         utoken = int(rserver.incr("cboss%d" % uid)-1)
         rserver.delete("cboss%d" % uid)
+        rserver2 = getRServer()
+        rserver2.delete("cboss%d" % uid)
         if utoken==token:
             con = getConn(3)
             cur = con.cursor()
@@ -591,6 +597,8 @@ def synBossBattle2():
             cur.close()
             rserver.zincrby("clanRank3",cid,bscore)
             rserver.zincrby("clanRank4",cid,bscore)
+            rserver2.zincrby("clanRank3",cid,bscore)
+            rserver2.zincrby("clanRank4",cid,bscore)
     return json.dumps(dict(cbe2=1,code=0))
 
 def newInitUser(uid,plat,device,curTime):
@@ -687,8 +695,8 @@ def getData():
             return json.dumps(ret)
         else:
             checkVersion = request.args.get("checkVersion", 0, type=int)
-            if checkVersion>settings[0] and platform.find("android")==-1:
-                shouldDebug = False
+            if checkVersion>20 and platform.find("android")==-1:
+                shouldDebug = True
             elif checkVersion<settings[0]:
                 stitle = "New Version!"
                 stext = "New heroes are coming! Update now!"
@@ -874,9 +882,11 @@ def getData():
         if tss!=None:
             data['tss'] = json.loads(tss[0])
         rserver = getRedisServer()
+        rserver2 = getRServer()
         rid = random.randint(0, 1000000) 
         data['treq'] = rid
         rserver.setex("utoken%d" % uid, 3600, rid)
+        rserver2.setex("utoken%d" % uid, 3600, rid)
         data['jcold'] = rserver.get("uccold%d" % uid)
         loginlogger.info("%s\t%d\tlogin\t%d\t%s" % (platform,uid,rid,deviceId))
     else:
@@ -1055,6 +1065,7 @@ def synData():
         return json.dumps({'code':2})
     if 'req' in request.form:
         rserver = getRedisServer()
+        rserver2 = getRServer()
         rid = rserver.get("utoken%d" % uid)
         if rid!=None:
             rid = int(rid)
@@ -1068,6 +1079,7 @@ def synData():
             else:
                 rid += 1
                 rserver.setex("utoken%d" % uid, 7200, rid)
+                rserver2.setex("utoken%d" % uid, 7200, rid)
         else:
             print("token out date",uid)
             testlogger.info("refuse_stat\t%d\t%s" % (uid,"Token_Timeout"))
@@ -1309,6 +1321,7 @@ def nextTownData():
     ret = dict(code=0)
     max = len(datas)
     rserver = getRedisServer()
+    rserver2 = getRServer()
     for data in datas:
         tkey = "town%d_%d" % (aid, data[0])
         tvalue = rserver.get(tkey)
@@ -1318,8 +1331,11 @@ def nextTownData():
         tvalue2 = rserver.get(tkey2)
         if tvalue2!=None:
             rserver.delete("town%d_%d" % (aid, int(tvalue2)))
+            rserver2.delete("town%d_%d" % (aid, int(tvalue2)))
         rserver.setex(tkey2, 360, str(data[0]))
         rserver.setex(tkey, 360, str(utid))
+        rserver2.setex(tkey2, 360, str(data[0]))
+        rserver2.setex(tkey, 360, str(utid))
         did = data[4]
         ret['name'] = data[1]
         ret['ttype'] = data[2]
@@ -1368,6 +1384,7 @@ def getTownData():
     ret = dict(code=0)
     if not isScout:
         rserver = getRedisServer()
+        rserver2 = getRServer()
         tkey = "town%d_%d" % (aid, tid)
         tvalue = rserver.get(tkey)
         if data[2]==3:
@@ -1382,8 +1399,11 @@ def getTownData():
             tvalue2 = rserver.get(tkey2)
             if tvalue2!=None:
                 rserver.delete("town%d_%d" % (aid, int(tvalue2)))
+                rserver2.delete("town%d_%d" % (aid, int(tvalue2)))
             rserver.setex(tkey2, 360, str(tid))
             rserver.setex(tkey, 360, str(utid))
+            rserver2.setex(tkey2, 360, str(tid))
+            rserver2.setex(tkey, 360, str(utid))
     if ret['code']==0:
         did = data[4]
         ret['name'] = data[0]
@@ -1736,14 +1756,18 @@ def synArenaBattle2():
     if tid==0 or aid==0 or utid==0:
         return json.dumps(dict(code=1))
     rserver = getRedisServer()
+    rserver2 = getRServer()
     tkey = "town%d_%d" % (aid, tid)
     rserver.delete(tkey)
     rserver.delete("atkt%d_%d" % (aid,utid))
+    rserver2.delete(tkey)
+    rserver2.delete("atkt%d_%d" % (aid,utid))
     rnum = rserver.decr("abnum%d_%d" % (aid,uid))
     if rnum<chance-1:
         rserver.incr("abnum%d_%d" % (aid,uid))
         rserver.expire("abnum%d_%d" % (aid,uid), 86400)
         return json.dumps(dict(code=0))
+    rserver2.setex("abnum%d_%d" % (aid,uid), 86400, rnum)
     con = getConn(3)
     cur = con.cursor()
     rsp = 0
@@ -1762,9 +1786,11 @@ def synArenaBattle2():
         uget = rserver.get("uget%d_%d" % (aid,uid))
         if uget==None:
             rserver.set("uget%d_%d" % (aid,uid), json.dumps(nuget))
+            rserver2.set("uget%d_%d" % (aid,uid), json.dumps(nuget))
         else:
             uget = json.loads(uget)
             rserver.set("uget%d_%d" % (aid,uid), json.dumps([uget[0]+nuget[0],uget[1]+nuget[1],uget[2]+nuget[2],uget[3]+nuget[3]]))
+            rserver2.set("uget%d_%d" % (aid,uid), json.dumps([uget[0]+nuget[0],uget[1]+nuget[1],uget[2]+nuget[2],uget[3]+nuget[3]]))
     cur.execute("UPDATE nozomi_arena_town SET chance=if(chance>0,chance-1,%s),rsp=rsp+%s WHERE aid=%s AND tid=%s",(rnum,rsp,aid,utid))
     cur.execute("UPDATE nozomi_arena_exttown SET chance=if(chance>0,chance-1,%s),rsp=rsp+%s WHERE aid=%s AND tid=%s",(rnum,rsp,aid,utid))
     con.commit()
@@ -1774,6 +1800,7 @@ def synArenaBattle2():
         cur.close()
         return json.dumps(dict(code=0))
     arenaChance = rserver.decr("abnum%d" % aid)
+    rserver2.decr("abnum%d" % aid)
     if arenaChance<=0:
         cur.execute("SELECT tid,ttype,owner,stars,did FROM nozomi_arena_town WHERE aid=%s", (aid,))
         ltowns = cur.fetchall()
@@ -1823,8 +1850,6 @@ def synArenaBattle2():
         if atype==1:
             atypeStr = "LWar"
             rwdUid = tscores[winner-1][4]
-            if rwdUid==0:
-                rwdUid = int(rserver.get("cleader%d_%d" % (aid,winner)))
         else:
             rwdUid = tscores[winner-1][3]
         for ttype in range(battle[1]):
@@ -1835,12 +1860,14 @@ def synArenaBattle2():
             totalLS = 0
             for user in ulist:
                 rserver.delete("abnum%d_%d" % (aid,user))
+                rserver2.delete("abnum%d_%d" % (aid,user))
                 uget = rserver.get("uget%d_%d" % (aid,user))
                 if uget==None:
                     uget = [0,0,0,0]
                 else:
                     uget = json.loads(uget)
                     rserver.delete("uget%d_%d" % (aid,user))
+                    rserver2.delete("uget%d_%d" % (aid,user))
                 reward2 = 0
                 if atype==2 and aresult==1:
                     reward2 = battle[0]/2
@@ -1855,17 +1882,20 @@ def synArenaBattle2():
                 rewardList.append([user,3,0,reward2,json.dumps(dict(arena2=atypeStr,aresult=aresult,ai=arenaId,ugets=ugets,ext=rewardExt))])
                 if atype==2 and ugets[2]>0:
                     rserver.zincrby("arena", user, ugets[2])
-                    awscore = rserver.zincrby("arenaRank", user, ugets[2])
+                    rserver2.zincrby("arena", user, ugets[2])
                     if battle[4]>=8:
-                        rserver.zadd("arenaRank2", awscore, user)
+                        rserver.zincrby("arenaRank2", user, ugets[2])
+                        rserver2.zincrby("arenaRank2", user, ugets[2])
                     else:
-                        rserver.zadd("arenaRank1", awscore, user)
+                        rserver.zincrby("arenaRank1", user, ugets[2])
+                        rserver2.zincrby("arenaRank1", user, ugets[2])
             if atype==1:
-                rserver.delete("cleader%d_%d" % (aid,ttype+1))
                 if totalLS>0:
                     cur.execute("UPDATE nozomi_clan SET score2=score2+%s,score=score+%s WHERE id=%s",(totalLS,totalLS,tscores[ttype][3]))
                     rserver.zincrby("clanRank1",tscores[ttype][3],totalLS)
                     rserver.zincrby("clanRank2",tscores[ttype][3],totalLS)
+                    rserver2.zincrby("clanRank1",tscores[ttype][3],totalLS)
+                    rserver2.zincrby("clanRank2",tscores[ttype][3],totalLS)
         cur.execute("UPDATE nozomi_arena_battle SET winner=%s WHERE id=%s",(winner,aid))
         cur.execute("DELETE FROM nozomi_arena_prepare WHERE aid=%s",(aid,))
         cur.executemany("INSERT INTO nozomi_reward_new (uid,type,rtype,rvalue,info) VALUES (%s,%s,%s,%s,%s)",rewardList)
@@ -1876,6 +1906,7 @@ def synArenaBattle2():
         con.commit()
         cur.close()
         rserver.delete("abnum%d" % aid)
+        rserver2.delete("abnum%d" % aid)
     return json.dumps(dict(code=0))
 
 @app.route("/synStageBattle", methods=['POST'])
@@ -1921,13 +1952,16 @@ def updateLevel():
         if awscore!=None:
             rserver.zadd("arenaRank2",awscore,uid)
             rserver.zrem("arenaRank1",uid)
+            rserver2 = getRServer()
+            rserver2.zadd("arenaRank2",awscore,uid)
+            rserver2.zrem("arenaRank1",uid)
     update("INSERT INTO nozomi_rank_new (id,tlevel,ascore,awscore,zscore,zwscore) VALUES (%s,%s,0,0,0,0) ON DUPLICATE KEY UPDATE tlevel=VALUES(tlevel)",(uid,level),3)
     return json.dumps(dict(code=0,ng2=queryAll("SELECT etime,num FROM nozomi_user_gift2 WHERE id=%s",(uid,), 3)))
 
 def isNormal(eid):
     return eid!=1
 
-def updateUserRG(rserver, uid, nscore, cur, ol):
+def updateUserRG(rserver, uid, nscore, cur, ol, rserver2):
     nl2 = 0
     if nscore>=3200:
         nl2 = 16
@@ -1940,8 +1974,10 @@ def updateUserRG(rserver, uid, nscore, cur, ol):
         cur.execute("UPDATE nozomi_user SET uglevel=%s WHERE id=%s",(nl2, uid))
         if ol>0 and nl2!=ol:
             rserver.zrem("urn%d" % ol, uid)
+            rserver2.zrem("urn%d" % ol, uid)
     if nl2>0:
         rserver.zadd("urn%d" % nl2, nscore, uid)
+        rserver2.zadd("urn%d" % nl2, nscore, uid)
     return nl2
 
 @app.route("/synBattleData", methods=['POST'])
@@ -1983,21 +2019,24 @@ def synBattleData():
             con = getConn(3)
             cur = con.cursor()
             rserver = getRedisServer()
+            rserver2 = getRServer()
             baseScore -= incScore
             if baseScore<0:
                 baseScore = 0
-            ngrank = updateUserRG(rserver, uid, baseScore, cur, uinfos['ug'])
+            ngrank = updateUserRG(rserver, uid, baseScore, cur, uinfos['ug'], rserver2)
             scores = [[baseScore, uid]]
             rserver.zadd('userRank',baseScore,uid)
+            rserver2.zadd('userRank',baseScore,uid)
             if isNormal(eid):
                 einfos = getUserInfos(eid)
                 ebaseScore = einfos['score']+incScore
                 if ebaseScore<0:
                     ebaseScore = 0
                 if einfos['ug']>0:
-                    updateUserRG(rserver, eid, ebaseScore, cur, einfos['ug'])
+                    updateUserRG(rserver, eid, ebaseScore, cur, einfos['ug'], rserver2)
                 scores.append([ebaseScore, eid])
                 rserver.zadd("userRank",ebaseScore,eid)
+                rserver2.zadd("userRank",ebaseScore,eid)
             cur.executemany("update nozomi_rank set score=%s where uid=%s", scores)
             cur.executemany("update nozomi_user_state set score=%s where uid=%s", scores)
             cur.executemany("update nozomi_user set score=%s where id=%s", scores)
@@ -2211,6 +2250,7 @@ def joinClan():
     uid = int(request.form.get('uid', 0))
     cid = int(request.form.get('cid', 0))
     rserver = getRedisServer()
+    rserver2 = getRServer()
     #jcold = rserver.get("uccold%d" % uid)
     #if jcold!=None:
     #    return json.dumps(dict(code=3))
@@ -2222,6 +2262,7 @@ def joinClan():
         return json.dumps(dict(code=1))
     ct = int(time.time())
     rserver.setex("uccold%d" % uid, 86400, ct+86400)
+    rserver2.setex("uccold%d" % uid, 86400, ct+86400)
     return json.dumps(dict(code=0, jcold=ct+86400, clan=ret[0], clanInfo=ret))
 
 @app.route("/leaveClan", methods=['POST'])
