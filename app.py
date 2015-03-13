@@ -1948,7 +1948,7 @@ def updateLevel():
     level = request.form.get("level",0,type=int)
     if level==2:
         #update("INSERT IGNORE INTO nozomi_user_gift2 (id,type,etime,num) VALUE (%s,%s,%s,%s)",(uid,level,int(time.time())+3*86400,20), 3)
-        update("INSERT IGNORE INTO nozomi_user_gift (id,rid,etime,rwd) VALUES (%s,%s,%s,%s)",(uid,1,int(time.time())+3*86400,"[100,100,-1]"))
+        update("INSERT IGNORE INTO nozomi_user_gift (id,rid,etime,rwd) VALUES (%s,%s,%s,%s)",(uid,1,int(time.time())+3*86400,"[100,100,-1]"), 3)
     elif level==8:
         rserver = getRedisServer()
         awscore = rserver.zscore("arenaRank1",uid)
