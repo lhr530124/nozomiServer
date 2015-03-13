@@ -137,7 +137,8 @@ dataBuilds = [
               [3, 130025, 2002, 1, 0, 400, "{\"resource\":500}"],
               [4, 180025, 1000, 1, 0, 400, ""],
               [5, 240023, 2004, 1, 0, 250, "{\"resource\":1}"],
-              [48, 140020, 7000, 1, 0, 0, ""],
+              [6, 190014, 2005, 1, 0, 1000, "{\"resource\":500}"],
+              [40, 140020, 7000, 1, 0, 0, ""],
               [7, 360033, 4003, 1, 0, 0, ""],
               [8, 370037, 4014, 1, 0, 0, ""],
               [9, 20002, 4003, 1, 0, 0, ""],
@@ -167,7 +168,7 @@ dataBuilds = [
               [33, 250030, 4009, 1, 0, 0, ""],
               [34, 250035, 4004, 1, 0, 0, ""],
               [35, 210038, 4008, 1, 0, 0, ""],
-              [6, 370020, 4004, 1, 0, 0, ""],
+              [39, 370020, 4004, 1, 0, 0, ""],
               [36, 370024, 4012, 1, 0, 0, ""],
               [37, 340029, 4001, 1, 0, 0, ""],
               [38, 330036, 4008, 1, 0, 0, ""]
@@ -877,6 +878,7 @@ def getData():
             for ainfo in arenas:
                 data['arena%d' % ainfo[2]] = [ainfo[0], ainfo[1]]
         if data['guide']>=1400:
+            data['ng'] = queryAll("SELECT rid,etime,rwd FROM nozomi_user_gift WHERE id=%s",(uid,), 3)
             data['ng2'] = queryAll("SELECT etime,num FROM nozomi_user_gift2 WHERE id=%s",(uid,), 3)
         tss = queryOne("SELECT skill FROM nozomi_team_skill WHERE id=%s",(uid,),3)
         if tss!=None:
@@ -1148,7 +1150,7 @@ def synData():
     if 'tss' in request.form:
         try:
             tss = json.loads(request.form['tss'])
-            update("REPLACE INTO nozomi_team_skill (id,skill) VALUES(%s,%s)",(uid,json.dumps(tss)),3)
+            update("REPLACE INTO nozomi_team_skill (id,skill) VALUES(%s,%s)",(uid,json.dumps(tss)), 3)
         except:
             testlogger.info("refuse_stat\t%d\t%s" % (uid,"Client_Data_Error4"))
             return '{"code":4}'
@@ -1945,7 +1947,8 @@ def updateLevel():
     uid = request.form.get("uid",0,type=int)
     level = request.form.get("level",0,type=int)
     if level==2:
-        update("INSERT IGNORE INTO nozomi_user_gift2 (id,type,etime,num) VALUE (%s,%s,%s,%s)",(uid,level,int(time.time())+3*86400,20), 3)
+        #update("INSERT IGNORE INTO nozomi_user_gift2 (id,type,etime,num) VALUE (%s,%s,%s,%s)",(uid,level,int(time.time())+3*86400,20), 3)
+        update("INSERT IGNORE INTO nozomi_user_gift (id,rid,etime,rwd) VALUES (%s,%s,%s,%s)",(uid,1,int(time.time())+3*86400,"[100,100,-1]"))
     elif level==8:
         rserver = getRedisServer()
         awscore = rserver.zscore("arenaRank1",uid)
@@ -1956,7 +1959,9 @@ def updateLevel():
             rserver2.zadd("arenaRank2",awscore,uid)
             rserver2.zrem("arenaRank1",uid)
     update("INSERT INTO nozomi_rank_new (id,tlevel,ascore,awscore,zscore,zwscore) VALUES (%s,%s,0,0,0,0) ON DUPLICATE KEY UPDATE tlevel=VALUES(tlevel)",(uid,level),3)
-    return json.dumps(dict(code=0,ng2=queryAll("SELECT etime,num FROM nozomi_user_gift2 WHERE id=%s",(uid,), 3)))
+    ng = queryAll("SELECT rid,etime,rwd FROM nozomi_user_gift WHERE id=%s",(uid,), 3)
+    ng2 = queryAll("SELECT etime,num FROM nozomi_user_gift2 WHERE id=%s",(uid,), 3)
+    return json.dumps(dict(code=0,ng2=ng2,ng=ng)
 
 def isNormal(eid):
     return eid!=1
