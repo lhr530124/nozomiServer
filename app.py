@@ -1961,7 +1961,7 @@ def updateLevel():
     update("INSERT INTO nozomi_rank_new (id,tlevel,ascore,awscore,zscore,zwscore) VALUES (%s,%s,0,0,0,0) ON DUPLICATE KEY UPDATE tlevel=VALUES(tlevel)",(uid,level),3)
     ng = queryAll("SELECT rid,etime,rwd FROM nozomi_user_gift WHERE id=%s",(uid,), 3)
     ng2 = queryAll("SELECT etime,num FROM nozomi_user_gift2 WHERE id=%s",(uid,), 3)
-    return json.dumps(dict(code=0,ng2=ng2,ng=ng)
+    return json.dumps(dict(code=0,ng2=ng2,ng=ng))
 
 def isNormal(eid):
     return eid!=1
