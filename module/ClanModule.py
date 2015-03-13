@@ -17,7 +17,13 @@ def searchClans(text):
     text = text.strip().replace("%","")
     if text=="":
         return None
-    return queryAll("SELECT `id`,icon,score,`type`,name,`desc`,members,`min`,creator FROM `nozomi_clan` WHERE `name` LIKE %s AND members>0 LIMIT 50", (text+"%"))
+    con = getConn()
+    cur = con.cursor()
+    cur.execute("set names utf8mb4")
+    cur.execute("SELECT `id`,icon,score,`type`,name,`desc`,members,`min`,creator FROM `nozomi_clan` WHERE `name` LIKE %s AND members>0 LIMIT 50", (text+"%"))
+    ret = cur.fetchall()
+    cur.close()
+    return ret
 
 def createClan(uid, icon, ltype, name, desc, minScore):
     id = insertAndGetId("INSERT INTO `nozomi_clan` (icon, score, type, name, `desc`, members, `min`, creator, state, statetime) VALUES(%s,0,%s,%s,%s,1,%s,%s,0,0)", (icon, ltype, name, desc, minScore, uid))

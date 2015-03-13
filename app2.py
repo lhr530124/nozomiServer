@@ -93,10 +93,11 @@ sqls = ["SELECT u.id,%s,0,u.name,u.level,u.totalCrystal,c.icon,c.name FROM nozom
 @app.route('/v2/rank', methods=['GET'])
 def getRank():
     rankMode = str(request.args['mode'])
-    ruid = int(request.args['uid'])
+    uid = int(request.args['uid'])
     num = 100
-    if ruid>0 and num>0:
+    if uid>0 and num>0:
         rserver = getServer()
+        srank = rserver.zrevrank(rankMode, uid)
         con = getConn()
         cur = con.cursor()
         allUsers = []
@@ -108,7 +109,6 @@ def getRank():
             for uid in uids:
                 cur.execute(sql,(int(uid[1]), int(uid[0])))
                 allUsers.append(cur.fetchone())
-        srank = rserver.zrevrank(rankMode, ruid)
         if srank==None or srank<num or len(allUsers)<num:
             cur.close()
             return json.dumps(allUsers)
