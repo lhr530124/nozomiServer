@@ -10,20 +10,16 @@ import json
 #clan's state 0 means free, 1 means wait to battle, 2 means in battle.
 
 def getRandomClans(score):
-    rets = queryAll("SELECT `id`,icon,score,`type`,name,`desc`,members, `min`, creator FROM `nozomi_clan` WHERE `min`<=%s AND members>=4 AND members<10 LIMIT 50", (score))
+    rets = queryAll("SELECT `id`,icon,score,`type`,name,`desc`,members, `min`, creator FROM `nozomi_clan` WHERE `min`<=%s AND members>=4 AND members<10 LIMIT 50", (score,))
+    if rets==None or len(rets)==0:
+        rets = queryAll("SELECT `id`,icon,score,`type`,name,`desc`,members, `min`, creator FROM `nozomi_clan` WHERE `min`<=%s AND members>=1 AND members<10 LIMIT 50", (score,))
     return rets
 
 def searchClans(text):
     text = text.strip().replace("%","")
     if text=="":
         return None
-    con = getConn()
-    cur = con.cursor()
-    cur.execute("set names utf8mb4")
-    cur.execute("SELECT `id`,icon,score,`type`,name,`desc`,members,`min`,creator FROM `nozomi_clan` WHERE `name` LIKE %s AND members>0 LIMIT 50", (text+"%"))
-    ret = cur.fetchall()
-    cur.close()
-    return ret
+    return queryAll("SELECT `id`,icon,score,`type`,name,`desc`,members,`min`,creator FROM `nozomi_clan` WHERE `name` LIKE %s AND members>0 LIMIT 50", (text+"%"))
 
 def createClan(uid, icon, ltype, name, desc, minScore):
     id = insertAndGetId("INSERT INTO `nozomi_clan` (icon, score, type, name, `desc`, members, `min`, creator, state, statetime) VALUES(%s,0,%s,%s,%s,1,%s,%s,0,0)", (icon, ltype, name, desc, minScore, uid))
@@ -40,18 +36,6 @@ def getClanMembers(cid):
 
 def getClanInfo(cid):
     ret = queryOne("SELECT `id`, icon, score, `type`, name, `desc`, members, `min`, creator, state, statetime FROM `nozomi_clan` WHERE id=%s", (cid))
-    return ret
-
-def getTopClans():
-    ret = queryAll("SELECT `id`, icon, score, `type`, name, `desc`, members, `min` FROM `nozomi_clan` WHERE members>0 ORDER BY score DESC LIMIT 50")
-    if ret==None:
-        ret= []
-    return ret
-
-def getTopClans2():
-    ret = queryAll("SELECT `id`, icon, score2, `type`, name, `desc`, members, `min` FROM `nozomi_clan` WHERE members>0 ORDER BY score2 DESC LIMIT 50")
-    if ret==None:
-        ret = []
     return ret
 
 def joinClan(uid, cid):
@@ -74,14 +58,12 @@ def leaveClan(uid, cid):
     cur.execute("SELECT state,battlers FROM nozomi_arena_prepare WHERE id=%s AND atype=1",(cid,))
     cbinfo = cur.fetchone()
     if cbinfo!=None:
-        if (cbinfo[0]==1 or cbinfo[1]=="") and clan[6]<5:
+        if (cbinfo[0]==1 or cbinfo[1]=="") and clan[6]<=5:
             cur.close()
             return None
-        elif cbinfo[0]==2 and cbinfo[1]!="":
-            battlers = json.loads(cbinfo[1])
-            if uid in battlers:
-                cur.close()
-                return None
+        elif cbinfo[0]==2:
+            cur.close()
+            return None
     cur.execute("SELECT lscore, memberType, clan FROM `nozomi_user` WHERE id=%s", (uid,))
     uinfo = cur.fetchone()
     lscore = uinfo[0]
@@ -97,7 +79,6 @@ def leaveClan(uid, cid):
         cur.execute("UPDATE nozomi_user SET memberType=%s WHERE id=%s", (2, nuid))
     cur.execute("UPDATE nozomi_user SET clan=0, lscore=0, memberType=0 WHERE id=%s", (uid,))
     cur.execute("UPDATE `nozomi_clan` SET members=if(members>0,members-1,0), score=if(score>%s,score-%s,0) WHERE id=%s", (lscore, lscore, cid))
-    cur.execute("DELETE FROM nozomi_league_boss_member WHERE id=%s",(uid,))
     con.commit()
     cur.close()
     return clan
